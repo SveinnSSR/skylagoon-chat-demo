@@ -1,0 +1,123 @@
+/* Navigation styles */
+.nav-link {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 8px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.nav-link:hover {
+    opacity: 0.8;
+}
+
+.book-now-button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.4s ease;
+    letter-spacing: 0.2px;
+}
+
+.book-now-button:hover {
+    border-color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-button {
+    background: none;
+    border: none;
+    color: white;
+    padding: 8px;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+}
+
+.menu-button:hover {
+    opacity: 0.8;
+}
+
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Content fade-in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.section-fade-in {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 1.2s ease;
+}
+
+.section-fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Background transition */
+.hero-section {
+    transition: background 2.5s ease;
+}
+
+/* Package cards */
+.package-card {
+    padding: 35px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    transition: all 0.5s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.package-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
+}
+
+/* Footer links */
+.footer-link {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    transition: opacity 0.3s ease;
+    font-size: 14px;
+}
+
+.footer-link:hover {
+    opacity: 0.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .nav-link, .book-now-button {
+        font-size: 13px;
+        padding: 6px 12px;
+    }
+
+    .package-card {
+        margin: 10px;
+        padding: 25px;
+    }
+    
+    .footer-link {
+        padding: 6px 12px;
+    }
+}

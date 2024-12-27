@@ -1,43 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 
-const ChatWidget = () => {
+const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
+    const messagesEndRef = React.useRef(null);
     const [isMinimized, setIsMinimized] = useState(true);
     const [messages, setMessages] = useState([{
         type: 'bot',
-        content: "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?"
+        content: language === 'en' ? 
+            "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?" :
+            "Halló! Ég væri ánægð með að aðstoða þig. Viltu vita meira um einstaka jarðsjávarlaug okkar, Sér og Saman pakkana okkar, eða hvernig þú kemst hingað?"
     }]);
     const [inputValue, setInputValue] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const TypingIndicator = () => (
+        <div style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            marginBottom: '16px',
+            alignItems: 'flex-start',
+            gap: '8px'
+        }}>
+            <img 
+                src="/skybot.png" 
+                alt="Skybot"
+                style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    marginTop: '4px'
+                }}
+            />
+            <div style={{
+                padding: '12px 16px',
+                borderRadius: '16px',
+                backgroundColor: '#f0f0f0',
+                display: 'flex',
+                gap: '4px',
+                alignItems: 'center'
+            }}>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'typing 1s infinite'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'typing 1s infinite',
+                    animationDelay: '0.2s'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'typing 1s infinite',
+                    animationDelay: '0.4s'
+                }}/>
+            </div>
+        </div>
+    );
 
     const handleSend = async () => {
         if (!inputValue.trim()) return;
 
+        const messageText = inputValue.trim();
+        setInputValue('');
+
         // Add user message
         setMessages(prev => [...prev, {
             type: 'user',
-            content: inputValue.trim()
+            content: messageText
         }]);
+        
+        // Show typing indicator
+        setIsTyping(true);
 
         try {
-            const response = await fetch('https://sky-lagoon-chat-2024.vercel.app/chat', {
+            console.log('Attempting to connect to:', process.env.REACT_APP_WEBHOOK_URL); // Debug log
+            const response = await fetch(process.env.REACT_APP_WEBHOOK_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': 'sky-lagoon-secret-2024'
+                    'x-api-key': process.env.REACT_APP_API_KEY
                 },
-                body: JSON.stringify({ message: inputValue })
-            });
+                body: JSON.stringify({ 
+                    message: messageText,
+                    language: language
+                })
+            });   
 
             const data = await response.json();
+            
+            // Hide typing indicator
+            setIsTyping(false);
+            
             setMessages(prev => [...prev, {
                 type: 'bot',
                 content: data.message
             }]);
         } catch (error) {
             console.error('Error:', error);
+            setIsTyping(false);
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: language === 'en' ? 
+                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund."
+            }]);
         }
-
-        setInputValue('');
     };
 
     return (
@@ -152,6 +239,8 @@ const ChatWidget = () => {
                                 </div>
                             </div>
                         ))}
+                        {isTyping && <TypingIndicator />}
+                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Input area */}
@@ -167,7 +256,7 @@ const ChatWidget = () => {
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Type your message..."
+                            placeholder={language === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
                             style={{
                                 flex: 1,
                                 padding: '8px 16px',
@@ -190,7 +279,7 @@ const ChatWidget = () => {
                                 fontWeight: '500'
                             }}
                         >
-                            Send
+                            {language === 'en' ? 'Send' : 'Senda'}
                         </button>
                     </div>
                 </>
