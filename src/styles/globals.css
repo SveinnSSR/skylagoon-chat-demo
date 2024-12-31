@@ -109,10 +109,11 @@ h1, h2, h3, h4, h5, h6 {
     margin-right: auto;
     border-bottom-left-radius: 4px;
     padding: 15px;
-    white-space: pre-line;
+    white-space: pre-wrap;    /* Changed from pre-line */
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 2;           /* Changed from 1.6 */
 }
+
 
 /* Seasonal headers and categories */
 .bot-message .season,
