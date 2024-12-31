@@ -103,7 +103,7 @@ h1, h2, h3, h4, h5, h6 {
     border-bottom-right-radius: 4px;
 }
 
-/* Updated Bot Message Styles */
+/* Bot Message Styles */
 .bot-message {
     background: white;
     margin-right: auto;
@@ -112,43 +112,6 @@ h1, h2, h3, h4, h5, h6 {
     white-space: pre-wrap;
     font-size: 14px;
     line-height: 1.8;
-}
-
-/* Ritual Content Styling */
-.ritual-content {
-    padding: 15px;
-    line-height: 1.8;
-}
-
-.ritual-title {
-    color: #4D5645;
-    font-weight: 600;
-    margin: 20px 0 10px 0;
-}
-
-.ritual-step {
-    background: #f9f9f9;
-    padding: 15px;
-    margin: 15px 0;
-    border-radius: 8px;
-}
-
-.ritual-temperature {
-    margin-top: 12px;
-    color: #666;
-    font-style: italic;
-    padding: 8px 15px;
-    border-left: 3px solid #4D5645;
-    background: #fff;
-    border-radius: 4px;
-}
-
-.ritual-introduction {
-    color: #4D5645;
-    font-weight: 500;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #eee;
 }
 
 /* Package and Facility Sections */

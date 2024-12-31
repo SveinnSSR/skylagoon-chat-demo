@@ -9,56 +9,46 @@ const MessageFormatter = ({ message }) => {
       lineHeight: '1.6'
     }}>
       {lines.map((line, index) => {
-        // Handle introduction (lines before first step)
-        if (!line.match(/^\d/) && !line.startsWith('Temperature')) {
+        // Handle bold text (wrapped in **)
+        if (line.includes('**')) {
+          return (
+            <div key={index} style={{
+              fontWeight: '600',
+              color: '#4D5645',
+              margin: '20px 0 10px 0'
+            }}>
+              {line.replaceAll('**', '')}
+            </div>
+          );
+        }
+        
+        // Handle bullet points
+        if (line.trim().startsWith('-')) {
+          return (
+            <div key={index} style={{
+              margin: '8px 0',
+              paddingLeft: '20px',
+              color: '#666',
+              fontStyle: line.includes('Temperature:') || line.includes('Note:') ? 'italic' : 'normal'
+            }}>
+              {line.trim()}
+            </div>
+          );
+        }
+        
+        // Regular text
+        if (line.trim()) {
           return (
             <p key={index} style={{
-              margin: '0 0 15px 0',
-              color: '#4D5645'
+              margin: '8px 0'
             }}>
               {line}
             </p>
           );
         }
         
-        // Handle step numbers and titles (lines starting with number)
-        if (line.match(/^\d/)) {
-          return (
-            <h4 key={index} style={{
-              margin: '20px 0 10px 0',
-              color: '#4D5645',
-              fontWeight: '600'
-            }}>
-              {line}
-            </h4>
-          );
-        }
-        
-        // Handle temperature lines
-        if (line.startsWith('Temperature')) {
-          return (
-            <div key={index} style={{
-              margin: '8px 0 15px 0',
-              padding: '8px 15px',
-              backgroundColor: '#f5f5f5',
-              borderLeft: '3px solid #4D5645',
-              color: '#666',
-              fontStyle: 'italic',
-              borderRadius: '4px'
-            }}>
-              {line}
-            </div>
-          );
-        }
-        
-        // Regular text lines
-        return (
-          <p key={index} style={{
-            margin: '8px 0'
-          }}>
-            {line}
-          </p>
-        );
+        // Empty lines
+        return <br key={index} />;
       })}
     </div>
   );
