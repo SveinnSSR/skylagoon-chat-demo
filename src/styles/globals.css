@@ -144,13 +144,21 @@ h1, h2, h3, h4, h5, h6 {
 /* Lists and bullets */
 .bot-message ul,
 .bot-message ol {
-    margin: 12px 0;
-    padding-left: 20px;
+    margin: 15px 0;
+    padding-left: 25px;
+    list-style-type: decimal;
 }
 
 .bot-message li {
-    margin: 8px 0;
+    margin: 15px 0;
+    padding: 10px 0;
     line-height: 1.6;
+}
+
+/* Add spacing between list items */
+.bot-message li:not(:last-child) {
+    border-bottom: 1px solid #eee;
+    margin-bottom: 15px;
 }
 
 /* Paragraphs and spacing */
@@ -165,11 +173,28 @@ h1, h2, h3, h4, h5, h6 {
     padding: 4px 0;
 }
 
-/* Ritual steps */
+/* Updated Ritual steps styling */
 .bot-message .ritual-step {
-    margin: 12px 0;
-    padding: 8px 0;
+    display: block;
+    margin: 15px 0;
+    padding: 10px 0;
     border-bottom: 1px solid #eee;
+}
+
+/* Temperature styling */
+.bot-message .temperature {
+    display: block;
+    margin-top: 8px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* Ritual section styling */
+.bot-message .ritual-section {
+    margin: 20px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 8px;
 }
 
 .chat-input-area {
