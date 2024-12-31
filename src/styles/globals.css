@@ -1,7 +1,7 @@
-/* Removed the @font-face block and just use Google Fonts for now */
+/* Google Fonts import */
 @import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
 
-/* Add a fallback for Futura */
+/* Base styles */
 body {
     margin: 0;
     padding: 0;
@@ -94,7 +94,7 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 10px;
     border-radius: 12px;
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.6;
 }
 
 .user-message {
@@ -103,10 +103,73 @@ h1, h2, h3, h4, h5, h6 {
     border-bottom-right-radius: 4px;
 }
 
+/* Updated bot message styles */
 .bot-message {
     background: white;
     margin-right: auto;
     border-bottom-left-radius: 4px;
+    padding: 15px;
+    white-space: pre-line;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Seasonal headers and categories */
+.bot-message .season,
+.bot-message .category {
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 8px;
+    color: #4D5645;
+    display: block;
+}
+
+/* Menu items and pricing */
+.bot-message .menu-item,
+.bot-message .price-item {
+    margin: 8px 0;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+/* Package and facility sections */
+.bot-message .package,
+.bot-message .facility-section {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+/* Lists and bullets */
+.bot-message ul,
+.bot-message ol {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+.bot-message li {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+
+/* Paragraphs and spacing */
+.bot-message p {
+    margin: 12px 0;
+    line-height: 1.6;
+}
+
+/* Schedule items */
+.bot-message .schedule-item {
+    margin: 10px 0;
+    padding: 4px 0;
+}
+
+/* Ritual steps */
+.bot-message .ritual-step {
+    margin: 12px 0;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
 }
 
 .chat-input-area {
