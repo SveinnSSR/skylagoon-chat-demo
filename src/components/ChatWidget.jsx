@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
+import MessageFormatter from './MessageFormatter';
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
     const messagesEndRef = React.useRef(null);
@@ -8,7 +9,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         type: 'bot',
         content: language === 'en' ? 
             "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?" :
-            "Halló! Ég væri ánægð með að aðstoða þig. Viltu vita meira um einstaka jarðsjávarlaug okkar, Sér og Saman pakkana okkar, eða hvernig þú kemst hingað?"
+            "Hæ! Hvernig get ég aðstoðað þig?"
     }]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -83,17 +84,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         const messageText = inputValue.trim();
         setInputValue('');
 
-        // Add user message
         setMessages(prev => [...prev, {
             type: 'user',
             content: messageText
         }]);
         
-        // Show typing indicator
         setIsTyping(true);
 
         try {
-            console.log('Attempting to connect to:', process.env.REACT_APP_WEBHOOK_URL); // Debug log
+            console.log('Attempting to connect to:', process.env.REACT_APP_WEBHOOK_URL);
             const response = await fetch(process.env.REACT_APP_WEBHOOK_URL, {
                 method: 'POST',
                 headers: {
@@ -107,10 +106,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             });   
 
             const data = await response.json();
-            
-            // Hide typing indicator
             setIsTyping(false);
-            
             setMessages(prev => [...prev, {
                 type: 'bot',
                 content: data.message
@@ -235,7 +231,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     fontSize: '14px',
                                     lineHeight: '1.5'
                                 }}>
-                                    {msg.content}
+                                    {msg.type === 'bot' ? (
+                                        <MessageFormatter message={msg.content} />
+                                    ) : (
+                                        msg.content
+                                    )}
                                 </div>
                             </div>
                         ))}

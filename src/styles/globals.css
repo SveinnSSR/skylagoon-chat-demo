@@ -114,15 +114,36 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.8;
 }
 
-/* New Ritual Text Formatting */
-.bot-message strong {
-    color: #4D5645;
-    font-weight: 600;
-    display: inline-block;
-    margin-top: 20px;
+/* Ritual Content Styling */
+.ritual-content {
+    padding: 15px;
+    line-height: 1.8;
 }
 
-.bot-message p:first-of-type {
+.ritual-title {
+    color: #4D5645;
+    font-weight: 600;
+    margin: 20px 0 10px 0;
+}
+
+.ritual-step {
+    background: #f9f9f9;
+    padding: 15px;
+    margin: 15px 0;
+    border-radius: 8px;
+}
+
+.ritual-temperature {
+    margin-top: 12px;
+    color: #666;
+    font-style: italic;
+    padding: 8px 15px;
+    border-left: 3px solid #4D5645;
+    background: #fff;
+    border-radius: 4px;
+}
+
+.ritual-introduction {
     color: #4D5645;
     font-weight: 500;
     margin-bottom: 25px;
@@ -130,45 +151,7 @@ h1, h2, h3, h4, h5, h6 {
     border-bottom: 1px solid #eee;
 }
 
-.bot-message p:not(:first-of-type) {
-    background: #f9f9f9;
-    padding: 15px;
-    margin: 15px 0;
-    border-radius: 8px;
-}
-
-/* Temperature and Note Styling */
-.bot-message p em {
-    display: block;
-    margin-top: 10px;
-    color: #666;
-    font-style: italic;
-    padding-left: 12px;
-    border-left: 3px solid #4D5645;
-    background: #fff;
-    padding: 8px 15px;
-    border-radius: 4px;
-}
-
-/* Seasonal headers and categories */
-.bot-message .season,
-.bot-message .category {
-    font-weight: bold;
-    margin-top: 15px;
-    margin-bottom: 8px;
-    color: #4D5645;
-    display: block;
-}
-
-/* Menu items and pricing */
-.bot-message .menu-item,
-.bot-message .price-item {
-    margin: 8px 0;
-    padding: 8px 0;
-    border-bottom: 1px solid #eee;
-}
-
-/* Package and facility sections */
+/* Package and Facility Sections */
 .bot-message .package,
 .bot-message .facility-section {
     margin: 15px 0;
@@ -177,7 +160,7 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 8px;
 }
 
-/* Lists and bullets */
+/* Lists and Spacing */
 .bot-message ul,
 .bot-message ol {
     margin: 15px 0;
@@ -191,24 +174,23 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 1.6;
 }
 
-/* Add spacing between list items */
 .bot-message li:not(:last-child) {
     border-bottom: 1px solid #eee;
     margin-bottom: 15px;
 }
 
-/* Paragraphs and spacing */
+/* General Text Elements */
 .bot-message p {
     margin: 12px 0;
     line-height: 1.6;
 }
 
-/* Schedule items */
 .bot-message .schedule-item {
     margin: 10px 0;
     padding: 4px 0;
 }
 
+/* Input Area */
 .chat-input-area {
     padding: 15px;
     background: white;
