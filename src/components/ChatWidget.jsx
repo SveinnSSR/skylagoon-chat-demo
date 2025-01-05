@@ -37,7 +37,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     width: '30px',
                     height: '30px',
                     borderRadius: '50%',
-                    marginTop: '4px'
+                    marginTop: '4px',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to image
                 }}
             />
             <div style={{
@@ -46,7 +47,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 backgroundColor: '#f0f0f0',
                 display: 'flex',
                 gap: '4px',
-                alignItems: 'center'
+                alignItems: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', // Added shadow to typing indicator
+                border: '1px solid rgba(0, 0, 0, 0.05)' // Added subtle border
             }}>
                 <span style={{
                     height: '8px',
@@ -129,12 +132,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             bottom: '20px',
             right: '20px',
             width: isMinimized ? '260px' : '400px',
-            backgroundColor: '#4D5645',
+            backgroundColor: 'rgba(77, 86, 69, 0.95)', // Added transparency
             borderRadius: isMinimized ? '40px' : '12px',
-            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)', // Enhanced shadow
+            border: '1px solid rgba(255, 255, 255, 0.1)', // Added subtle border
             fontFamily: theme.fonts.body,
             overflow: 'hidden',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
+            backdropFilter: 'blur(8px)' // Added blur effect
         }}>
             {/* Header */}
             <div 
@@ -145,10 +150,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     alignItems: 'center',
                     cursor: 'pointer',
                     gap: '12px',
-                    backgroundColor: '#4D5645',
+                    backgroundColor: 'rgba(77, 86, 69, 1)', // Solid color for header
                     width: '100%',
                     boxSizing: 'border-box',
-                    flexDirection: isMinimized ? 'row' : 'column'
+                    flexDirection: isMinimized ? 'row' : 'column',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to header
                 }}
             >
                 <img 
@@ -158,7 +164,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         height: isMinimized ? '32px' : '60px',
                         width: isMinimized ? '32px' : '60px',
                         borderRadius: '50%',
-                        objectFit: 'cover'
+                        objectFit: 'cover',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to image
                     }}
                 />
                 <div style={{
@@ -170,13 +177,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     <span style={{ 
                         color: 'white',
                         fontSize: isMinimized ? '15px' : '16px',
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
                     }}>
                         Skybot
                     </span>
                     <span style={{ 
                         color: '#e0e0e0',
-                        fontSize: isMinimized ? '13px' : '14px'
+                        fontSize: isMinimized ? '13px' : '14px',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
                     }}>
                         Sky Lagoon
                     </span>
@@ -187,7 +196,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     marginLeft: isMinimized ? 'auto' : '0',
                     position: isMinimized ? 'relative' : 'absolute',
                     right: isMinimized ? 'auto' : '16px',
-                    top: isMinimized ? 'auto' : '16px'
+                    top: isMinimized ? 'auto' : '16px',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
                 }}>
                     {isMinimized ? '△' : '▽'}
                 </span>
@@ -218,7 +228,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             width: '30px',
                                             height: '30px',
                                             borderRadius: '50%',
-                                            marginTop: '4px'
+                                            marginTop: '4px',
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow
                                         }}
                                     />
                                 )}
@@ -229,7 +240,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     backgroundColor: msg.type === 'user' ? '#4D5645' : '#f0f0f0',
                                     color: msg.type === 'user' ? 'white' : '#333333',
                                     fontSize: '14px',
-                                    lineHeight: '1.5'
+                                    lineHeight: '1.5',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', // Added shadow
+                                    border: msg.type === 'user' ? 
+                                        '1px solid rgba(255, 255, 255, 0.1)' : 
+                                        '1px solid rgba(0, 0, 0, 0.05)' // Added subtle borders
                                 }}>
                                     {msg.type === 'bot' ? (
                                         <MessageFormatter message={msg.content} />
@@ -263,7 +278,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 borderRadius: '20px',
                                 border: '1px solid #ddd',
                                 outline: 'none',
-                                fontSize: '14px'
+                                fontSize: '14px',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)' // Added subtle shadow
                             }}
                         />
                         <button
@@ -276,7 +292,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 borderRadius: '20px',
                                 cursor: 'pointer',
                                 fontSize: '14px',
-                                fontWeight: '500'
+                                fontWeight: '500',
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow
                             }}
                         >
                             {language === 'en' ? 'Send' : 'Senda'}
