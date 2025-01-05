@@ -38,7 +38,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     height: '30px',
                     borderRadius: '50%',
                     marginTop: '4px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to image
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                 }}
             />
             <div style={{
@@ -48,8 +48,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 display: 'flex',
                 gap: '4px',
                 alignItems: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', // Added shadow to typing indicator
-                border: '1px solid rgba(0, 0, 0, 0.05)' // Added subtle border
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                border: '1px solid rgba(0, 0, 0, 0.05)'
             }}>
                 <span style={{
                     height: '8px',
@@ -82,7 +82,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     );
 
     const handleSend = async () => {
-        if (!inputValue.trim()) return;
+        if (!inputValue.trim() || isTyping) return;  // Added isTyping check
 
         const messageText = inputValue.trim();
         setInputValue('');
@@ -132,14 +132,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             bottom: '20px',
             right: '20px',
             width: isMinimized ? '260px' : '400px',
-            backgroundColor: 'rgba(77, 86, 69, 0.95)', // Added transparency
+            backgroundColor: 'rgba(77, 86, 69, 0.95)',
             borderRadius: isMinimized ? '40px' : '12px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)', // Enhanced shadow
-            border: '1px solid rgba(255, 255, 255, 0.1)', // Added subtle border
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
             fontFamily: theme.fonts.body,
             overflow: 'hidden',
             transition: 'all 0.3s ease',
-            backdropFilter: 'blur(8px)' // Added blur effect
+            backdropFilter: 'blur(8px)'
         }}>
             {/* Header */}
             <div 
@@ -150,11 +150,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     alignItems: 'center',
                     cursor: 'pointer',
                     gap: '12px',
-                    backgroundColor: 'rgba(77, 86, 69, 1)', // Solid color for header
+                    backgroundColor: 'rgba(77, 86, 69, 1)',
                     width: '100%',
                     boxSizing: 'border-box',
                     flexDirection: isMinimized ? 'row' : 'column',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to header
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                 }}
             >
                 <img 
@@ -165,7 +165,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         width: isMinimized ? '32px' : '60px',
                         borderRadius: '50%',
                         objectFit: 'cover',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow to image
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                     }}
                 />
                 <div style={{
@@ -178,14 +178,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         color: 'white',
                         fontSize: isMinimized ? '15px' : '16px',
                         fontWeight: '500',
-                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
                         Skybot
                     </span>
                     <span style={{ 
                         color: '#e0e0e0',
                         fontSize: isMinimized ? '13px' : '14px',
-                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
                         Sky Lagoon
                     </span>
@@ -197,7 +197,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     position: isMinimized ? 'relative' : 'absolute',
                     right: isMinimized ? 'auto' : '16px',
                     top: isMinimized ? 'auto' : '16px',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)' // Added text shadow
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                 }}>
                     {isMinimized ? '△' : '▽'}
                 </span>
@@ -229,7 +229,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             height: '30px',
                                             borderRadius: '50%',
                                             marginTop: '4px',
-                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                                         }}
                                     />
                                 )}
@@ -241,10 +241,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     color: msg.type === 'user' ? 'white' : '#333333',
                                     fontSize: '14px',
                                     lineHeight: '1.5',
-                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', // Added shadow
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
-                                        '1px solid rgba(0, 0, 0, 0.05)' // Added subtle borders
+                                        '1px solid rgba(0, 0, 0, 0.05)'
                                 }}>
                                     {msg.type === 'bot' ? (
                                         <MessageFormatter message={msg.content} />
@@ -270,8 +270,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder={language === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
+                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
+                            placeholder={isTyping ? 
+                                (language === 'en' ? "Please wait for response..." : "Bíddu eftir svari...") : 
+                                (language === 'en' ? "Type your message..." : "Skrifaðu skilaboð...")}
+                            disabled={isTyping}
                             style={{
                                 flex: 1,
                                 padding: '8px 16px',
@@ -279,21 +282,26 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 border: '1px solid #ddd',
                                 outline: 'none',
                                 fontSize: '14px',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)' // Added subtle shadow
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                                backgroundColor: isTyping ? '#f5f5f5' : 'white',
+                                cursor: isTyping ? 'not-allowed' : 'text'
                             }}
                         />
                         <button
                             onClick={handleSend}
+                            disabled={isTyping}
                             style={{
-                                backgroundColor: '#4D5645',
+                                backgroundColor: isTyping ? '#a0a0a0' : '#4D5645',
                                 color: 'white',
                                 border: 'none',
                                 padding: '8px 20px',
                                 borderRadius: '20px',
-                                cursor: 'pointer',
+                                cursor: isTyping ? 'not-allowed' : 'pointer',
                                 fontSize: '14px',
                                 fontWeight: '500',
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' // Added shadow
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                opacity: isTyping ? 0.7 : 1,
+                                transition: 'all 0.3s ease'
                             }}
                         >
                             {language === 'en' ? 'Send' : 'Senda'}
