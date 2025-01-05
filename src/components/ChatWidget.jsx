@@ -82,7 +82,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     );
 
     const handleSend = async () => {
-        if (!inputValue.trim() || isTyping) return;  // Added isTyping check
+        if (!inputValue.trim() || isTyping) return;
 
         const messageText = inputValue.trim();
         setInputValue('');
@@ -271,10 +271,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
-                            placeholder={isTyping ? 
-                                (language === 'en' ? "Please wait for response..." : "Bíddu eftir svari...") : 
-                                (language === 'en' ? "Type your message..." : "Skrifaðu skilaboð...")}
-                            disabled={isTyping}
+                            placeholder={language === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
                             style={{
                                 flex: 1,
                                 padding: '8px 16px',
@@ -283,8 +280,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 outline: 'none',
                                 fontSize: '14px',
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                                backgroundColor: isTyping ? '#f5f5f5' : 'white',
-                                cursor: isTyping ? 'not-allowed' : 'text'
                             }}
                         />
                         <button
@@ -296,7 +291,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 border: 'none',
                                 padding: '8px 20px',
                                 borderRadius: '20px',
-                                cursor: isTyping ? 'not-allowed' : 'pointer',
+                                cursor: isTyping ? 'default' : 'pointer',
                                 fontSize: '14px',
                                 fontWeight: '500',
                                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
