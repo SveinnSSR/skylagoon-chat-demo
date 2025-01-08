@@ -14,12 +14,12 @@ const Layout = ({ webhookUrl, apiKey }) => {
     ];
 
     return (
-        <div className="h-screen bg-[#f5f5f3] flex justify-center">
-            {/* Main content container */}
-            <div className="flex max-w-6xl w-full">
-                {/* Menu side */}
-                <div className="w-[400px] flex-shrink-0">
-                    {/* Language */}
+        <div className="h-screen bg-[#f5f5f3]">
+            {/* Main content wrapper */}
+            <div className="max-w-[1400px] h-full mx-auto flex">
+                {/* Left Side - Menu */}
+                <div className="w-[600px] flex-shrink-0">
+                    {/* Language selector */}
                     <div className="p-8">
                         <button className="text-[#4D5645]">IS / EN</button>
                         <button className="ml-4 text-[#4D5645]">KR ISK</button>
@@ -36,15 +36,19 @@ const Layout = ({ webhookUrl, apiKey }) => {
                                     >
                                         <div className="flex justify-between items-center">
                                             {item.label}
-                                            {item.subItems && <ChevronDown className="text-[#4D5645]" />}
+                                            {item.subItems && (
+                                                <ChevronDown className={`transform transition-transform ${
+                                                    expandedItem === item.id ? 'rotate-180' : ''
+                                                }`} />
+                                            )}
                                         </div>
                                     </button>
                                     {item.subItems && expandedItem === item.id && (
-                                        <div className="mt-4 ml-4">
+                                        <div className="mt-4 ml-4 space-y-3">
                                             {item.subItems.map(subItem => (
                                                 <button 
                                                     key={subItem} 
-                                                    className="block text-[#4D5645] mb-3 hover:opacity-70"
+                                                    className="block text-[#4D5645] hover:opacity-70"
                                                 >
                                                     {subItem}
                                                 </button>
@@ -57,8 +61,8 @@ const Layout = ({ webhookUrl, apiKey }) => {
                     </div>
                 </div>
 
-                {/* Image side */}
-                <div className="flex-1">
+                {/* Right Side - Image */}
+                <div className="flex-1 h-full">
                     <img 
                         src="/Sky_Lagoon_Ritual.jpg"
                         alt="Sky Lagoon" 
@@ -67,6 +71,7 @@ const Layout = ({ webhookUrl, apiKey }) => {
                 </div>
             </div>
             
+            {/* Chat Widget */}
             <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} />
         </div>
     );
