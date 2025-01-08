@@ -4,8 +4,37 @@
     font-family: 'Caudex', serif;
 }
 
+.nav-btn {
+    color: #4D5645;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.menu-btn {
+    width: 100%;
+    text-align: left;
+    color: #4D5645;
+    font-family: 'Caudex', serif;
+    font-size: 32px;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
+}
+
+.submenu-btn {
+    color: #4D5645;
+    font-size: 20px;
+    opacity: 0.8;
+    text-align: left;
+    display: block;
+}
+
 button {
     background: none;
     border: none;
     cursor: pointer;
+}
+
+button:hover {
+    opacity: 0.7;
 }

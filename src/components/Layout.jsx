@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ChatWidget from './ChatWidget';
 import '../styles/Layout.css';
-import { ChevronDown, ChevronUp, Globe, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const Layout = ({ webhookUrl, apiKey }) => {
     const [expandedItem, setExpandedItem] = useState(null);
@@ -16,68 +16,56 @@ const Layout = ({ webhookUrl, apiKey }) => {
     ];
 
     return (
-        <div className="min-h-screen">
-            <div className="flex min-h-screen">
-                {/* Left Navigation */}
-                <div className="w-[500px] bg-[#f5f5f3] p-12 flex flex-col relative">
-                    <div className="flex justify-between items-center mb-12">
-                        <div className="flex items-center gap-6">
-                            <Globe size={20} className="text-[#4D5645]" />
-                            <button className="language-button">
-                                IS / EN
-                            </button>
-                            <button className="language-button">
-                                KR ISK
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <nav className="flex-1">
-                        {menuItems.map((item) => (
-                            <div key={item.id} className="mb-8">
-                                <button
-                                    onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
-                                    className="menu-item w-full flex justify-between items-center"
-                                >
-                                    {item.label}
-                                    {item.subItems && (
-                                        expandedItem === item.id ? <ChevronUp size={24} /> : <ChevronDown size={24} />
-                                    )}
-                                </button>
-                                
-                                {item.subItems && expandedItem === item.id && (
-                                    <div className="mt-4 ml-4 space-y-4">
-                                        {item.subItems.map((subItem) => (
-                                            <button key={subItem} className="submenu-item">
-                                                {subItem}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </nav>
-
-                    <button className="absolute top-8 right-8 text-[#4D5645]">
-                        <X size={24} />
-                    </button>
+        <div className="fixed inset-0 flex">
+            {/* Left Navigation */}
+            <div className="w-[400px] bg-[#f5f5f3] p-8 pt-12 flex flex-col">
+                <div className="flex gap-4 mb-12">
+                    <button className="nav-btn">IS / EN</button>
+                    <button className="nav-btn">KR ISK</button>
                 </div>
-
-                {/* Main Content */}
-                <div className="flex-1 relative">
-                    <div 
-                        className="h-screen w-full bg-cover bg-center bg-no-repeat fixed"
-                        style={{ backgroundImage: 'url("/Sky_Lagoon_Ritual.jpg")' }}
-                    >
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <h1 className="text-white text-7xl font-caudex">
-                                Where the Sea<br />
-                                Meets the Sky
-                            </h1>
+                
+                <nav className="flex-1">
+                    {menuItems.map((item) => (
+                        <div key={item.id} className="mb-6">
+                            <button
+                                onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
+                                className="menu-btn"
+                            >
+                                {item.label}
+                            </button>
+                            
+                            {item.subItems && expandedItem === item.id && (
+                                <div className="ml-4 mt-4 space-y-3">
+                                    {item.subItems.map((subItem) => (
+                                        <button key={subItem} className="submenu-btn">
+                                            {subItem}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                    ))}
+                </nav>
+
+                <button className="absolute top-8 right-8">
+                    <X className="text-[#4D5645]" size={24} />
+                </button>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 relative">
+                <div 
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: 'url("/Sky_Lagoon_Ritual.jpg")' }}
+                >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <h1 className="text-white text-7xl font-caudex text-center">
+                            Where the Sea<br />
+                            Meets the Sky
+                        </h1>
                     </div>
-                    <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} language={language} />
                 </div>
+                <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} language={language} />
             </div>
         </div>
     );
