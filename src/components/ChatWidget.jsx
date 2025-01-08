@@ -5,12 +5,7 @@ import MessageFormatter from './MessageFormatter';
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
     const messagesEndRef = React.useRef(null);
     const [isMinimized, setIsMinimized] = useState(true);
-    const [messages, setMessages] = useState([{
-        type: 'bot',
-        content: language === 'en' ? 
-            "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?" :
-            "Hæ! Hvernig get ég aðstoðað þig?"
-    }]);
+    const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
 
@@ -21,6 +16,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // New effect for handling welcome message
+    useEffect(() => {
+        const welcomeMessage = language === 'en' 
+            ? "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?"
+            : "Hæ! Hvernig get ég aðstoðað þig í dag?";
+            
+        setMessages([{
+            type: 'bot',
+            content: welcomeMessage
+        }]);
+    }, [language]);
 
     const TypingIndicator = () => (
         <div style={{
