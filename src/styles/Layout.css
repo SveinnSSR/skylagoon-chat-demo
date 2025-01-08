@@ -1,48 +1,11 @@
-/* Layout.css */
-.menu-item {
-    cursor: pointer;
-    color: #4D5645;
-    font-family: 'Caudex', serif;
-    font-size: 28px;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
-    background: transparent;
-    text-align: left;
-    transition: all 0.3s ease;
-}
-
-.menu-item:hover {
-    opacity: 0.8;
-}
-
-.submenu-item {
-    color: #4D5645;
-    font-size: 20px;
-    padding: 8px 0;
-    background: transparent;
-    text-align: left;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-}
-
-.submenu-item:hover {
-    opacity: 1;
-}
-
-.language-button {
-    padding: 8px 16px;
-    background: transparent;
-    color: #4D5645;
-    font-size: 14px;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.3s ease;
-}
-
-.language-button:hover {
-    opacity: 0.8;
-}
+@import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
 
 .font-caudex {
     font-family: 'Caudex', serif;
+}
+
+button {
+    background: none;
+    border: none;
+    cursor: pointer;
 }
