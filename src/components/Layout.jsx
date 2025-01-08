@@ -89,53 +89,63 @@ const Layout = ({ webhookUrl, apiKey }) => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="max-w-[1400px] mx-auto py-20 px-8">
-                {/* Embark Section */}
+            <div className="max-w-[1400px] mx-auto py-20">
+                {/* Initial Section */}
                 <section className="mb-32">
                     <div className="text-center mb-16">
-                        <img 
-                            src="/sky-lagoon-logo.jpg" 
-                            alt="Sky Lagoon Logo" 
-                            className="w-24 mx-auto mb-8"
-                        />
-                        <h2 className="text-6xl font-caudex text-[#4D5645]">
-                            {language === 'en' ? 'Embark on your journey' : 'Hefja ferðalagið'}
+                        <h2 className="text-5xl font-caudex text-[#4D5645] mb-6">
+                            {language === 'en' ? 'Experience Tranquility' : 'Upplifðu Kyrrð'}
                         </h2>
+                        <p className="text-[#4D5645] max-w-3xl mx-auto leading-relaxed text-lg px-8">
+                            {language === 'en' 
+                                ? 'Immerse yourself in the warmth of our geothermal lagoon, where modern comfort meets Icelandic tradition. Our infinity edge seamlessly blends with the ocean horizon, creating an unforgettable experience of relaxation and natural beauty.'
+                                : 'Njóttu hlýju okkar jarðhitalaug, þar sem nútímaþægindi mæta íslenskri hefð. Óendanleikinn rennur saman við sjóndeildarhringinn og skapar ógleymanlega upplifun af slökun og náttúrufegurð.'}
+                        </p>
                     </div>
-                    <img 
-                        src="/Embark_on_your_Journey.png"
-                        alt="Embark on your journey" 
-                        className="w-full rounded-lg shadow-lg"
-                    />
+                    <div className="px-8">
+                        <img 
+                            src="/Embark_on_your_Journey.png"
+                            alt="Sky Lagoon Experience" 
+                            className="w-[90%] mx-auto rounded-lg shadow-lg"
+                        />
+                    </div>
                 </section>
 
                 {/* For Two Section */}
                 <section className="mb-32">
                     <div className="text-center mb-16">
-                        <h2 className="text-5xl font-caudex text-[#4D5645]">
+                        <h2 className="text-5xl font-caudex text-[#4D5645] mb-6">
                             {language === 'en' ? 'Sky Lagoon for Two' : 'Sky Lagoon fyrir tvo'}
                         </h2>
                     </div>
-                    <img 
-                        src="/Sky_Lagoon_For_Two.png"
-                        alt="Sky Lagoon for Two" 
-                        className="w-full rounded-lg shadow-lg"
-                    />
+                    <div className="px-8">
+                        <img 
+                            src="/Sky_Lagoon_For_Two.png"
+                            alt="Sky Lagoon for Two" 
+                            className="w-[90%] mx-auto rounded-lg shadow-lg"
+                        />
+                    </div>
                 </section>
 
                 {/* Footer Section */}
                 <section className="text-center py-16 border-t border-[#4D5645]/20">
-                    <h2 className="text-4xl font-caudex text-[#4D5645] mb-6">Sky Lagoon 2025</h2>
-                    <p className="text-[#4D5645] max-w-2xl mx-auto">
+                    <h2 className="text-4xl font-caudex text-[#4D5645] mb-6">
+                        Sky Lagoon 2025
+                    </h2>
+                    <p className="text-[#4D5645] max-w-2xl mx-auto px-8">
                         {language === 'en' 
-                            ? 'Experience tranquility where the sky meets the ocean. Join us for an unforgettable journey of relaxation and renewal.' 
-                            : 'Upplifðu ró þar sem himinn og haf renna saman. Taktu þátt í ógleymanlegri slökunarferð.'}
+                            ? 'Where serenity meets the sea. Join us for an unforgettable journey of relaxation and renewal.' 
+                            : 'Þar sem ró mætir sjó. Taktu þátt í ógleymanlegri slökunarferð.'}
                     </p>
                 </section>
             </div>
 
             {/* Chat Widget */}
-            <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} />
+            <ChatWidget 
+                webhookUrl={webhookUrl} 
+                apiKey={apiKey} 
+                language={language}  // Pass language prop to ChatWidget
+            />
         </div>
     );
 };
