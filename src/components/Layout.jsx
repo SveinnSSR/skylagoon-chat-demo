@@ -16,16 +16,19 @@ const Layout = ({ webhookUrl, apiKey }) => {
     ];
 
     return (
-        <div className="fixed inset-0 grid grid-cols-2">
-            {/* Left Column */}
-            <div className="flex flex-col">
-                {/* Menu Section */}
-                <div className="flex-1 bg-[#f5f5f3] p-12">
-                    <div className="flex items-center gap-6 mb-16">
+        <div className="grid grid-cols-[minmax(600px,_1fr)_1fr] h-screen">
+            <div className="grid grid-rows-[auto_1fr_600px]">
+                {/* Top Nav */}
+                <div className="bg-[#f5f5f3] p-8">
+                    <div className="flex items-center gap-6">
                         <Globe size={16} className="text-[#4D5645]" />
                         <button className="nav-btn">IS / EN</button>
                         <button className="nav-btn">KR ISK</button>
                     </div>
+                </div>
+
+                {/* Menu */}
+                <div className="bg-[#f5f5f3] p-8">
                     <nav>
                         {menuItems.map((item) => (
                             <div key={item.id} className="menu-item">
@@ -49,8 +52,9 @@ const Layout = ({ webhookUrl, apiKey }) => {
                         ))}
                     </nav>
                 </div>
-                {/* Image Section */}
-                <div className="h-[400px]">
+
+                {/* Image */}
+                <div>
                     <img 
                         src="/Sky_Lagoon_Ritual.jpg" 
                         alt="Sky Lagoon"
@@ -59,9 +63,7 @@ const Layout = ({ webhookUrl, apiKey }) => {
                 </div>
             </div>
 
-            {/* Right Column - Empty Space */}
-            <div className="bg-white" />
-
+            <div className="bg-white"></div>
             <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} language={language} />
         </div>
     );
