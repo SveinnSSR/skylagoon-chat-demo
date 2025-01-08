@@ -1,5 +1,8 @@
-/* Google Fonts import */
 @import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
+
+.font-serif {
+    font-family: 'Caudex', serif;
+}
 
 /* Base styles */
 body {

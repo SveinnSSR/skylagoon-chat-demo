@@ -44,27 +44,26 @@
     opacity: 0.8;
 }
 
-/* Smooth scroll behavior */
-html {
-    scroll-behavior: smooth;
+/* Package cards */
+.package-card {
+    background: #f5f5f3;
+    padding: 40px;
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.package-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
 }
 
 /* Content fade-in animation */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
 .section-fade-in {
     opacity: 0;
-    transform: translateY(30px);
-    transition: all 1.2s ease;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
 .section-fade-in.visible {
@@ -72,37 +71,30 @@ html {
     transform: translateY(0);
 }
 
-/* Background transition */
-.hero-section {
-    transition: background 2.5s ease;
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
 }
 
-/* Package cards */
-.package-card {
-    padding: 35px;
-    background-color: #f8f8f8;
-    border-radius: 8px;
-    transition: all 0.5s ease;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.package-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Footer links */
 .footer-link {
-    color: white;
-    text-decoration: none;
-    padding: 8px 16px;
+    opacity: 0.7;
     transition: opacity 0.3s ease;
-    font-size: 14px;
 }
 
 .footer-link:hover {
-    opacity: 0.8;
+    opacity: 1;
 }
 
 /* Responsive adjustments */
