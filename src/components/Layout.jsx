@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import ChatWidget from './ChatWidget';
-import '../styles/Layout.css';
-import { ChevronDown, Globe } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 const Layout = ({ webhookUrl, apiKey }) => {
     const [expandedItem, setExpandedItem] = useState(null);
-    const [language, setLanguage] = useState('en');
 
     const menuItems = [
         { id: 'packages', label: 'Packages' },
@@ -16,57 +14,55 @@ const Layout = ({ webhookUrl, apiKey }) => {
     ];
 
     return (
-        <main className="fixed inset-0">
-            {/* Menu Container */}
-            <div className="absolute inset-0 flex flex-col">
-                {/* Navigation */}
-                <div className="bg-[#f5f5f3] p-8 flex items-center gap-6 w-[700px]">
-                    <Globe size={16} className="text-[#4D5645]" />
-                    <button className="nav-btn">IS / EN</button>
-                    <button className="nav-btn">KR ISK</button>
+        <div style={{ display: 'grid', gridTemplateColumns: '600px 1fr' }} className="h-screen">
+            {/* Left Side */}
+            <div className="h-full overflow-hidden">
+                {/* Language */}
+                <div className="p-8 bg-[#f5f5f3]">
+                    <button>IS / EN</button>
+                    <button className="ml-4">KR ISK</button>
                 </div>
-
-                {/* Split Content */}
-                <div className="flex-1 flex">
-                    {/* Left Side - Menu */}
-                    <div className="w-[700px] bg-[#f5f5f3] p-8">
-                        <nav>
-                            {menuItems.map((item) => (
-                                <div key={item.id} className="menu-item">
-                                    <button
-                                        onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
-                                        className="menu-btn group flex items-center justify-between w-full"
-                                    >
+                
+                {/* Menu */}
+                <div className="p-8 pb-0 bg-[#f5f5f3] h-full">
+                    <nav>
+                        {menuItems.map((item) => (
+                            <div key={item.id} className="mb-8">
+                                <button
+                                    className="w-full text-[#4D5645] font-caudex text-2xl text-left pb-2 border-b border-[#4D5645]/20"
+                                    onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
+                                >
+                                    <div className="flex justify-between items-center">
                                         {item.label}
-                                        {item.subItems && <ChevronDown size={24} />}
-                                    </button>
-                                    {item.subItems && expandedItem === item.id && (
-                                        <div className="pl-4 mt-4 space-y-3">
-                                            {item.subItems.map((subItem) => (
-                                                <button key={subItem} className="submenu-btn">
-                                                    {subItem}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </nav>
-                    </div>
-
-                    {/* Right Side - Image */}
-                    <div className="relative flex-1">
-                        <img 
-                            src="/Sky_Lagoon_Ritual.jpg" 
-                            alt="Sky Lagoon"
-                            className="absolute inset-0 w-full h-full object-cover"
-                        />
-                    </div>
+                                        {item.subItems && <ChevronDown />}
+                                    </div>
+                                </button>
+                                {item.subItems && expandedItem === item.id && (
+                                    <div className="mt-4 ml-4">
+                                        {item.subItems.map(subItem => (
+                                            <button key={subItem} className="block text-[#4D5645] mb-3">
+                                                {subItem}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </nav>
                 </div>
             </div>
 
-            <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} language={language} />
-        </main>
+            {/* Right Side */}
+            <div className="h-screen">
+                <img 
+                    src="/Sky_Lagoon_Ritual.jpg"
+                    alt="Sky Lagoon" 
+                    className="w-full h-full object-cover"
+                />
+            </div>
+            
+            <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} />
+        </div>
     );
 };
 
