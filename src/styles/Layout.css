@@ -1,115 +1,48 @@
-/* Navigation styles */
-.nav-link {
-    background: none;
-    border: none;
-    color: white;
+/* Layout.css */
+.menu-item {
     cursor: pointer;
-    font-size: 14px;
-    padding: 8px;
-    opacity: 1;
-    transition: opacity 0.3s ease;
+    color: #4D5645;
+    font-family: 'Caudex', serif;
+    font-size: 28px;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
+    background: transparent;
+    text-align: left;
+    transition: all 0.3s ease;
 }
 
-.nav-link:hover {
+.menu-item:hover {
     opacity: 0.8;
 }
 
-.book-now-button {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 8px 20px;
-    border-radius: 4px;
-    cursor: pointer;
+.submenu-item {
+    color: #4D5645;
+    font-size: 20px;
+    padding: 8px 0;
+    background: transparent;
+    text-align: left;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.submenu-item:hover {
+    opacity: 1;
+}
+
+.language-button {
+    padding: 8px 16px;
+    background: transparent;
+    color: #4D5645;
     font-size: 14px;
-    transition: all 0.4s ease;
-    letter-spacing: 0.2px;
-}
-
-.book-now-button:hover {
-    border-color: rgba(255, 255, 255, 0.8);
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.menu-button {
-    background: none;
     border: none;
-    color: white;
-    padding: 8px;
     cursor: pointer;
     transition: opacity 0.3s ease;
 }
 
-.menu-button:hover {
+.language-button:hover {
     opacity: 0.8;
 }
 
-/* Package cards */
-.package-card {
-    background: #f5f5f3;
-    padding: 40px;
-    border-radius: 8px;
-    transition: transform 0.3s ease;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.package-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.07);
-}
-
-/* Content fade-in animation */
-.section-fade-in {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-}
-
-.section-fade-in.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Smooth scroll behavior */
-html {
-    scroll-behavior: smooth;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* Footer links */
-.footer-link {
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-}
-
-.footer-link:hover {
-    opacity: 1;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .nav-link, .book-now-button {
-        font-size: 13px;
-        padding: 6px 12px;
-    }
-
-    .package-card {
-        margin: 10px;
-        padding: 25px;
-    }
-    
-    .footer-link {
-        padding: 6px 12px;
-    }
+.font-caudex {
+    font-family: 'Caudex', serif;
 }
