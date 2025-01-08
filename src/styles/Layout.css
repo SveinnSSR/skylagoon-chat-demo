@@ -1,38 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
 
-.font-caudex {
-    font-family: 'Caudex', serif;
-}
-
-.nav-btn {
+.menu-btn {
     color: #4D5645;
-    font-size: 14px;
-    padding: 8px 0;
-    opacity: 0.8;
-    transition: opacity 0.2s;
+    font-family: 'Caudex', serif;
+    font-size: 34px;
+    text-align: left;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
+    transition: all 0.2s;
 }
 
 .menu-item {
     margin-bottom: 32px;
 }
 
-.menu-btn {
-    color: #4D5645;
-    font-family: 'Caudex', serif;
-    font-size: 32px;
-    text-align: left;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
-    transition: opacity 0.2s;
-}
-
 .submenu-btn {
     color: #4D5645;
     font-size: 20px;
-    opacity: 0.8;
     text-align: left;
     display: block;
-    transition: opacity 0.2s;
+    opacity: 0.8;
+}
+
+.nav-btn {
+    color: #4D5645;
+    font-size: 14px;
+    opacity: 0.8;
 }
 
 button {
