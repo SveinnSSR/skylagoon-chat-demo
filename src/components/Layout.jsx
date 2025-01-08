@@ -16,19 +16,17 @@ const Layout = ({ webhookUrl, apiKey }) => {
     ];
 
     return (
-        <div className="grid grid-cols-[minmax(600px,_1fr)_1fr] h-screen">
-            <div className="grid grid-rows-[auto_1fr_600px]">
-                {/* Top Nav */}
-                <div className="bg-[#f5f5f3] p-8">
-                    <div className="flex items-center gap-6">
-                        <Globe size={16} className="text-[#4D5645]" />
-                        <button className="nav-btn">IS / EN</button>
-                        <button className="nav-btn">KR ISK</button>
-                    </div>
+        <div className="h-screen grid grid-cols-[700px_1fr] overflow-hidden">
+            <div className="bg-[#f5f5f3] flex flex-col h-screen">
+                {/* Navigation */}
+                <div className="p-8 flex items-center gap-6">
+                    <Globe size={16} className="text-[#4D5645]" />
+                    <button className="nav-btn">IS / EN</button>
+                    <button className="nav-btn">KR ISK</button>
                 </div>
 
                 {/* Menu */}
-                <div className="bg-[#f5f5f3] p-8">
+                <div className="flex-1 p-8 overflow-y-auto">
                     <nav>
                         {menuItems.map((item) => (
                             <div key={item.id} className="menu-item">
@@ -52,18 +50,17 @@ const Layout = ({ webhookUrl, apiKey }) => {
                         ))}
                     </nav>
                 </div>
-
-                {/* Image */}
-                <div>
-                    <img 
-                        src="/Sky_Lagoon_Ritual.jpg" 
-                        alt="Sky Lagoon"
-                        className="w-full h-full object-cover"
-                    />
-                </div>
             </div>
 
-            <div className="bg-white"></div>
+            {/* Image Section */}
+            <div className="bg-white relative">
+                <img 
+                    src="/Sky_Lagoon_Ritual.jpg" 
+                    alt="Sky Lagoon"
+                    className="w-full h-full object-cover"
+                />
+            </div>
+
             <ChatWidget webhookUrl={webhookUrl} apiKey={apiKey} language={language} />
         </div>
     );
