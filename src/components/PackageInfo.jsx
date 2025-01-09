@@ -7,7 +7,7 @@ const PackageInfo = ({ language }) => {
       packages: [
         {
           id: "ser",
-          image: "/Sér.webp",
+          image: "/ser.jpg",
           title: "Sér",
           tags: ["THE SKJÓL RITUAL", "PRIVATE CHANGE ROOM"],
           description: "Discover the ultimate Sky Lagoon experience. Our premium package includes Sky Lagoon's signature Skjól ritual and access to our private changing facilities.",
@@ -17,7 +17,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman.webp",
+          image: "/saman.jpg",
           title: "Saman",
           tags: ["THE SKJÓL RITUAL"],
           description: "Our classic and most popular package includes Sky Lagoon's signature Skjól ritual and access to public changing facilities.",
@@ -27,7 +27,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "transfer",
-          image: "/Book%20with%20Transfer.webp",
+          image: "/book-with-transfer.jpg",
           title: "Book with Transfer",
           description: "Choose this option if you require shuttle transfer for a small additional fee.",
           subtitle: "Operated by Reykjavik Excursions.",
@@ -66,7 +66,7 @@ const PackageInfo = ({ language }) => {
       packages: [
         {
           id: "ser",
-          image: "/Sér.webp",
+          image: "/ser.jpg",
           title: "Sér",
           tags: ["SKJÓL RITUAL", "VEL BÚNIR EINKAKLEFAR"],
           description: "Viltu meira næði og þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
@@ -76,7 +76,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman.webp",
+          image: "/saman.jpg",
           title: "Saman",
           tags: ["SKJÓL RITUAL"],
           description: "Skjól Ritúal meðferðin er innifalin í klassísku Saman leiðinni.",
@@ -199,7 +199,7 @@ const PackageInfo = ({ language }) => {
             </div>
             <div className="relative h-full min-h-[400px]">
               <img 
-                src="/Sky%20Lagoon%20for%20two.webp"
+                src="/sky-lagoon-for-two.jpg"
                 alt="Sky Lagoon for two"
                 className="absolute inset-0 w-full h-full object-cover"
               />
