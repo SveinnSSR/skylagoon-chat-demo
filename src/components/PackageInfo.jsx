@@ -27,7 +27,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "transfer",
-          image: "/Book with Transfer.webp",
+          image: "/Book%20with%20Transfer.webp",
           title: "Book with Transfer",
           description: "Choose this option if you require shuttle transfer for a small additional fee.",
           subtitle: "Operated by Reykjavik Excursions.",
@@ -199,7 +199,7 @@ const PackageInfo = ({ language }) => {
             </div>
             <div className="relative h-full min-h-[400px]">
               <img 
-                src="/Sky Lagoon for two.webp"
+                src="/Sky%20Lagoon%20for%20two.webp"
                 alt="Sky Lagoon for two"
                 className="absolute inset-0 w-full h-full object-cover"
               />
