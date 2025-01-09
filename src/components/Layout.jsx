@@ -116,13 +116,14 @@ const Layout = ({ webhookUrl, apiKey }) => {
                 />
 
                 {/* Footer Section */}
-                <section className="text-center py-16 border-t border-[#4D5645]/20">
-                    <h2 className="text-4xl font-caudex text-[#4D5645] mb-6">
-                        Sky Lagoon 2025
-                    </h2>
-                    <p className="text-[#4D5645] max-w-2xl mx-auto px-8">
+                <section className="text-center py-16 border-t border-[#4D5645]/20 relative">
+                    <div className="absolute left-8 bottom-8 text-sm text-[#4D5645] opacity-75">
+                        © 2025 Sky Lagoon. All rights reserved.
+                    </div>
+                    
+                    <p className="text-[#4D5645] text-2xl font-caudex mx-auto px-8 max-w-3xl">
                         {language === 'en' 
-                            ? 'Where serenity meets the sea. Join us for an unforgettable journey of relaxation and renewal.' 
+                            ? 'Embark on a journey of the senses. Find us where the sea meets the sky.' 
                             : 'Þú finnur okkur þar sem himinn og haf renna saman.'}
                     </p>
                 </section>
