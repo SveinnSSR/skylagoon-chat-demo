@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ChatWidget from './ChatWidget';
+import PackageInfo from './PackageInfo';
 import { ChevronDown } from 'lucide-react';
 
 const Layout = ({ webhookUrl, apiKey }) => {
@@ -15,11 +16,10 @@ const Layout = ({ webhookUrl, apiKey }) => {
             { id: 'stories', label: 'Our Stories' }
         ],
         is: [
-            { id: 'packages', label: 'Pakkar' },
-            { id: 'experience', label: 'Upplifun', subItems: ['Sky Lagoon Upplifunin', 'Skjól Ritúalið'] },
-            { id: 'plan', label: 'Skipuleggja Heimsókn' },
+            { id: 'packages', label: 'Leiðir til að njóta' },
+            { id: 'experience', label: 'Upplifunin', subItems: ['Sky Lagoon Upplifunin', 'Skjól Ritúalið'] },
+            { id: 'plan', label: 'Heimsóknin þín' },
             { id: 'food', label: 'Veitingar' },
-            { id: 'stories', label: 'Sögur Okkar' }
         ]
     };
 
@@ -89,9 +89,9 @@ const Layout = ({ webhookUrl, apiKey }) => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="max-w-[1400px] mx-auto py-20">
+            <div className="max-w-[1400px] mx-auto">
                 {/* Initial Section */}
-                <section className="mb-32">
+                <section className="mb-32 pt-20">
                     <div className="text-center mb-16">
                         <h2 className="text-5xl font-caudex text-[#4D5645] mb-6">
                             {language === 'en' ? 'Experience Tranquility' : 'Upplifðu Kyrrð'}
@@ -99,33 +99,13 @@ const Layout = ({ webhookUrl, apiKey }) => {
                         <p className="text-[#4D5645] max-w-3xl mx-auto leading-relaxed text-lg px-8">
                             {language === 'en' 
                                 ? 'Immerse yourself in the warmth of our geothermal lagoon, where modern comfort meets Icelandic tradition. Our infinity edge seamlessly blends with the ocean horizon, creating an unforgettable experience of relaxation and natural beauty.'
-                                : 'Njóttu hlýju okkar jarðhitalaug, þar sem nútímaþægindi mæta íslenskri hefð. Óendanleikinn rennur saman við sjóndeildarhringinn og skapar ógleymanlega upplifun af slökun og náttúrufegurð.'}
+                                : 'Njóttu þín hjá okkur, þar sem nútímaþægindi mæta íslenskri hefð. Óendanleikinn rennur saman við sjóndeildarhringinn og skapar ógleymanlega upplifun af slökun og náttúrufegurð.'}
                         </p>
-                    </div>
-                    <div className="px-8">
-                        <img 
-                            src="/Embark_on_your_Journey.png"
-                            alt="Sky Lagoon Experience" 
-                            className="w-[90%] mx-auto rounded-lg shadow-lg"
-                        />
                     </div>
                 </section>
 
-                {/* For Two Section */}
-                <section className="mb-32">
-                    <div className="text-center mb-16">
-                        <h2 className="text-5xl font-caudex text-[#4D5645] mb-6">
-                            {language === 'en' ? 'Sky Lagoon for Two' : 'Sky Lagoon fyrir tvo'}
-                        </h2>
-                    </div>
-                    <div className="px-8">
-                        <img 
-                            src="/Sky_Lagoon_For_Two.png"
-                            alt="Sky Lagoon for Two" 
-                            className="w-[90%] mx-auto rounded-lg shadow-lg"
-                        />
-                    </div>
-                </section>
+                {/* Package Info Section */}
+                <PackageInfo language={language} />
 
                 {/* Footer Section */}
                 <section className="text-center py-16 border-t border-[#4D5645]/20">
@@ -135,7 +115,7 @@ const Layout = ({ webhookUrl, apiKey }) => {
                     <p className="text-[#4D5645] max-w-2xl mx-auto px-8">
                         {language === 'en' 
                             ? 'Where serenity meets the sea. Join us for an unforgettable journey of relaxation and renewal.' 
-                            : 'Þar sem ró mætir sjó. Taktu þátt í ógleymanlegri slökunarferð.'}
+                            : 'Þú finnur okkur þar sem himinn og haf renna saman.'}
                     </p>
                 </section>
             </div>
@@ -144,7 +124,7 @@ const Layout = ({ webhookUrl, apiKey }) => {
             <ChatWidget 
                 webhookUrl={webhookUrl} 
                 apiKey={apiKey} 
-                language={language}  // Pass language prop to ChatWidget
+                language={language}
             />
         </div>
     );
