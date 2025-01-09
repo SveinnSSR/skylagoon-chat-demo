@@ -105,7 +105,15 @@ const Layout = ({ webhookUrl, apiKey }) => {
                 </section>
 
                 {/* Package Info Section */}
-                <PackageInfo language={language} />
+                <PackageInfo 
+                    language={language} 
+                    images={{
+                        ser: "/Ser.jpg",
+                        saman: "/Saman.jpg",
+                        transfer: "/Book_with_Transfer.jpg",
+                        forTwo: "/Sky_Lagoon_for_two.jpg"
+                    }}
+                />
 
                 {/* Footer Section */}
                 <section className="text-center py-16 border-t border-[#4D5645]/20">

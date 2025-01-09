@@ -1,13 +1,13 @@
 import React from 'react';
 
-const PackageInfo = ({ language }) => {
+const PackageInfo = ({ language, images }) => {
   const content = {
     en: {
       heading: "Embark on your journey",
       packages: [
         {
           id: "ser",
-          image: "/Ser.jpg",
+          image: images.ser,
           title: "Sér",
           tags: ["THE SKJÓL RITUAL", "PRIVATE CHANGE ROOM"],
           description: "Discover the ultimate Sky Lagoon experience. Our premium package includes Sky Lagoon's signature Skjól ritual and access to our private changing facilities.",
@@ -17,7 +17,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman.jpg",
+          image: images.saman,
           title: "Saman",
           tags: ["THE SKJÓL RITUAL"],
           description: "Our classic and most popular package includes Sky Lagoon's signature Skjól ritual and access to public changing facilities.",
@@ -27,7 +27,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "transfer",
-          image: "/Book_with_Transfer.jpg",
+          image: images.transfer,
           title: "Book with Transfer",
           description: "Choose this option if you require shuttle transfer for a small additional fee.",
           subtitle: "Operated by Reykjavik Excursions.",
@@ -66,7 +66,7 @@ const PackageInfo = ({ language }) => {
       packages: [
         {
           id: "ser",
-          image: "/Ser.jpg",
+          image: images.ser,
           title: "Sér",
           tags: ["SKJÓL RITUAL", "VEL BÚNIR EINKAKLEFAR"],
           description: "Viltu meira næði og þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
@@ -76,7 +76,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman.jpg",
+          image: images.saman,
           title: "Saman",
           tags: ["SKJÓL RITUAL"],
           description: "Skjól Ritúal meðferðin er innifalin í klassísku Saman leiðinni.",
@@ -199,7 +199,7 @@ const PackageInfo = ({ language }) => {
             </div>
             <div className="relative h-full min-h-[400px]">
               <img 
-                src="/Sky_Lagoon_for_two.jpg"
+                src={images.forTwo}
                 alt="Sky Lagoon for two"
                 className="absolute inset-0 w-full h-full object-cover"
               />
