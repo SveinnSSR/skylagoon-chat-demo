@@ -7,7 +7,7 @@ const PackageInfo = ({ language }) => {
       packages: [
         {
           id: "ser",
-          image: "/Sér",
+          image: "/Sér.webp",
           title: "Sér",
           tags: ["THE SKJÓL RITUAL", "PRIVATE CHANGE ROOM"],
           description: "Discover the ultimate Sky Lagoon experience. Our premium package includes Sky Lagoon's signature Skjól ritual and access to our private changing facilities.",
@@ -17,7 +17,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman",
+          image: "/Saman.webp",
           title: "Saman",
           tags: ["THE SKJÓL RITUAL"],
           description: "Our classic and most popular package includes Sky Lagoon's signature Skjól ritual and access to public changing facilities.",
@@ -27,7 +27,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "transfer",
-          image: "/Book with Transfer",
+          image: "/Book with Transfer.webp",
           title: "Book with Transfer",
           description: "Choose this option if you require shuttle transfer for a small additional fee.",
           subtitle: "Operated by Reykjavik Excursions.",
@@ -66,7 +66,7 @@ const PackageInfo = ({ language }) => {
       packages: [
         {
           id: "ser",
-          image: "/Sér",
+          image: "/Sér.webp",
           title: "Sér",
           tags: ["SKJÓL RITUAL", "VEL BÚNIR EINKAKLEFAR"],
           description: "Viltu meira næði og þægindi? Sér leiðin veitir aðgang að vel búnum einkaklefa með snyrtiaðstöðu og sturtu.",
@@ -76,7 +76,7 @@ const PackageInfo = ({ language }) => {
         },
         {
           id: "saman",
-          image: "/Saman",
+          image: "/Saman.webp",
           title: "Saman",
           tags: ["SKJÓL RITUAL"],
           description: "Skjól Ritúal meðferðin er innifalin í klassísku Saman leiðinni.",
@@ -117,11 +117,6 @@ const PackageInfo = ({ language }) => {
 
   return (
     <div className="py-20 px-8">
-      {/* Logo */}
-      <div className="flex justify-center mb-8">
-        <img src="/sun-icon.svg" alt="Sky Lagoon" className="h-12" />
-      </div>
-      
       {/* Main heading */}
       <h2 className="text-5xl font-caudex text-[#4D5645] text-center mb-16">
         {text.heading}
@@ -204,7 +199,7 @@ const PackageInfo = ({ language }) => {
             </div>
             <div className="relative h-full min-h-[400px]">
               <img 
-                src="/Sky Lagoon for two"
+                src="/Sky Lagoon for two.webp"
                 alt="Sky Lagoon for two"
                 className="absolute inset-0 w-full h-full object-cover"
               />
