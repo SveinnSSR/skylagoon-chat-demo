@@ -1,7 +1,7 @@
 export const theme = {
     colors: {
         primary: '#003A70',  // Sky Lagoon blue
-        chatBubble: '#4D5645', // Chat bubble green
+        chatBubble: '#70744E', // Updated Sky Lagoon green
         text: '#333333',
         background: '#FFFFFF'
     },

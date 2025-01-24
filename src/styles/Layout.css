@@ -1,12 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
 
 .menu-btn {
-    color: #4D5645;
+    color: #70744E;
     font-family: 'Caudex', serif;
     font-size: 34px;
     text-align: left;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(77, 86, 69, 0.2);
+    border-bottom: 1px solid rgba(112, 116, 78, 0.2); /* updated rgba values */
     transition: all 0.2s;
 }
 
@@ -15,7 +15,7 @@
 }
 
 .submenu-btn {
-    color: #4D5645;
+    color: #70744E;
     font-size: 20px;
     text-align: left;
     display: block;
@@ -23,7 +23,7 @@
 }
 
 .nav-btn {
-    color: #4D5645;
+    color: #70744E;
     font-size: 14px;
     opacity: 0.8;
 }

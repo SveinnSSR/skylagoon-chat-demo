@@ -6,7 +6,7 @@
 
 :root {
     --sky-lagoon-cream: #f5f5f3;
-    --sky-lagoon-green: #4D5645;
+    --sky-lagoon-green: #70744E;
 }
 
 .font-serif {
@@ -71,7 +71,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .chat-header {
-    background: #4D5645;
+    background: #70744E;
     color: white;
     padding: 15px;
     display: flex;
@@ -195,7 +195,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .chat-input-area button {
     padding: 8px 16px;
-    background: #4D5645;
+    background: #70744E;
     color: white;
     border: none;
     border-radius: 20px;
@@ -205,7 +205,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .chat-input-area button:hover {
-    background: #3d4435;
+    background: #5c6040; /* slightly darker shade for hover */
 }
 
 /* Typing Indicator Styles */

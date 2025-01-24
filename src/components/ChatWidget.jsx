@@ -139,7 +139,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             bottom: '20px',
             right: '20px',
             width: isMinimized ? '260px' : '400px',
-            backgroundColor: 'rgba(77, 86, 69, 0.95)',
+            backgroundColor: 'rgba(112, 116, 78, 0.95)',
             borderRadius: isMinimized ? '40px' : '12px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -157,7 +157,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     alignItems: 'center',
                     cursor: 'pointer',
                     gap: '12px',
-                    backgroundColor: 'rgba(77, 86, 69, 1)',
+                    backgroundColor: 'rgba(112, 116, 78, 1)',
                     width: '100%',
                     boxSizing: 'border-box',
                     flexDirection: isMinimized ? 'row' : 'column',
@@ -244,7 +244,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     maxWidth: '70%',
                                     padding: '12px 16px',
                                     borderRadius: '16px',
-                                    backgroundColor: msg.type === 'user' ? '#4D5645' : '#f0f0f0',
+                                    backgroundColor: msg.type === 'user' ? '#70744E' : '#f0f0f0',
                                     color: msg.type === 'user' ? 'white' : '#333333',
                                     fontSize: '14px',
                                     lineHeight: '1.5',
@@ -293,7 +293,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             onClick={handleSend}
                             disabled={isTyping}
                             style={{
-                                backgroundColor: isTyping ? '#a0a0a0' : '#4D5645',
+                                backgroundColor: isTyping ? '#a0a0a0' : '#70744E',
                                 color: 'white',
                                 border: 'none',
                                 padding: '8px 20px',
