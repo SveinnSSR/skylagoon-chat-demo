@@ -20,8 +20,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // New effect for handling welcome message
     useEffect(() => {
         const welcomeMessage = language === 'en' 
-            ? "Hello! I'd be happy to assist you. Would you like to know about our unique geothermal lagoon experience, our Sér and Saman packages, or how to get here?"
-            : "Hæ! Hvernig get ég aðstoðað þig í dag?";
+            ? "Hello! I'm Rán your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
+            : "Hæ! Ég heiti Rán og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?";
             
         setMessages([{
             type: 'bot',
@@ -38,8 +38,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             gap: '8px'
         }}>
             <img 
-                src="/skybot.png" 
-                alt="Skybot"
+                src="/ran.png" 
+                alt="Rán"
                 style={{
                     width: '30px',
                     height: '30px',
@@ -165,8 +165,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }}
             >
                 <img 
-                    src="/skybot.png" 
-                    alt="Skybot" 
+                    src="/ran.png" 
+                    alt="Rán" 
                     style={{ 
                         height: isMinimized ? '32px' : '60px',
                         width: isMinimized ? '32px' : '60px',
@@ -187,7 +187,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         fontWeight: '500',
                         textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
-                        Skybot
+                        Rán
                     </span>
                     <span style={{ 
                         color: '#e0e0e0',
@@ -229,8 +229,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             }}>
                                 {msg.type === 'bot' && (
                                     <img 
-                                        src="/skybot.png" 
-                                        alt="Skybot"
+                                        src="/ran.png" 
+                                        alt="Rán"
                                         style={{
                                             width: '30px',
                                             height: '30px',
