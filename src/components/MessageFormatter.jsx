@@ -2,34 +2,18 @@
 const MessageFormatter = ({ message }) => {
   // Function to convert URLs to clickable links
   const formatLinks = (text) => {
-    // Split text into parts based on URLs
     const parts = [];
-    const words = text.split(' ');
     
-    words.forEach((word, index) => {
-      if (word.includes('https://www.google.com/maps')) {
-        parts.push(' ');
+    // Check if text contains a website_link or maps_link
+    if (typeof text === 'object' && (text.website_link || text.maps_link)) {
+      parts.push(text.description || '');
+      parts.push(' ');
+      
+      if (text.website_link) {
         parts.push(
           <a 
-            key={`maps-${index}`}
-            href={word}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: '#4A90E2',
-              textDecoration: 'underline',
-              wordBreak: 'break-word'
-            }}
-          >
-            View on Google Maps
-          </a>
-        );
-      } else if (word.includes('https://www.skylagoon.com')) {
-        parts.push(' ');
-        parts.push(
-          <a 
-            key={`site-${index}`}
-            href={word}
+            key="website-link"
+            href={text.website_link}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -41,12 +25,31 @@ const MessageFormatter = ({ message }) => {
             Learn More
           </a>
         );
-      } else {
-        parts.push(index === 0 ? word : ` ${word}`);
       }
-    });
+      
+      if (text.maps_link) {
+        parts.push(
+          <a 
+            key="maps-link"
+            href={text.maps_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#4A90E2',
+              textDecoration: 'underline',
+              wordBreak: 'break-word'
+            }}
+          >
+            View on Google Maps
+          </a>
+        );
+      }
+      
+      return parts;
+    }
     
-    return parts;
+    // Regular text handling
+    return text;
   };
 
   const lines = message.split('\n');
