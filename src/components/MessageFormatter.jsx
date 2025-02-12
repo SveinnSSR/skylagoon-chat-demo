@@ -2,58 +2,50 @@
 const MessageFormatter = ({ message }) => {
   // Function to convert URLs to clickable links
   const formatLinks = (text) => {
+    // Look for markdown-style links [text](url)
+    const linkRegex = /\[(.*?)\]\s*\((.*?)\)/g;
     const parts = [];
     
-    // Check if text contains a website_link or maps_link
-    if (typeof text === 'object' && (text.website_link || text.maps_link)) {
-      parts.push(text.description || '');
-      parts.push(' ');
-      
-      if (text.website_link) {
-        parts.push(
-          <a 
-            key="website-link"
-            href={text.website_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: '#4A90E2',
-              textDecoration: 'underline',
-              wordBreak: 'break-word'
-            }}
-          >
-            Learn More
-          </a>
-        );
+    let lastIndex = 0;
+    let match;
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      // Add text before the link
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
       }
-      
-      if (text.maps_link) {
-        parts.push(
-          <a 
-            key="maps-link"
-            href={text.maps_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: '#4A90E2',
-              textDecoration: 'underline',
-              wordBreak: 'break-word'
-            }}
-          >
-            View on Google Maps
-          </a>
-        );
-      }
-      
-      return parts;
+
+      // Add the link
+      parts.push(
+        <a 
+          key={`link-${match.index}`}
+          href={match[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: '#4A90E2',
+            textDecoration: 'underline',
+            wordBreak: 'break-word'
+          }}
+        >
+          {match[1]}
+        </a>
+      );
+
+      lastIndex = match.index + match[0].length;
     }
-    
-    // Regular text handling
-    return text;
+
+    // Add any remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : text;
   };
 
   const lines = message.split('\n');
   
+  // Rest of your existing MessageFormatter code...
   return (
     <div style={{
       width: '100%',
