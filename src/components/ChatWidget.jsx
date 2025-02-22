@@ -115,7 +115,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 body: JSON.stringify({ 
                     message: messageText,
                     language: language,
-                    chatId: chatId  // Include chatId if we're in agent mode
+                    chatId: chatId,
+                    isAgentMode: chatMode === 'agent'  // Add this flag
                 })
             });   
 
@@ -139,6 +140,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     content: language === 'en' ? 
                         "You are now connected with a live agent. Please continue your conversation here." :
                         "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér."
+                }]);
+                return;
+            }
+
+            // Handle agent responses
+            if (chatMode === 'agent' && data.agentResponse) {
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.agentResponse
                 }]);
                 return;
             }
