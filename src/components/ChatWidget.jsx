@@ -9,6 +9,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    // New state variables for agent mode
+    const [chatMode, setChatMode] = useState('bot');
+    const [chatId, setChatId] = useState(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -18,7 +21,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         scrollToBottom();
     }, [messages]);
 
-    // New effect for handling welcome message
     useEffect(() => {
         const welcomeMessage = language === 'en' 
             ? "Hello! I'm Rán your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
@@ -112,43 +114,36 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 },
                 body: JSON.stringify({ 
                     message: messageText,
-                    language: language
+                    language: language,
+                    chatId: chatId  // Include chatId if we're in agent mode
                 })
             });   
 
             const data = await response.json();
             setIsTyping(false);
 
-            // Handle LiveChat transfer
-            if (data.transferred && data.initiateWidget && window.LiveChatWidget) {
-                console.log('Initiating LiveChat transfer with chat ID:', data.chatId);
+            // Handle transfer state
+            if (data.transferred && data.chatId) {
+                console.log('Transfer initiated with chat ID:', data.chatId);
                 
-                // Minimize our chat widget
-                setIsMinimized(true);
+                // Set chat state to agent mode
+                setChatMode('agent');
+                setChatId(data.chatId);
                 
-                // Set customer info and open LiveChat
-                window.LiveChatWidget.call('set_customer_name', `User ${data.chatId}`);
-                window.LiveChatWidget.call('maximize');
-                
-                // Set chat ID as custom variable
-                window.LiveChatWidget.call('set_custom_variables', [
-                    { name: 'chatId', value: data.chatId }
-                ]);
-
-                // Add transfer notification to our chat
+                // Add the transfer messages to the chat
                 setMessages(prev => [...prev, {
                     type: 'bot',
                     content: data.message
                 }, {
                     type: 'bot',
                     content: language === 'en' ? 
-                        "You are being transferred to a live agent. The LiveChat window should open momentarily." :
-                        "Þú ert að verða tengd/ur við þjónustufulltrúa. LiveChat glugginn ætti að opnast á hverri stundu."
+                        "You are now connected with a live agent. Please continue your conversation here." :
+                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér."
                 }]);
                 return;
             }
 
-            // Normal message handling if not transferring
+            // Normal bot response handling
             setMessages(prev => [...prev, {
                 type: 'bot',
                 content: data.message
@@ -219,7 +214,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         fontWeight: '500',
                         textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
-                        Rán
+                        {chatMode === 'agent' ? 'Agent' : 'Rán'}
                     </span>
                     <span style={{ 
                         color: '#e0e0e0',
@@ -228,6 +223,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }}>
                         Sky Lagoon
                     </span>
+                    {chatMode === 'agent' && (
+                        <div style={{
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            marginTop: '4px'
+                        }}>
+                            {language === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
+                        </div>
+                    )}
                 </div>
                 <span style={{ 
                     color: 'white',
