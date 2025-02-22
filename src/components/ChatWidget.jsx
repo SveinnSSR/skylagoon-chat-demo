@@ -118,6 +118,37 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
             const data = await response.json();
             setIsTyping(false);
+
+            // Handle LiveChat transfer
+            if (data.transferred && data.initiateWidget && window.LiveChatWidget) {
+                console.log('Initiating LiveChat transfer with chat ID:', data.chatId);
+                
+                // Minimize our chat widget
+                setIsMinimized(true);
+                
+                // Set customer info and open LiveChat
+                window.LiveChatWidget.call('set_customer_name', `User ${data.chatId}`);
+                window.LiveChatWidget.call('maximize');
+                
+                // Set chat ID as custom variable
+                window.LiveChatWidget.call('set_custom_variables', [
+                    { name: 'chatId', value: data.chatId }
+                ]);
+
+                // Add transfer notification to our chat
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message
+                }, {
+                    type: 'bot',
+                    content: language === 'en' ? 
+                        "You are being transferred to a live agent. The LiveChat window should open momentarily." :
+                        "Þú ert að verða tengd/ur við þjónustufulltrúa. LiveChat glugginn ætti að opnast á hverri stundu."
+                }]);
+                return;
+            }
+
+            // Normal message handling if not transferring
             setMessages(prev => [...prev, {
                 type: 'bot',
                 content: data.message
