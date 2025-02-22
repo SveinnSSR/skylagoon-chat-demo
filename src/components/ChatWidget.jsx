@@ -97,6 +97,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         const messageText = inputValue.trim();
         setInputValue('');
 
+        // Always show user message in chat
         setMessages(prev => [...prev, {
             type: 'user',
             content: messageText
@@ -116,7 +117,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     message: messageText,
                     language: language,
                     chatId: chatId,
-                    isAgentMode: chatMode === 'agent'  // Add this flag
+                    isAgentMode: chatMode === 'agent'
                 })
             });   
 
@@ -144,12 +145,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 return;
             }
 
-            // Handle agent responses
-            if (chatMode === 'agent' && data.agentResponse) {
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.agentResponse
-                }]);
+            // If message was suppressed (in agent mode), don't show any response
+            if (data.suppressMessage) {
                 return;
             }
 
