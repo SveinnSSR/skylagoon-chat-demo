@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
+const [botToken, setBotToken] = useState(null);
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
     const messagesEndRef = React.useRef(null);
@@ -93,10 +94,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
-
+    
         const messageText = inputValue.trim();
         setInputValue('');
-
+    
         // Always show user message in chat
         setMessages(prev => [...prev, {
             type: 'user',
@@ -104,7 +105,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }]);
         
         setIsTyping(true);
-
+    
         try {
             console.log('Attempting to connect to:', process.env.REACT_APP_WEBHOOK_URL);
             const response = await fetch(process.env.REACT_APP_WEBHOOK_URL, {
@@ -117,16 +118,23 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     message: messageText,
                     language: language,
                     chatId: chatId,
+                    bot_token: botToken, // Add the bot token if available
                     isAgentMode: chatMode === 'agent'
                 })
             });   
-
+    
             const data = await response.json();
             setIsTyping(false);
-
+    
             // Handle transfer state
             if (data.transferred && data.chatId) {
                 console.log('Transfer initiated with chat ID:', data.chatId);
+                
+                // Save the bot token if provided
+                if (data.bot_token) {
+                    console.log('Bot token received');
+                    setBotToken(data.bot_token);
+                }
                 
                 // Set chat state to agent mode
                 setChatMode('agent');
@@ -144,12 +152,17 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }]);
                 return;
             }
-
+    
+            // Update bot token if provided in agent mode
+            if (data.bot_token) {
+                setBotToken(data.bot_token);
+            }
+    
             // If message was suppressed (in agent mode), don't show any response
             if (data.suppressMessage) {
                 return;
             }
-
+    
             // Normal bot response handling
             setMessages(prev => [...prev, {
                 type: 'bot',
