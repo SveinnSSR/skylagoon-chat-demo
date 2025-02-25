@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
-const [botToken, setBotToken] = useState(null);
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
     const messagesEndRef = React.useRef(null);
@@ -13,6 +12,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // New state variables for agent mode
     const [chatMode, setChatMode] = useState('bot');
     const [chatId, setChatId] = useState(null);
+    const [botToken, setBotToken] = useState(null); // Move this inside the component
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
