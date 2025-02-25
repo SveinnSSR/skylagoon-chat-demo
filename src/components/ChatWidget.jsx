@@ -13,6 +13,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [chatMode, setChatMode] = useState('bot');
     const [chatId, setChatId] = useState(null);
     const [botToken, setBotToken] = useState(null); // Move this inside the component
+    const [agentCredentials, setAgentCredentials] = useState(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -119,6 +120,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     language: language,
                     chatId: chatId,
                     bot_token: botToken, // Add the bot token if available
+                    agent_credentials: agentCredentials,
                     isAgentMode: chatMode === 'agent'
                 })
             });   
@@ -135,7 +137,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     console.log('Bot token received');
                     setBotToken(data.bot_token);
                 }
-                
+                if (data.agent_credentials) {
+                    console.log('Agent credentials received');
+                    setAgentCredentials(data.agent_credentials);
+                }
+
                 // Set chat state to agent mode
                 setChatMode('agent');
                 setChatId(data.chatId);
