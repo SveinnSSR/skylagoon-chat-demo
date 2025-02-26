@@ -131,7 +131,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
-    // New function to handle message feedback
+    // Updated function to handle message feedback
     const handleMessageFeedback = async (messageId, isPositive) => {
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
@@ -147,8 +147,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
-            // Send feedback to server
-            const response = await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
+            // First, send feedback to your existing endpoint for MongoDB storage
+            await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -164,14 +164,107 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            if (!response.ok) {
-                console.error('Failed to send feedback');
-                // Optionally revert the UI state on error
-                // setMessageFeedback(prev => ({ ...prev, [messageId]: undefined }));
+            // NEW: Also send feedback to your analytics system database
+            // Assuming the analytics API is on the same domain as the chatbot
+            // Use a relative URL to avoid CORS issues
+            const analyticsResponse = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messageId: messageId,
+                    rating: isPositive, // match field name in our Prisma schema
+                    comment: messageContent,
+                    messageType: determineMessageType(messageContent, language),
+                    timestamp: new Date().toISOString(),
+                    conversationId: chatId
+                })
+            });
+            
+            if (!analyticsResponse.ok) {
+                console.error('Failed to send feedback to analytics system');
             }
         } catch (error) {
             console.error('Error sending feedback:', error);
         }
+    };
+    
+    // Add this helper function to determine message types
+    const determineMessageType = (content, language) => {
+        // Ensure we have content to analyze
+        if (!content) return 'unknown';
+        
+        // Convert to lowercase for easier pattern matching
+        const lowerContent = content.toLowerCase();
+        const isIcelandic = language === 'is';
+        
+        // Check for patterns that indicate message type
+        if (lowerContent.includes('opening hour') || lowerContent.includes('close') || 
+            lowerContent.includes('open') || 
+            (isIcelandic && (lowerContent.includes('opnunartím') || lowerContent.includes('lokunartím')))) {
+            return 'hours';
+        }
+        
+        if (lowerContent.includes('price') || lowerContent.includes('cost') || lowerContent.includes('fee') || 
+            (isIcelandic && (lowerContent.includes('verð') || lowerContent.includes('gjald')))) {
+            return 'pricing';
+        }
+        
+        if (lowerContent.includes('ritual') || lowerContent.includes('skjól') || 
+            lowerContent.includes('treatment') || 
+            (isIcelandic && lowerContent.includes('meðferð'))) {
+            return 'ritual';
+        }
+        
+        if (lowerContent.includes('package') || lowerContent.includes('bundle') ||
+            (isIcelandic && (lowerContent.includes('pakki') || lowerContent.includes('pakka')))) {
+            return 'packages';
+        }
+        
+        if (lowerContent.includes('transport') || lowerContent.includes('bus') || 
+            lowerContent.includes('get to') || lowerContent.includes('arrive') ||
+            (isIcelandic && (lowerContent.includes('strætó') || lowerContent.includes('komast')))) {
+            return 'transportation';
+        }
+        
+        if (lowerContent.includes('restaurant') || lowerContent.includes('food') || 
+            lowerContent.includes('eat') || lowerContent.includes('drink') ||
+            (isIcelandic && (lowerContent.includes('matur') || lowerContent.includes('veitinga')))) {
+            return 'dining';
+        }
+        
+        if (lowerContent.includes('locker') || lowerContent.includes('changing') || 
+            lowerContent.includes('shower') || lowerContent.includes('amenities') ||
+            (isIcelandic && (lowerContent.includes('skáp') || lowerContent.includes('sturtu')))) {
+            return 'facilities';
+        }
+        
+        if (lowerContent.includes('booking') || lowerContent.includes('reservation') || 
+            lowerContent.includes('cancel') || 
+            (isIcelandic && (lowerContent.includes('bókun') || lowerContent.includes('pöntun')))) {
+            return 'booking';
+        }
+        
+        if (lowerContent.includes('northern light') || lowerContent.includes('midnight sun') ||
+            (isIcelandic && (lowerContent.includes('norðurljós') || lowerContent.includes('miðnætursól')))) {
+            return 'natural_phenomena';
+        }
+        
+        if (lowerContent.includes('weather') || lowerContent.includes('cold') || 
+            lowerContent.includes('rain') || lowerContent.includes('snow') ||
+            (isIcelandic && (lowerContent.includes('veður') || lowerContent.includes('rigning')))) {
+            return 'weather';
+        }
+        
+        if (lowerContent.includes('towel') || lowerContent.includes('swimsuit') || 
+            lowerContent.includes('bring') || lowerContent.includes('need to') ||
+            (isIcelandic && (lowerContent.includes('handklæði') || lowerContent.includes('sundföt')))) {
+            return 'items_needed';
+        }
+        
+        // Default category for messages that don't fit specific patterns
+        return 'general';
     };
 
     const handleSend = async () => {
