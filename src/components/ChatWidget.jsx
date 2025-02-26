@@ -14,6 +14,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [chatId, setChatId] = useState(null);
     const [botToken, setBotToken] = useState(null); // Move this inside the component
     const [agentCredentials, setAgentCredentials] = useState(null);
+    // New state for tracking message feedback
+    const [messageFeedback, setMessageFeedback] = useState({});
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,7 +32,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
         setMessages([{
             type: 'bot',
-            content: welcomeMessage
+            content: welcomeMessage,
+            id: 'welcome-msg-' + Date.now()
         }]);
     }, [language]);
 
@@ -93,6 +96,49 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
+    // New function to handle message feedback
+    const handleMessageFeedback = async (messageId, isPositive) => {
+        // Prevent multiple submissions for the same message
+        if (messageFeedback[messageId]) return;
+        
+        // Update local state first for immediate UI feedback
+        setMessageFeedback(prev => ({
+            ...prev,
+            [messageId]: { isPositive, submitted: true }
+        }));
+        
+        try {
+            // Find the message content
+            const message = messages.find(msg => msg.id === messageId);
+            const messageContent = message ? message.content : '';
+            
+            // Send feedback to server
+            const response = await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.REACT_APP_API_KEY
+                },
+                body: JSON.stringify({
+                    messageId,
+                    isPositive,
+                    messageContent,
+                    timestamp: new Date().toISOString(),
+                    chatId: chatId,
+                    language: language
+                })
+            });
+            
+            if (!response.ok) {
+                console.error('Failed to send feedback');
+                // Optionally revert the UI state on error
+                // setMessageFeedback(prev => ({ ...prev, [messageId]: undefined }));
+            }
+        } catch (error) {
+            console.error('Error sending feedback:', error);
+        }
+    };
+
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
     
@@ -102,7 +148,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         // Always show user message in chat
         setMessages(prev => [...prev, {
             type: 'user',
-            content: messageText
+            content: messageText,
+            id: 'user-msg-' + Date.now()
         }]);
         
         setIsTyping(true);
@@ -149,12 +196,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Add the transfer messages to the chat
                 setMessages(prev => [...prev, {
                     type: 'bot',
-                    content: data.message
+                    content: data.message,
+                    id: 'bot-msg-' + Date.now()
                 }, {
                     type: 'bot',
                     content: language === 'en' ? 
                         "You are now connected with a live agent. Please continue your conversation here." :
-                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér."
+                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.",
+                    id: 'bot-transfer-' + Date.now()
                 }]);
                 return;
             }
@@ -169,10 +218,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 return;
             }
     
-            // Normal bot response handling
+            // Normal bot response handling with unique ID for feedback tracking
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: data.message
+                content: data.message,
+                id: 'bot-msg-' + Date.now()
             }]);
         } catch (error) {
             console.error('Error:', error);
@@ -181,7 +231,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 type: 'bot',
                 content: language === 'en' ? 
                     "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund."
+                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.",
+                id: 'bot-error-' + Date.now()
             }]);
         }
     };
@@ -287,43 +338,115 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         {messages.map((msg, index) => (
                             <div key={index} style={{
                                 display: 'flex',
-                                justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                flexDirection: 'column',
+                                alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
                                 marginBottom: msg.type === 'bot' ? '16px' : '12px',
-                                alignItems: 'flex-start',
-                                gap: '8px'
                             }}>
-                                {msg.type === 'bot' && (
-                                    <img 
-                                        src="/ran.png" 
-                                        alt="Rán"
-                                        style={{
-                                            width: '30px',
-                                            height: '30px',
-                                            borderRadius: '50%',
-                                            marginTop: '4px',
-                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                                        }}
-                                    />
-                                )}
                                 <div style={{
-                                    maxWidth: '70%',
-                                    padding: '12px 16px',
-                                    borderRadius: '16px',
-                                    backgroundColor: msg.type === 'user' ? '#70744E' : '#f0f0f0',
-                                    color: msg.type === 'user' ? 'white' : '#333333',
-                                    fontSize: '14px',
-                                    lineHeight: '1.5',
-                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                    border: msg.type === 'user' ? 
-                                        '1px solid rgba(255, 255, 255, 0.1)' : 
-                                        '1px solid rgba(0, 0, 0, 0.05)'
+                                    display: 'flex',
+                                    justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                    alignItems: 'flex-start',
+                                    width: '100%',
+                                    gap: '8px'
                                 }}>
-                                    {msg.type === 'bot' ? (
-                                        <MessageFormatter message={msg.content} />
-                                    ) : (
-                                        msg.content
+                                    {msg.type === 'bot' && (
+                                        <img 
+                                            src="/ran.png" 
+                                            alt="Rán"
+                                            style={{
+                                                width: '30px',
+                                                height: '30px',
+                                                borderRadius: '50%',
+                                                marginTop: '4px',
+                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                        />
                                     )}
+                                    <div style={{
+                                        maxWidth: '70%',
+                                        padding: '12px 16px',
+                                        borderRadius: '16px',
+                                        backgroundColor: msg.type === 'user' ? '#70744E' : '#f0f0f0',
+                                        color: msg.type === 'user' ? 'white' : '#333333',
+                                        fontSize: '14px',
+                                        lineHeight: '1.5',
+                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                        border: msg.type === 'user' ? 
+                                            '1px solid rgba(255, 255, 255, 0.1)' : 
+                                            '1px solid rgba(0, 0, 0, 0.05)'
+                                    }}>
+                                        {msg.type === 'bot' ? (
+                                            <MessageFormatter message={msg.content} />
+                                        ) : (
+                                            msg.content
+                                        )}
+                                    </div>
                                 </div>
+                                
+                                {/* Feedback buttons - only shown for bot messages */}
+                                {msg.type === 'bot' && (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        marginTop: '4px',
+                                        marginLeft: '38px',
+                                        gap: '12px'
+                                    }}>
+                                        {messageFeedback[msg.id] ? (
+                                            <div style={{
+                                                fontSize: '12px',
+                                                color: '#70744E',
+                                                fontStyle: 'italic'
+                                            }}>
+                                                {language === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button 
+                                                    onClick={() => handleMessageFeedback(msg.id, true)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: '#70744E',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        fontSize: '12px',
+                                                        padding: '4px',
+                                                        borderRadius: '4px',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    aria-label={language === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                                >
+                                                    <span style={{ fontSize: '14px' }}>👍</span>
+                                                    <span>{language === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
+                                                </button>
+                                                
+                                                <button 
+                                                    onClick={() => handleMessageFeedback(msg.id, false)}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        color: '#70744E',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        fontSize: '12px',
+                                                        padding: '4px',
+                                                        borderRadius: '4px',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    aria-label={language === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                                >
+                                                    <span style={{ fontSize: '14px' }}>👎</span>
+                                                    <span>{language === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}</span>
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ))}
                         {isTyping && <TypingIndicator />}
