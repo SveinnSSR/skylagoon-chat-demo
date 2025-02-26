@@ -27,8 +27,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     useEffect(() => {
         const welcomeMessage = language === 'en' 
-            ? "Hello! I'm Rán your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
-            : "Hæ! Ég heiti Rán og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?";
+            ? "Hello! I'm Sólrún your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
+            : "Hæ! Ég heiti Sólrún og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?";
             
         setMessages([{
             type: 'bot',
@@ -40,8 +40,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // Function to determine if a message should show feedback options
     const shouldShowFeedback = (message) => {
         // Skip feedback for welcome messages
-        if (message.content.includes("I'm Rán your AI chatbot") || 
-            message.content.includes("Ég heiti Rán og er AI spjallmenni")) {
+        if (message.content.includes("I'm Sólrún your AI chatbot") || 
+            message.content.includes("Ég heiti Sólrún og er AI spjallmenni")) {
             return false;
         }
         
@@ -81,8 +81,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             gap: '8px'
         }}>
             <img 
-                src="/ran.png" 
-                alt="Rán"
+                src="/solrun.png" 
+                alt="Sólrún"
                 style={{
                     width: '30px',
                     height: '30px',
@@ -304,8 +304,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }}
             >
                 <img 
-                    src="/ran.png" 
-                    alt="Rán" 
+                    src="/solrun.png" 
+                    alt="Sólrún" 
                     style={{ 
                         height: isMinimized ? '32px' : '60px',
                         width: isMinimized ? '32px' : '60px',
@@ -326,7 +326,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         fontWeight: '500',
                         textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
-                        {chatMode === 'agent' ? 'Agent' : 'Rán'}
+                        {chatMode === 'agent' ? 'Agent' : 'Sólrún'}
                     </span>
                     <span style={{ 
                         color: '#e0e0e0',
@@ -386,8 +386,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 }}>
                                     {msg.type === 'bot' && (
                                         <img 
-                                            src="/ran.png" 
-                                            alt="Rán"
+                                            src="/solrun.png" 
+                                            alt="Sólrún"
                                             style={{
                                                 width: '30px',
                                                 height: '30px',
