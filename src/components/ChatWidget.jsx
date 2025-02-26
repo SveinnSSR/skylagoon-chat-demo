@@ -64,7 +64,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }
         
         // Skip feedback for very short responses (less than 50 characters)
-        if (message.content.length < 50) {
+        if (message.content.length < 70) {
             return false;
         }
         
