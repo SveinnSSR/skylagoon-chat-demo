@@ -147,6 +147,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
+            // Log first endpoint URL for debugging
+            console.log('First endpoint URL:', process.env.REACT_APP_WEBHOOK_URL + '/feedback');
+            
             // First, send feedback to your existing endpoint for MongoDB storage
             await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
                 method: 'POST',
@@ -164,7 +167,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            console.log('Sending feedback to analytics system via proxy endpoint');
+            // Try with direct URL instead of environment variable
+            const proxyUrl = 'https://sky-lagoon-chat-2024.vercel.app/analytics-proxy';
+            console.log('Using direct proxy URL:', proxyUrl);
+            
             console.log('Feedback data being sent:', {
                 messageId: messageId,
                 rating: isPositive,
@@ -172,9 +178,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 messageType: determineMessageType(messageContent, language)
             });
             
-            // UPDATED: Send feedback to analytics system through our proxy endpoint
-            // This avoids CORS issues by keeping the request within the same domain
-            const analyticsResponse = await fetch(process.env.REACT_APP_WEBHOOK_URL + '/analytics-proxy', {
+            // Send feedback to analytics system through our proxy endpoint
+            const analyticsResponse = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
