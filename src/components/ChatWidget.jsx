@@ -165,9 +165,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             });
             
             // NEW: Also send feedback to your analytics system database
-            // Assuming the analytics API is on the same domain as the chatbot
-            // Use a relative URL to avoid CORS issues
-            const analyticsResponse = await fetch('/api/feedback', {
+            // Using the public-feedback endpoint that doesn't require authentication
+            const analyticsResponse = await fetch('/api/public-feedback', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
