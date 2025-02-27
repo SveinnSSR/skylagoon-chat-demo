@@ -170,10 +170,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
-            console.log('REACT_APP_WEBHOOK_URL:', process.env.REACT_APP_WEBHOOK_URL);
-            console.log('Full feedback URL:', process.env.REACT_APP_WEBHOOK_URL + '/chat/feedback');
-            
-            // Send feedback to your existing endpoint for MongoDB storage
+            // Send feedback to your existing endpoint which now always broadcasts
             await fetch(process.env.REACT_APP_WEBHOOK_URL + '/chat/feedback', {
                 method: 'POST',
                 headers: {
@@ -186,11 +183,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     messageContent,
                     timestamp: new Date().toISOString(),
                     chatId: chatId,
-                    language: language,
-                    // Add this flag to tell the backend to broadcast to Pusher
-                    broadcastToPusher: true,
-                    // Include message type for analytics
-                    messageType: determineMessageType(messageContent, language)
+                    language: language
                 })
             });
             
