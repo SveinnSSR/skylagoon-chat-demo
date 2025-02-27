@@ -168,6 +168,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Using the public-feedback endpoint that doesn't require authentication
             const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
                 method: 'POST',
+                mode: 'cors', // Add this line
                 headers: {
                     'Content-Type': 'application/json'
                 },
