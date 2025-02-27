@@ -154,7 +154,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
-    // Updated function to handle message feedback with Pusher
+    // Updated function to handle message feedback
     const handleMessageFeedback = async (messageId, isPositive) => {
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
@@ -187,54 +187,26 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            // Prepare feedback data
-            const feedbackData = {
-                messageId: messageId,
-                isPositive: isPositive,
-                messageContent: messageContent,
-                messageType: determineMessageType(messageContent, language),
-                timestamp: new Date().toISOString(),
-                chatId: chatId,
-                language: language
-            };
+            // Send to feedback-pusher endpoint which will trigger the Pusher event
+            await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback-pusher', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': process.env.REACT_APP_API_KEY
+                },
+                body: JSON.stringify({
+                    messageId: messageId,
+                    isPositive: isPositive,
+                    messageContent: messageContent,
+                    messageType: determineMessageType(messageContent, language),
+                    timestamp: new Date().toISOString(),
+                    chatId: chatId,
+                    language: language
+                })
+            });
             
-            console.log('Feedback data prepared:', feedbackData);
+            console.log('Feedback successfully sent');
             
-            // Try to send feedback via Pusher if available
-            if (pusherChannel) {
-                console.log('Sending feedback via Pusher');
-                // Use the trigger method to send an event to the Pusher channel
-                pusherChannel.trigger('client-feedback-event', feedbackData);
-                console.log('Feedback sent via Pusher');
-            } else {
-                // Fallback to proxy if Pusher is not available
-                console.log('Pusher not available, using proxy endpoint');
-                const proxyUrl = process.env.REACT_APP_WEBHOOK_URL + '/analytics-proxy';
-                
-                const analyticsResponse = await fetch(proxyUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        messageId: messageId,
-                        rating: isPositive,
-                        comment: messageContent,
-                        messageType: determineMessageType(messageContent, language),
-                        timestamp: new Date().toISOString(),
-                        conversationId: chatId
-                    })
-                });
-                
-                console.log('Analytics proxy response status:', analyticsResponse.status);
-                
-                if (!analyticsResponse.ok) {
-                    const errorText = await analyticsResponse.text();
-                    console.error('Failed to send feedback to analytics system:', errorText);
-                } else {
-                    console.log('Successfully sent feedback to analytics system via proxy');
-                }
-            }
         } catch (error) {
             console.error('Error sending feedback:', error);
         }
