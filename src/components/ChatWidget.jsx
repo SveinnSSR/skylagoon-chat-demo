@@ -154,7 +154,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
-    // Updated function to handle message feedback
+    // Updated function to handle message feedback.
     const handleMessageFeedback = async (messageId, isPositive) => {
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
