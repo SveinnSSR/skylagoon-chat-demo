@@ -154,7 +154,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
-    // Updated function to handle message feedback.
+    // Updated function to handle message feedback
     const handleMessageFeedback = async (messageId, isPositive) => {
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
@@ -170,7 +170,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
-            // First, send feedback to your existing endpoint for MongoDB storage
+            // Send feedback to your existing endpoint for MongoDB storage
+            // This endpoint should take care of broadcasting to Pusher
             await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
                 method: 'POST',
                 headers: {
@@ -183,25 +184,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     messageContent,
                     timestamp: new Date().toISOString(),
                     chatId: chatId,
-                    language: language
-                })
-            });
-            
-            // Send to feedback-pusher endpoint which will trigger the Pusher event
-            await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback-pusher', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': process.env.REACT_APP_API_KEY
-                },
-                body: JSON.stringify({
-                    messageId: messageId,
-                    isPositive: isPositive,
-                    messageContent: messageContent,
-                    messageType: determineMessageType(messageContent, language),
-                    timestamp: new Date().toISOString(),
-                    chatId: chatId,
-                    language: language
+                    language: language,
+                    // Add this flag to tell the backend to broadcast to Pusher
+                    broadcastToPusher: true
                 })
             });
             
