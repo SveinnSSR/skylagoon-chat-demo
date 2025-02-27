@@ -147,6 +147,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
+            console.log('Sending feedback to analytics system at URL:', 'https://hysing.svorumstrax.is/api/public-feedback');
+            
             // First, send feedback to your existing endpoint for MongoDB storage
             await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
                 method: 'POST',
@@ -164,11 +166,20 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
+            // Log the messageId and other data being sent
+            console.log('Feedback data being sent:', {
+                messageId: messageId,
+                rating: isPositive,
+                comment: messageContent,
+                messageType: determineMessageType(messageContent, language)
+            });
+            
             // NEW: Also send feedback to your analytics system database
             // Using the public-feedback endpoint that doesn't require authentication
             const analyticsResponse = await fetch('https://hysing.svorumstrax.is/api/public-feedback', {
                 method: 'POST',
-                mode: 'cors', // Add this line
+                mode: 'cors',
+                credentials: 'omit', // Add this to explicitly not send credentials
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -182,8 +193,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
+            console.log('Analytics response status:', analyticsResponse.status);
+            
             if (!analyticsResponse.ok) {
-                console.error('Failed to send feedback to analytics system');
+                const errorText = await analyticsResponse.text();
+                console.error('Failed to send feedback to analytics system:', errorText);
+            } else {
+                console.log('Successfully sent feedback to analytics system');
             }
         } catch (error) {
             console.error('Error sending feedback:', error);
