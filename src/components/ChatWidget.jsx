@@ -170,12 +170,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
-            // Send feedback to MongoDB (you can keep or remove this part)
-            await fetch(process.env.REACT_APP_WEBHOOK_URL + '/feedback', {
+            console.log('Sending feedback to backend:', { messageId, isPositive });
+            
+            // Send to your backend (using props instead of env vars)
+            // Note: Remove '/chat' from the webhookUrl if needed
+            const feedbackUrl = webhookUrl.replace('/chat', '') + '/feedback';
+            console.log('Feedback URL:', feedbackUrl);
+            
+            const response = await fetch(feedbackUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': process.env.REACT_APP_API_KEY
+                    'x-api-key': apiKey
                 },
                 body: JSON.stringify({
                     messageId,
@@ -187,36 +193,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            console.log('Sending feedback directly to analytics system');
+            const data = await response.json();
+            console.log('Feedback response:', data);
             
-            // Use cors-anywhere.herokuapp.com as a CORS proxy
-            // This is a public proxy that helps bypass CORS restrictions
-            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://hysing.svorumstrax.is/api/public-feedback');
-            console.log('Using public CORS proxy:', proxyUrl);
-            
-            // Send feedback data through the public CORS proxy
-            const analyticsResponse = await fetch(proxyUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messageId: messageId,
-                    rating: isPositive,
-                    comment: messageContent,
-                    messageType: determineMessageType(messageContent, language),
-                    timestamp: new Date().toISOString(),
-                    conversationId: chatId
-                })
-            });
-            
-            console.log('Analytics response status:', analyticsResponse.status);
-            
-            if (!analyticsResponse.ok) {
-                const errorText = await analyticsResponse.text();
-                console.error('Failed to send feedback to analytics:', errorText);
+            if (!response.ok) {
+                console.error('Failed to send feedback:', data);
             } else {
-                console.log('Successfully sent feedback to analytics via public proxy');
+                console.log('Successfully sent feedback to backend');
             }
         } catch (error) {
             console.error('Error sending feedback:', error);
