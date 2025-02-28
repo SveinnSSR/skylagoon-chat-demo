@@ -170,8 +170,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
+            // Debug logging
+            console.log('REACT_APP_WEBHOOK_URL:', process.env.REACT_APP_WEBHOOK_URL);
+            console.log('Full feedback URL:', process.env.REACT_APP_WEBHOOK_URL + '/chat/feedback');
+            
             // Send feedback to your existing endpoint which now always broadcasts
-            await fetch(process.env.REACT_APP_WEBHOOK_URL + '/chat/feedback', {
+            const response = await fetch(process.env.REACT_APP_WEBHOOK_URL + '/chat/feedback', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -187,7 +191,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            console.log('Feedback successfully sent');
+            // Log the response status
+            console.log('Feedback response status:', response.status);
+            
+            if (!response.ok) {
+                // Try to get error message from response
+                const errorText = await response.text();
+                console.error('Feedback error details:', errorText);
+            }
             
         } catch (error) {
             console.error('Error sending feedback:', error);
