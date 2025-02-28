@@ -1,4 +1,4 @@
-// possibly not using this file - not sure
+// src/ChatBot.js - does not use the ChatWidget.jsx component
 import React, { useState, useEffect } from 'react';
 
 const ChatBot = () => {

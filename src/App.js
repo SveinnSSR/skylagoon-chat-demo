@@ -1,3 +1,4 @@
+// src/App.js - does not use the ChatWidget.jsx component
 import React from 'react';
 import './styles/globals.css';
 import Layout from './components/Layout';

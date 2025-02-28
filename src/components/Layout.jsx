@@ -1,9 +1,17 @@
+// src/components/Layout.jsx - passes the webhookUrl, apiKey, and language props to ChatWidget
 import React, { useState } from 'react';
 import ChatWidget from './ChatWidget';
 import PackageInfo from './PackageInfo';
 import { ChevronDown } from 'lucide-react';
 
 const Layout = ({ webhookUrl, apiKey }) => {
+    // Add debug log at the beginning of the component
+    console.log('Layout initialized with props:', {
+        webhookUrl, 
+        apiKeyProvided: !!apiKey,
+        language: 'en' // Initial language value
+    });
+
     const [language, setLanguage] = useState('en');
     const [expandedItem, setExpandedItem] = useState(null);
 
@@ -128,6 +136,13 @@ const Layout = ({ webhookUrl, apiKey }) => {
                     </p>
                 </section>
             </div>
+
+            {/* Log before rendering ChatWidget */}
+            {console.log('Rendering ChatWidget with:', {
+                webhookUrl,
+                apiKeyProvided: !!apiKey,
+                language
+            })}
 
             {/* Chat Widget */}
             <ChatWidget 

@@ -159,6 +159,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
         
+        console.log('Starting feedback submission for message:', messageId);
+        console.log('Current webhook URL:', webhookUrl);
+        console.log('API key available:', !!apiKey);
+        
         // Update local state first for immediate UI feedback
         setMessageFeedback(prev => ({
             ...prev,
@@ -193,8 +197,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
+            console.log('Feedback response status:', response.status);
             const data = await response.json();
-            console.log('Feedback response:', data);
+            console.log('Feedback response data:', data);
             
             if (!response.ok) {
                 console.error('Failed to send feedback:', data);
@@ -203,6 +208,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             }
         } catch (error) {
             console.error('Error sending feedback:', error);
+            console.error('Error details:', error.message);
         }
     };
     
@@ -299,12 +305,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         setIsTyping(true);
     
         try {
-            console.log('Attempting to connect to:', process.env.REACT_APP_WEBHOOK_URL);
-            const response = await fetch(process.env.REACT_APP_WEBHOOK_URL, {
+            // Use props instead of environment variables
+            console.log('Sending message to:', webhookUrl);
+            const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-api-key': process.env.REACT_APP_API_KEY
+                    'x-api-key': apiKey
                 },
                 body: JSON.stringify({ 
                     message: messageText,
@@ -332,7 +339,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     console.log('Agent credentials received');
                     setAgentCredentials(data.agent_credentials);
                 }
-
+    
                 // Set chat state to agent mode
                 setChatMode('agent');
                 setChatId(data.chatId);
