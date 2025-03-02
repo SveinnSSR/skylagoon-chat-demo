@@ -44,7 +44,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 setChatVisible(true);
             }, 50);
         } else {
-            // When closing, set visibility immediately to false to help with transition
+            // When closing, use a short delay to allow animation to complete
             setChatVisible(false);
         }
     }, [isMinimized]);
@@ -531,7 +531,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             bottom: '20px',
             right: '20px',
             width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
-            height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
+            height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '600px', // Fixed height instead of 'auto'
             maxHeight: isMinimized ? 'auto' : 'calc(100vh - 40px)',
             backgroundColor: 'rgba(112, 116, 78, 0.95)',
             borderRadius: isMinimized ? '50%' : '16px',
@@ -645,14 +645,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     display: 'flex',
                     flexDirection: 'column',
                     backgroundColor: 'white',
-                    height: 'calc(100% - 90px)',
-                    overflow: 'hidden',
-                    transition: 'opacity 0.3s ease, transform 0.3s ease'
+                    overflow: 'hidden'
                 }}>
                     {/* Chat messages area */}
                     <div style={{
                         flex: 1,
-                        backgroundColor: 'white',
                         overflowY: 'auto',
                         padding: '16px',
                         opacity: chatVisible ? 1 : 0,
