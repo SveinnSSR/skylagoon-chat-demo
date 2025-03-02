@@ -1,4 +1,4 @@
-// src/components/ChatWidget.jsx
+// src/components/ChatWidget.jsx // for empty change
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
