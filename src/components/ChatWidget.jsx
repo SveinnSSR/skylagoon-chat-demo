@@ -1,8 +1,10 @@
-// src/components/ChatWidget.jsx.
+// src/components/ChatWidget.jsx
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
 import Pusher from 'pusher-js'; // Add Pusher import
+import BookingChangeRequest from './BookingChangeRequest';
+import '../styles/BookingChangeRequest.css';
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
     const messagesEndRef = React.useRef(null);
@@ -19,6 +21,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [messageFeedback, setMessageFeedback] = useState({});
     // Add Pusher state
     const [pusherChannel, setPusherChannel] = useState(null);
+    // Add state for booking change form
+    const [showBookingForm, setShowBookingForm] = useState(false);
+    const [bookingRequestSent, setBookingRequestSent] = useState(false);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,7 +31,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [messages, showBookingForm]);
 
     // Initialize Pusher
     useEffect(() => {
@@ -93,6 +98,93 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         
         // Show feedback for all substantive responses
         return true;
+    };
+
+    // Handle booking form submission
+    const handleBookingFormSubmit = async (formattedMessage) => {
+        setIsTyping(true);
+        
+        try {
+            // Convert formattedMessage to structured data
+            const formLines = formattedMessage.split('\n');
+            const formData = {};
+            
+            // Parse each line into key-value pairs
+            formLines.forEach(line => {
+                if (line.includes(':')) {
+                    const [key, value] = line.split(':').map(part => part.trim());
+                    if (key && value) {
+                        formData[key.toLowerCase().replace(/\s(.)/g, (match, group) => group.toUpperCase())] = value;
+                    }
+                }
+            });
+            
+            // Send the booking change request
+            console.log('Sending booking form data:', formData);
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    message: formattedMessage,
+                    formData: JSON.stringify(formData),
+                    language: language,
+                    chatId: chatId,
+                    bot_token: botToken,
+                    agent_credentials: agentCredentials,
+                    isBookingChangeRequest: true
+                })
+            });
+
+            const data = await response.json();
+            setIsTyping(false);
+
+            // Add user's formatted request to chat
+            setMessages(prev => [...prev, {
+                type: 'user',
+                content: formattedMessage,
+                id: 'user-booking-' + Date.now()
+            }]);
+
+            // Add confirmation message
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: data.message || (language === 'en' ? 
+                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours." :
+                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda."),
+                id: 'bot-booking-confirm-' + Date.now()
+            }]);
+
+            // Update state
+            setBookingRequestSent(true);
+            setShowBookingForm(false);
+        } catch (error) {
+            console.error('Error submitting booking request:', error);
+            setIsTyping(false);
+            
+            // Show error message
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: language === 'en' ? 
+                    "I'm sorry, we're having trouble submitting your booking change request. Please try again or call us at +354 527 6800." :
+                    "Því miður erum við að lenda í vandræðum með að senda bókunarbeiðnina þína. Vinsamlegast reyndu aftur eða hringdu í +354 527 6800.",
+                id: 'bot-booking-error-' + Date.now()
+            }]);
+        }
+    };
+
+    // Handle booking form cancellation
+    const handleBookingFormCancel = () => {
+        setShowBookingForm(false);
+        setMessages(prev => [...prev, {
+            type: 'bot',
+            content: language === 'en' ? 
+                "I've cancelled the booking change request. Is there anything else I can help you with?" :
+                "Ég hef hætt við bókunarbreytingabeiðnina. Er eitthvað annað sem ég get aðstoðað þig með?",
+            id: 'bot-booking-cancel-' + Date.now()
+        }]);
     };
 
     const TypingIndicator = () => (
@@ -325,6 +417,27 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     
             const data = await response.json();
             setIsTyping(false);
+            
+            // Handle booking change request form
+            if (data.showBookingChangeForm) {
+                console.log('Booking change request detected, showing form');
+                
+                // Save the chat ID and tokens if provided
+                if (data.chatId) setChatId(data.chatId);
+                if (data.bot_token) setBotToken(data.bot_token);
+                if (data.agent_credentials) setAgentCredentials(data.agent_credentials);
+                
+                // Add the bot message
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message,
+                    id: 'bot-msg-' + Date.now()
+                }]);
+                
+                // Show the booking form
+                setShowBookingForm(true);
+                return;
+            }
     
             // Handle transfer state
             if (data.transferred && data.chatId) {
@@ -461,6 +574,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             marginTop: '4px'
                         }}>
                             {language === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
+                        </div>
+                    )}
+                    {bookingRequestSent && (
+                        <div style={{
+                            backgroundColor: '#70744E',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            marginTop: '4px'
+                        }}>
+                            {language === 'en' ? 'Booking Change Requested' : 'Bókanabreyting Umbeðin'}
                         </div>
                     )}
                 </div>
@@ -630,6 +755,47 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 )}
                             </div>
                         ))}
+
+                        {/* Show booking form if requested */}
+                        {showBookingForm && !bookingRequestSent && (
+                            <div className="message bot">
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'flex-start',
+                                    alignItems: 'flex-start',
+                                    width: '100%',
+                                    gap: '8px',
+                                    marginBottom: '16px'
+                                }}>
+                                    <img 
+                                        src="/solrun.png" 
+                                        alt="Sólrún"
+                                        style={{
+                                            width: '30px',
+                                            height: '30px',
+                                            borderRadius: '50%',
+                                            marginTop: '4px',
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                        }}
+                                    />
+                                    <div className="bubble form-container" style={{
+                                        maxWidth: '90%',
+                                        padding: '0',
+                                        borderRadius: '16px',
+                                        backgroundColor: '#f0f0f0',
+                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <BookingChangeRequest 
+                                            onSubmit={handleBookingFormSubmit}
+                                            onCancel={handleBookingFormCancel}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {isTyping && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
@@ -680,6 +846,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     </div>
                 </>
             )}
+
+            {/* Add keyframes for typing animation */}
+            <style jsx global>{`
+                @keyframes typing {
+                    0% {
+                        opacity: 0.4;
+                    }
+                    50% {
+                        opacity: 1;
+                    }
+                    100% {
+                        opacity: 0.4;
+                    }
+                }
+            `}</style>
         </div>
     );
 };
