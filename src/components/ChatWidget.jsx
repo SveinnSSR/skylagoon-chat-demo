@@ -518,17 +518,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
             height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
             backgroundColor: 'rgba(112, 116, 78, 0.95)',
-            borderRadius: isMinimized ? '50%' : '16px', // Slightly more rounded corners
+            borderRadius: isMinimized ? '50%' : '16px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             fontFamily: theme.fonts.body,
             overflow: 'hidden',
-            transform: isMinimized ? 'scale(1)' : 'scale(1.02)', // Subtle scale animation
             transformOrigin: 'bottom right',
-            transition: 'all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275)', // Smoother, slightly longer transition with easing
+            transition: 'all 0.4s cubic-bezier(0.23, 1, 0.32, 1)', // More subtle easing
             backdropFilter: 'blur(8px)',
-            zIndex: 9999, // Ensure it's above other elements
-            maxWidth: isMinimized ? 'auto' : '90vw' // Prevent overflow on small screens when expanded
+            zIndex: 9999,
+            maxWidth: isMinimized ? 'auto' : '90vw'
         }}>
             {/* Header */}
             <div 
@@ -628,7 +627,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         height: '400px',
                         backgroundColor: 'white',
                         overflowY: 'auto',
-                        padding: '16px'
+                        padding: '16px',
+                        animation: 'fadeIn 0.35s ease-out'
                     }}>
                         {messages.map((msg, index) => (
                             <div key={index} style={{
@@ -885,6 +885,20 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         font-size: 16px !important; /* Prevent zoom on mobile */
                     }
                 }
+                
+                /* Add smooth expansion animation */
+                @keyframes expand {
+                    0% { transform: scale(0.95); opacity: 0.8; }
+                    100% { transform: scale(1); opacity: 1; }
+                }
+
+                /* Add to JSX scope but keep it in style block */
+                ${!isMinimized ? `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                ` : ''}
             `}</style>
         </div>
     );
