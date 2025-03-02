@@ -26,6 +26,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [bookingRequestSent, setBookingRequestSent] = useState(false);
     // Add window width tracking for responsive design
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+    // Add state for controlling chat animation
+    const [chatVisible, setChatVisible] = useState(false);
 
     // Add window resize listener for responsive design
     useEffect(() => {
@@ -33,6 +35,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Control animation state
+    useEffect(() => {
+        // Small delay to ensure animation works correctly
+        if (!isMinimized) {
+            // When opening
+            setChatVisible(true);
+        } else {
+            // When closing, use a short delay to allow animation to complete
+            const timer = setTimeout(() => {
+                setChatVisible(false);
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [isMinimized]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -631,7 +648,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         backgroundColor: 'white',
                         overflowY: 'auto',
                         padding: '16px',
-                        animation: 'fadeIn 0.35s ease-out'
+                        animation: 'slideDownIn 0.4s ease-out',
+                        opacity: chatVisible ? 1 : 0,
+                        transform: chatVisible ? 'translateY(0)' : 'translateY(-20px)',
+                        transition: 'opacity 0.3s ease, transform 0.3s ease'
                     }}>
                         {messages.map((msg, index) => (
                             <div key={index} style={{
@@ -828,7 +848,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         backgroundColor: 'white',
                         borderTop: '1px solid #eee',
                         display: 'flex',
-                        gap: '8px'
+                        gap: '8px',
+                        opacity: chatVisible ? 1 : 0,
+                        transform: chatVisible ? 'translateY(0)' : 'translateY(-10px)',
+                        transition: 'opacity 0.3s ease, transform 0.3s ease'
                     }}>
                         <input
                             type="text"
@@ -883,25 +906,33 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }
                 }
                 
+                @keyframes slideDownIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                @keyframes slideUpOut {
+                    from {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateY(-30px);
+                    }
+                }
+                
                 @media (max-width: 768px) {
                     input, button {
                         font-size: 16px !important; /* Prevent zoom on mobile */
                     }
                 }
-                
-                /* Add smooth expansion animation */
-                @keyframes expand {
-                    0% { transform: scale(0.95); opacity: 0.8; }
-                    100% { transform: scale(1); opacity: 1; }
-                }
-
-                /* Add to JSX scope but keep it in style block */
-                ${!isMinimized ? `
-                @keyframes fadeIn {
-                    from { opacity: 0; }
-                    to { opacity: 1; }
-                }
-                ` : ''}
             `}</style>
         </div>
     );
