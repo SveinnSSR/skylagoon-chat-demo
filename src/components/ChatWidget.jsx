@@ -1,4 +1,4 @@
-// src/components/ChatWidget.jsx // for empty change
+// src/components/ChatWidget.jsx
 import React, { useState, useEffect } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
@@ -24,6 +24,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // Add state for booking change form
     const [showBookingForm, setShowBookingForm] = useState(false);
     const [bookingRequestSent, setBookingRequestSent] = useState(false);
+    // Add window width tracking for responsive design
+    const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+    // Add window resize listener for responsive design
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -506,27 +515,32 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             position: 'fixed',
             bottom: '20px',
             right: '20px',
-            width: isMinimized ? '260px' : '400px',
+            width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
+            height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
             backgroundColor: 'rgba(112, 116, 78, 0.95)',
-            borderRadius: isMinimized ? '40px' : '12px',
+            borderRadius: isMinimized ? '50%' : '12px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             fontFamily: theme.fonts.body,
             overflow: 'hidden',
             transition: 'all 0.3s ease',
-            backdropFilter: 'blur(8px)'
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999, // Ensure it's above other elements
+            maxWidth: isMinimized ? 'auto' : '90vw' // Prevent overflow on small screens when expanded
         }}>
             {/* Header */}
             <div 
                 onClick={() => setIsMinimized(!isMinimized)}
                 style={{
-                    padding: isMinimized ? '16px 20px' : '20px 16px',
+                    padding: isMinimized ? '0' : '20px 16px',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: isMinimized ? 'center' : 'flex-start',
                     cursor: 'pointer',
                     gap: '12px',
                     backgroundColor: 'rgba(112, 116, 78, 1)',
                     width: '100%',
+                    height: isMinimized ? '100%' : 'auto',
                     boxSizing: 'border-box',
                     flexDirection: isMinimized ? 'row' : 'column',
                     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
@@ -536,70 +550,73 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     src="/solrun.png" 
                     alt="Sólrún" 
                     style={{ 
-                        height: isMinimized ? '32px' : '60px',
-                        width: isMinimized ? '32px' : '60px',
+                        height: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
+                        width: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
                         borderRadius: '50%',
                         objectFit: 'cover',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        boxShadow: isMinimized ? '0 1px 3px rgba(0, 0, 0, 0.1)' : '0 2px 4px rgba(0, 0, 0, 0.1)'
                     }}
                 />
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: isMinimized ? 'flex-start' : 'center',
-                    gap: '4px'
-                }}>
+                {!isMinimized && (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px'
+                    }}>
+                        <span style={{ 
+                            color: 'white',
+                            fontSize: '16px',
+                            fontWeight: '500',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            {chatMode === 'agent' ? 'Agent' : 'Sólrún'}
+                        </span>
+                        <span style={{ 
+                            color: '#e0e0e0',
+                            fontSize: '14px',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            Sky Lagoon
+                        </span>
+                        {chatMode === 'agent' && (
+                            <div style={{
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                marginTop: '4px'
+                            }}>
+                                {language === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
+                            </div>
+                        )}
+                        {bookingRequestSent && (
+                            <div style={{
+                                backgroundColor: '#70744E',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                marginTop: '4px'
+                            }}>
+                                {language === 'en' ? 'Booking Change Requested' : 'Bókanabreyting Umbeðin'}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {!isMinimized && (
                     <span style={{ 
                         color: 'white',
-                        fontSize: isMinimized ? '15px' : '16px',
-                        fontWeight: '500',
+                        fontSize: '12px',
+                        position: 'absolute',
+                        right: '16px',
+                        top: '16px',
                         textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
-                        {chatMode === 'agent' ? 'Agent' : 'Sólrún'}
+                        ▽
                     </span>
-                    <span style={{ 
-                        color: '#e0e0e0',
-                        fontSize: isMinimized ? '13px' : '14px',
-                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                    }}>
-                        Sky Lagoon
-                    </span>
-                    {chatMode === 'agent' && (
-                        <div style={{
-                            backgroundColor: '#4CAF50',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            marginTop: '4px'
-                        }}>
-                            {language === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
-                        </div>
-                    )}
-                    {bookingRequestSent && (
-                        <div style={{
-                            backgroundColor: '#70744E',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            marginTop: '4px'
-                        }}>
-                            {language === 'en' ? 'Booking Change Requested' : 'Bókanabreyting Umbeðin'}
-                        </div>
-                    )}
-                </div>
-                <span style={{ 
-                    color: 'white',
-                    fontSize: '12px',
-                    marginLeft: isMinimized ? 'auto' : '0',
-                    position: isMinimized ? 'relative' : 'absolute',
-                    right: isMinimized ? 'auto' : '16px',
-                    top: isMinimized ? 'auto' : '16px',
-                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                }}>
-                    {isMinimized ? '△' : '▽'}
-                </span>
+                )}
             </div>
 
             {/* Chat area */}
@@ -858,6 +875,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }
                     100% {
                         opacity: 0.4;
+                    }
+                }
+                
+                @media (max-width: 768px) {
+                    input, button {
+                        font-size: 16px !important; /* Prevent zoom on mobile */
                     }
                 }
             `}</style>
