@@ -736,7 +736,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                 }}>
                                                     {language === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
                                                 </div>
-                                        ) : (
+                                        ) : 
+                                        (
                                             <>
                                             <button 
                                                 onClick={() => handleMessageFeedback(msg.id, true)}
