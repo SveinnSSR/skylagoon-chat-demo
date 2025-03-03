@@ -121,7 +121,7 @@ Additional Info: ${formData.additionalInfo || 'None provided'}
             name="bookingRef"
             value={formData.bookingRef}
             onChange={handleChange}
-            placeholder="e.g., SKY12345"
+            placeholder="e.g., 7730900"
             className={errors.bookingRef ? 'error' : ''}
           />
           {errors.bookingRef && <span className="error-message">{errors.bookingRef}</span>}

@@ -518,10 +518,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
             height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
             maxHeight: isMinimized ? 'auto' : 'calc(100vh - 40px)',
-            backgroundColor: isMinimized ? 'rgba(112, 116, 78, 0.95)' : 'white', // White background when expanded
+            backgroundColor: isMinimized ? 'rgba(112, 116, 78, 0.95)' : 'rgba(112, 116, 78, 1)', // Change to match header color
             borderRadius: isMinimized ? '50%' : '16px',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            border: 'none', // Remove the border
             fontFamily: theme.fonts.body,
             overflow: 'hidden',
             transformOrigin: 'bottom right',
