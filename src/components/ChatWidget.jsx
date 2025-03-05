@@ -277,12 +277,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             console.log('Sending feedback to backend:', { messageId, isPositive });
             
-            // Send to your backend (using props instead of env vars)
+            // 1. ORIGINAL ENDPOINT - Send to your backend (using props instead of env vars)
             // Note: Remove '/chat' from the webhookUrl if needed
             const feedbackUrl = webhookUrl.replace('/chat', '') + '/feedback';
-            console.log('Feedback URL:', feedbackUrl);
+            console.log('External Feedback URL:', feedbackUrl);
             
-            const response = await fetch(feedbackUrl, {
+            const externalResponse = await fetch(feedbackUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -298,11 +298,41 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 })
             });
             
-            console.log('Feedback response status:', response.status);
-            const data = await response.json();
-            console.log('Feedback response data:', data);
+            console.log('External feedback response status:', externalResponse.status);
             
-            if (!response.ok) {
+            // 2. NEW ENDPOINT - Also send to our analytics system for proper ID linking
+            console.log('Sending feedback to analytics system for ID linking');
+            
+            try {
+                const analyticsResponse = await fetch('/api/feedback/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messageId,
+                        rating: isPositive,
+                        content: messageContent,
+                        timestamp: new Date().toISOString(),
+                        language: language
+                    })
+                });
+                
+                console.log('Analytics feedback response status:', analyticsResponse.status);
+                
+                if (analyticsResponse.ok) {
+                    const analyticsData = await analyticsResponse.json();
+                    console.log('Analytics feedback response:', analyticsData);
+                } else {
+                    console.log('Analytics feedback submission failed, but original feedback was sent');
+                }
+            } catch (analyticsError) {
+                // Don't fail the overall feedback if analytics submission fails
+                console.error('Error sending feedback to analytics:', analyticsError);
+            }
+            
+            if (!externalResponse.ok) {
+                const data = await externalResponse.json();
                 console.error('Failed to send feedback:', data);
             } else {
                 console.log('Successfully sent feedback to backend');
