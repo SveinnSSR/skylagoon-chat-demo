@@ -119,7 +119,7 @@ Name: ${formData.fullName}
 Email: ${formData.email}
 Current Date: ${formData.currentDate}
 Requested Date: ${formData.requestedDate}
-Additional Info: ${formData.additionalInfo || 'None provided'}
+Additional Info: ${(formData.additionalInfo || 'None provided').replace(/\n/g, ' ')}
       `.trim();
       
       // Call the parent component's onSubmit function
