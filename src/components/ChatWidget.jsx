@@ -834,7 +834,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     <BookingChangeRequest 
                                         onSubmit={handleBookingFormSubmit}
                                         onCancel={handleBookingFormCancel}
-                                        language={language}
+                                        language={language === 'is' ? 'is' : 'en'} // Ensure proper language format
                                     />
                                 </div>
                             </div>
