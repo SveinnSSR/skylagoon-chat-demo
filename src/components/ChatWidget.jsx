@@ -632,7 +632,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 fontSize: '12px',
                                 marginTop: '4px'
                             }}>
-                                {language === 'en' ? 'Booking Change Requested' : 'Bókanabreyting Umbeðin'}
+                                {language === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
                             </div>
                         )}
                     </div>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sky Lagoon Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+    
+    /* Make sure the widget can communicate its size changes to parent */
+    #widget-container {
+      height: 100%;
+      width: 100%;
+    }
+    
+    @keyframes typing {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <div id="widget-container"></div>
+
+  <script>
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const language = urlParams.get('language') || 'en';
+    
+    // Create a simplified container that just runs the ChatWidget
+    const container = document.getElementById('widget-container');
+    
+    // Load the chat widget script
+    const script = document.createElement('script');
+    script.src = '/widget-standalone.js';
+    script.async = true;
+    document.body.appendChild(script);
+    
+    // Function to send resize messages to parent
+    window.sendResizeMessage = function(isMinimized) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'resize',
+          width: isMinimized ? '70px' : '400px',
+          height: isMinimized ? '70px' : '580px'
+        }, '*');
+      }
+    };
+    
+    // Store the language in a global variable for the widget to use
+    window.WIDGET_LANGUAGE = language;
+  </script>
+</body>
+</html>
