@@ -35,7 +35,10 @@
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
     button.style.cursor = 'pointer';
-    button.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)';
+    // Either remove the shadow entirely:
+    button.style.boxShadow = 'none';
+    // OR use a more subtle shadow that won't get cut off:
+    // button.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.15)';
     
     const img = document.createElement('img');
     img.src = '/solrun.png';
@@ -87,11 +90,13 @@
     headerTitle.style.fontSize = '16px';
     headerTitle.style.fontWeight = '500';
     headerTitle.textContent = 'Sólrún';
+    headerTitle.style.fontFamily = "'Caudex', serif";
     
     const headerSubtitle = document.createElement('div');
     headerSubtitle.style.color = '#e0e0e0';
     headerSubtitle.style.fontSize = '14px';
     headerSubtitle.textContent = 'Sky Lagoon';
+    headerSubtitle.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     
     header.appendChild(headerImg);
     header.appendChild(headerTitle);
@@ -124,6 +129,7 @@
     messagesArea.style.overflowY = 'auto';
     messagesArea.style.padding = '16px';
     messagesArea.style.height = '400px';
+    messagesArea.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     
     // Input area
     const inputArea = document.createElement('div');
@@ -142,6 +148,7 @@
     input.style.border = '1px solid #ddd';
     input.style.outline = 'none';
     input.style.fontSize = '14px';
+    input.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     
     const sendBtn = document.createElement('button');
     sendBtn.textContent = config.language === 'en' ? 'Send' : 'Senda';
@@ -153,6 +160,7 @@
     sendBtn.style.cursor = 'pointer';
     sendBtn.style.fontSize = '14px';
     sendBtn.style.fontWeight = '500';
+    sendBtn.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     
     inputArea.appendChild(input);
     inputArea.appendChild(sendBtn);
@@ -205,6 +213,7 @@
       bubble.style.lineHeight = '1.5';
       bubble.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
       bubble.textContent = msg.content;
+      bubble.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       
       msgEl.appendChild(bubble);
       messagesArea.appendChild(msgEl);

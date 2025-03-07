@@ -1,5 +1,14 @@
 // This script creates an iframe that will load our chat widget
 (function() {
+  // Ensure Google Fonts are loaded
+  if (!document.getElementById('sky-lagoon-fonts')) {
+    const fontLink = document.createElement('link');
+    fontLink.id = 'sky-lagoon-fonts';
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap';
+    document.head.appendChild(fontLink);
+  }
+  
   // Get language from the page if available
   const pageLanguage = document.documentElement.lang || 'en';
   const language = pageLanguage.includes('is') ? 'is' : 'en';
@@ -13,8 +22,8 @@
   iframe.style.position = 'fixed';
   iframe.style.bottom = '0';
   iframe.style.right = '0';
-  iframe.style.width = '70px';
-  iframe.style.height = '70px';
+  iframe.style.width = '80px';  // Slightly larger than the 70px
+  iframe.style.height = '80px'; // Slightly larger than the 70px
   iframe.style.border = 'none';
   iframe.style.zIndex = '9999';
   iframe.style.transition = 'all 0.3s ease';
