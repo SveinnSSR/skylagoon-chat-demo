@@ -6,7 +6,7 @@ import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
 
-const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en' }) => {
+const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false }) => {
     const messagesEndRef = React.useRef(null);
     const [isMinimized, setIsMinimized] = useState(true);
     const [messages, setMessages] = useState([]);
@@ -28,6 +28,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [bookingRequestSent, setBookingRequestSent] = useState(false);
     // Add window width tracking for responsive design
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+    // Add this near your other useEffect hooks
+    useEffect(() => {
+    if (isEmbedded && typeof window !== 'undefined' && window.sendResizeMessage) {
+      window.sendResizeMessage(isMinimized);
+    }
+    }, [isMinimized, isEmbedded]);
 
     // Add window resize listener for responsive design
     useEffect(() => {

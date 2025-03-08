@@ -17,20 +17,20 @@
   const iframe = document.createElement('iframe');
   
   // Set iframe attributes
-  iframe.src = `https://skylagoon-chat-demo.vercel.app/widget.html?language=${language}`;
+  iframe.src = `https://skylagoon-chat-demo.vercel.app/widget-embed.html?language=${language}`;
   iframe.id = 'sky-lagoon-chat-iframe';
   iframe.style.position = 'fixed';
   iframe.style.bottom = '0';
   iframe.style.right = '0';
-  iframe.style.width = '80px';  // Slightly larger than the 70px
-  iframe.style.height = '80px'; // Slightly larger than the 70px
+  iframe.style.width = '80px';
+  iframe.style.height = '80px';
   iframe.style.border = 'none';
   iframe.style.outline = 'none';
   iframe.style.backgroundColor = 'transparent';
   iframe.style.zIndex = '9999';
   iframe.style.transition = 'all 0.3s ease';
   iframe.style.overflow = 'hidden';
-  iframe.style.borderRadius = '50%'; // Make corners round when minimized
+  iframe.style.borderRadius = '50%';
   iframe.style.boxShadow = 'none';
   
   // Set non-style attributes
