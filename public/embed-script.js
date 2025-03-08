@@ -25,13 +25,19 @@
   iframe.style.width = '80px';  // Slightly larger than the 70px
   iframe.style.height = '80px'; // Slightly larger than the 70px
   iframe.style.border = 'none';
-  iframe.style.outline = 'none'; // Add outline: none
+  iframe.style.outline = 'none';
+  iframe.style.backgroundColor = 'transparent';
   iframe.style.zIndex = '9999';
   iframe.style.transition = 'all 0.3s ease';
   iframe.style.overflow = 'hidden';
-  iframe.frameBorder = '0'; // Add frameBorder='0'
-  iframe.allowTransparency = 'true'; // Allow transparency
-
+  iframe.style.borderRadius = '50%'; // Make corners round when minimized
+  iframe.style.boxShadow = 'none';
+  
+  // Set non-style attributes
+  iframe.frameBorder = '0';
+  iframe.allowTransparency = true;
+  iframe.scrolling = 'no';
+  
   // Add the iframe to the container
   const container = document.getElementById('sky-lagoon-chat-container');
   if (container) {
@@ -47,6 +53,13 @@
     if (event.data && event.data.type === 'resize') {
       iframe.style.width = event.data.width;
       iframe.style.height = event.data.height;
+      
+      // Update border radius based on minimized state
+      if (event.data.width === '70px' || event.data.width === '80px') {
+        iframe.style.borderRadius = '50%';
+      } else {
+        iframe.style.borderRadius = '16px';
+      }
     }
   });
 })();

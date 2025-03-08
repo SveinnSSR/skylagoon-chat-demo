@@ -7,6 +7,31 @@
     language: window.WIDGET_LANGUAGE || 'en'
   };
   
+  // Message formatting function (simplified version of MessageFormatter)
+  function formatMessage(message) {
+    if (!message) return '';
+    
+    // Basic formatting
+    let formatted = message
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // Italic text
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      // Handle numbered lists
+      .replace(/^\d+\.\s+(.*?)$/gm, '<li>$1</li>')
+      // Handle bullet lists
+      .replace(/^-\s+(.*?)$/gm, '<li>$1</li>')
+      // Handle line breaks
+      .replace(/\n/g, '<br>');
+    
+    // Check if it's a list and wrap in <ul> if needed
+    if (formatted.includes('<li>')) {
+      formatted = '<ul style="margin: 0; padding-left: 20px;">' + formatted + '</ul>';
+    }
+    
+    return formatted;
+  }
+  
   // Create the widget container
   const container = document.createElement('div');
   container.id = 'chat-widget-root';
@@ -14,6 +39,7 @@
   container.style.height = '100%';
   container.style.border = 'none';
   container.style.outline = 'none';
+  container.style.backgroundColor = 'transparent';
   document.getElementById('widget-container').appendChild(container);
   
   // Initially minimized
@@ -297,7 +323,7 @@
       bubble.style.lineHeight = '1.5';
       bubble.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
       bubble.style.border = 'none';
-      bubble.textContent = msg.content;
+      bubble.innerHTML = formatMessage(msg.content); // Use innerHTML with formatter
       bubble.style.fontFamily = "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
       
       msgEl.appendChild(bubble);
@@ -466,6 +492,11 @@
       `;
       document.head.appendChild(styleEl);
     }
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }, 100);
     
     // Send message function
     const sendMessage = async () => {

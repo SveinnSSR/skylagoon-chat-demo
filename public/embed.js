@@ -5,6 +5,7 @@
   container.id = 'sky-lagoon-chat-container';
   container.style.border = 'none';
   container.style.outline = 'none';
+  container.style.backgroundColor = 'transparent';
   document.body.appendChild(container);
   
   // Create script to load React
