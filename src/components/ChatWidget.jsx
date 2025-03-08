@@ -19,6 +19,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [agentCredentials, setAgentCredentials] = useState(null);
     // New state for tracking message feedback
     const [messageFeedback, setMessageFeedback] = useState({});
+    // Add state to track PostgreSQL IDs for messages
+    const [messagePostgresqlIds, setMessagePostgresqlIds] = useState({});
     // Add Pusher state
     const [pusherChannel, setPusherChannel] = useState(null);
     // Add state for booking change form
@@ -275,10 +277,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             const message = messages.find(msg => msg.id === messageId);
             const messageContent = message ? message.content : '';
             
-            console.log('Sending feedback to backend:', { messageId, isPositive });
+            // Get PostgreSQL ID if we have one stored
+            const postgresqlId = messagePostgresqlIds[messageId];
+            console.log('PostgreSQL ID for this message:', postgresqlId || 'Not available');
+            
+            console.log('Sending feedback to backend:', { messageId, postgresqlId, isPositive });
             
             // 1. ORIGINAL ENDPOINT - Send to your backend (using props instead of env vars)
-            // Note: Remove '/chat' from the webhookUrl if needed
             const feedbackUrl = webhookUrl.replace('/chat', '') + '/feedback';
             console.log('External Feedback URL:', feedbackUrl);
             
@@ -290,6 +295,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 },
                 body: JSON.stringify({
                     messageId,
+                    postgresqlId, // Include PostgreSQL ID if available
                     isPositive,
                     messageContent,
                     timestamp: new Date().toISOString(),
@@ -311,6 +317,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     },
                     body: JSON.stringify({
                         messageId,
+                        postgresqlId, // Include PostgreSQL ID if available
                         rating: isPositive,
                         content: messageContent,
                         timestamp: new Date().toISOString(),
@@ -522,11 +529,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             }
     
             // Normal bot response handling with unique ID for feedback tracking
+            const botMessageId = 'bot-msg-' + Date.now();
             setMessages(prev => [...prev, {
                 type: 'bot',
                 content: data.message,
-                id: 'bot-msg-' + Date.now()
+                id: botMessageId
             }]);
+
+            // Store PostgreSQL ID if provided in response
+            if (data.postgresqlMessageId) {
+                setMessagePostgresqlIds(prev => ({
+                    ...prev,
+                    [botMessageId]: data.postgresqlMessageId
+                }));
+                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
+            }
         } catch (error) {
             console.error('Error:', error);
             setIsTyping(false);
