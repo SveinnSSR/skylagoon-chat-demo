@@ -3,6 +3,8 @@
   // Create container for the chat widget
   const container = document.createElement('div');
   container.id = 'sky-lagoon-chat-container';
+  container.style.border = 'none';
+  container.style.outline = 'none';
   document.body.appendChild(container);
   
   // Create script to load React

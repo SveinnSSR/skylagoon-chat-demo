@@ -25,9 +25,12 @@
   iframe.style.width = '80px';  // Slightly larger than the 70px
   iframe.style.height = '80px'; // Slightly larger than the 70px
   iframe.style.border = 'none';
+  iframe.style.outline = 'none'; // Add outline: none
   iframe.style.zIndex = '9999';
   iframe.style.transition = 'all 0.3s ease';
   iframe.style.overflow = 'hidden';
+  iframe.frameBorder = '0'; // Add frameBorder='0'
+  iframe.allowTransparency = 'true'; // Allow transparency
 
   // Add the iframe to the container
   const container = document.getElementById('sky-lagoon-chat-container');
