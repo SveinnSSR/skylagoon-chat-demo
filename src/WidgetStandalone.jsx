@@ -1,16 +1,18 @@
-// src/WidgetStandalone.jsx
 import React from 'react';
 import ReactDOM from 'react-dom';
 import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
+import './styles/BookingChangeRequest.css';
 
-// Get language from window
-const language = window.WIDGET_LANGUAGE || 'en';
-
-// Render the ChatWidget directly
-const renderWidget = () => {
+document.addEventListener('DOMContentLoaded', () => {
   const root = document.getElementById('root');
+  
   if (root) {
+    // Get language from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const language = urlParams.get('language') || 'en';
+    
+    // Render the ChatWidget directly
     ReactDOM.render(
       <ChatWidget 
         webhookUrl="https://sky-lagoon-chat-2024.vercel.app/chat"
@@ -21,8 +23,4 @@ const renderWidget = () => {
       root
     );
   }
-};
-
-// Render the widget when the page loads
-document.addEventListener('DOMContentLoaded', renderWidget);
-
+});
