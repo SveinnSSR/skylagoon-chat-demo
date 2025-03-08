@@ -1,4 +1,4 @@
-// Sky Lagoon Chat Widget Embedding Script
+// Sky Lagoon Chat Widget Embedding Script. 
 (function() {
   // Create container for the chat widget
   const container = document.createElement('div');
