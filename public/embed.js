@@ -1,6 +1,22 @@
 // Widget Embed Script
 (function() {
-  return; // <-- ADD THIS LINE TO COMPLETELY PREVENT THE WIDGET FROM LOADING
+  // REMOVED failsafe return line
+  
+  // Preload React dependencies
+  const preloadReact = document.createElement('link');
+  preloadReact.rel = 'preload';
+  preloadReact.href = 'https://unpkg.com/react@18/umd/react.production.min.js';
+  preloadReact.as = 'script';
+  preloadReact.crossOrigin = 'anonymous';
+  document.head.appendChild(preloadReact);
+
+  const preloadReactDOM = document.createElement('link');
+  preloadReactDOM.rel = 'preload';
+  preloadReactDOM.href = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
+  preloadReactDOM.as = 'script';
+  preloadReactDOM.crossOrigin = 'anonymous';
+  document.head.appendChild(preloadReactDOM);
+  
   const iframe = document.createElement('iframe');
   
   iframe.style.cssText = `
@@ -22,13 +38,16 @@
   iframe.src = 'https://skylagoon-chat-demo.vercel.app/widget.html';
   iframe.frameBorder = '0';
   iframe.scrolling = 'no';
+  iframe.allow = "clipboard-read; clipboard-write";
   
-  // failsafe: keep commented out
-  iframe.style.display = 'none !important';
+  // REMOVED failsafe line
+  
   document.body.appendChild(iframe);
   
   window.addEventListener('message', function(event) {
     if (event.origin !== 'https://skylagoon-chat-demo.vercel.app') return;
+    
+    console.log('Parent received message:', event.data);
     
     if (event.data && event.data.type === 'resize') {
       if (event.data.isMinimized) {
