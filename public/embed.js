@@ -20,7 +20,7 @@
   `;
   
   iframe.id = 'sky-lagoon-chat-iframe';
-  iframe.src = 'https://skylagoon-chat-demo.vercel.app/widget.html';
+  iframe.src = 'https://skylagoon-chat-demo-git-test-reac-d54b8a-svorum-straxs-projects.vercel.app/widget.html';
   iframe.frameBorder = '0';
   iframe.scrolling = 'no';
   
