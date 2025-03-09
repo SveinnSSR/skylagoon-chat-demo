@@ -1,6 +1,8 @@
 // Widget Embed Script
 (function() {
-  // REMOVED failsafe return line
+    // Failsafe - completely exit the script
+    return; // <-- ADD THIS LINE TO COMPLETELY PREVENT THE WIDGET FROM LOADING
+
   
   // Preload React dependencies
   const preloadReact = document.createElement('link');
