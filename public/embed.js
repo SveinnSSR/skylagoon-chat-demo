@@ -31,6 +31,7 @@
   iframe.style.overflow = 'hidden';
   iframe.style.borderRadius = '50%';
   iframe.style.boxShadow = 'none';
+  iframe.style.display = 'none'; // ADD THIS LINE HERE
   
   iframe.frameBorder = '0';
   iframe.allowTransparency = true;
