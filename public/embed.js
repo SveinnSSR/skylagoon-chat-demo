@@ -6,6 +6,12 @@
   container.style.border = 'none';
   container.style.outline = 'none';
   container.style.backgroundColor = 'transparent';
+  container.style.position = 'fixed';  // Ensure container is fixed
+  container.style.bottom = '0';        // Position at bottom
+  container.style.right = '0';         // Position at right
+  container.style.width = '80px';      // Initial width
+  container.style.height = '80px';     // Initial height
+  container.style.zIndex = '9997';     // Below iframe but still high
   document.body.appendChild(container);
   
   // Get language from the page if available
@@ -19,8 +25,8 @@
   iframe.src = `https://skylagoon-chat-demo.vercel.app/widget-embed.html?language=${language}`;
   iframe.id = 'sky-lagoon-chat-iframe';
   iframe.style.position = 'fixed';
-  iframe.style.bottom = '0';
-  iframe.style.right = '0';
+  iframe.style.bottom = '20px';        // Small margin from bottom
+  iframe.style.right = '20px';         // Small margin from right
   iframe.style.width = '80px';
   iframe.style.height = '80px';
   iframe.style.border = 'none';
@@ -30,15 +36,17 @@
   iframe.style.transition = 'all 0.3s ease';
   iframe.style.overflow = 'hidden';
   iframe.style.borderRadius = '50%';
-  iframe.style.boxShadow = 'none';
-  iframe.style.display = 'none'; // ADD THIS LINE HERE
+  iframe.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
   
   iframe.frameBorder = '0';
-  iframe.allowTransparency = true;
   iframe.scrolling = 'no';
+  iframe.allowTransparency = true;
   
   // Add the iframe to the container
   container.appendChild(iframe);
+  
+  // Log for debugging
+  console.log('Sky Lagoon chat widget initialized');
   
   // Set up message listener for iframe resize
   window.addEventListener('message', function(event) {
@@ -47,10 +55,11 @@
     
     // Handle widget state changes
     if (event.data && event.data.type === 'resize') {
+      console.log('Resize message received:', event.data);
       iframe.style.width = event.data.width;
       iframe.style.height = event.data.height;
       
-      if (event.data.width === '70px' || event.data.width === '80px') {
+      if (event.data.width === '80px') {
         iframe.style.borderRadius = '50%';
       } else {
         iframe.style.borderRadius = '16px';
