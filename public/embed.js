@@ -21,6 +21,9 @@
   
   iframe.scrolling = 'no';
   iframe.frameBorder = '0';
+
+  // ADD FAILSAFE HERE IF NEEDED:
+  iframe.style.display = 'none';
   
   document.body.appendChild(iframe);
   
