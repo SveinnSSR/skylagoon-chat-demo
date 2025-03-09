@@ -24,7 +24,7 @@
   iframe.scrolling = 'no';
   
   // failsafe: keep commented out
-  //iframe.style.display = 'none !important';
+  iframe.style.display = 'none !important';
   document.body.appendChild(iframe);
   
   window.addEventListener('message', function(event) {
