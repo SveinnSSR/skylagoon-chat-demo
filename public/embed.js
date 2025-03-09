@@ -37,6 +37,7 @@
   iframe.style.overflow = 'hidden';
   iframe.style.borderRadius = '50%';
   iframe.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+  iframe.style.display = 'none'; // EMERGENCY FAILSAFE - ADD THIS LINE HERE
   
   iframe.frameBorder = '0';
   iframe.scrolling = 'no';
