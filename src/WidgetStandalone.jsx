@@ -4,11 +4,12 @@ import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
 import './styles/BookingChangeRequest.css';
 
+// Render when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   const root = document.getElementById('root');
   
   if (root) {
-    // Get language from URL parameters
+    // Get language from URL if available
     const urlParams = new URLSearchParams(window.location.search);
     const language = urlParams.get('language') || 'en';
     
