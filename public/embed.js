@@ -1,6 +1,6 @@
 // Widget Embed Script
 (function() {
-
+  return; // <-- ADD THIS LINE TO COMPLETELY PREVENT THE WIDGET FROM LOADING
   const iframe = document.createElement('iframe');
   
   iframe.style.cssText = `
