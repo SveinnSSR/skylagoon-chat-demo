@@ -49,35 +49,36 @@
     // Detect page language
     function detectLanguage() {
       // Check for language in URL
-      const urlIsIcelandic = window.location.pathname.includes('/is/') || 
-                            window.location.pathname.startsWith('/is') ||
-                            window.location.hostname.startsWith('is.');
+      const isIcelandic = window.location.pathname.includes('/is/') || 
+                         window.location.pathname === '/is' || 
+                         window.location.pathname.startsWith('/is/');
       
-      // Check for html lang attribute
-      const htmlLang = document.documentElement.lang || '';
-      const htmlIsIcelandic = htmlLang.toLowerCase().startsWith('is');
-      
-      // Check for language selector elements that indicate current language
-      const langSelectors = document.querySelectorAll('.lang-selector, .language-switcher, [data-lang], .lang');
-      let selectorIndicatesIcelandic = false;
-      
-      for (let i = 0; i < langSelectors.length; i++) {
-        const el = langSelectors[i];
-        // Check if the IS/Icelandic option is marked as active/current/selected
-        if ((el.textContent.includes('IS') || el.textContent.includes('Íslenska')) && 
-            (el.classList.contains('active') || el.classList.contains('current') || 
-             el.classList.contains('selected'))) {
-          selectorIndicatesIcelandic = true;
-          break;
-        }
-      }
-      
-      // Return 'is' for Icelandic, 'en' for English
-      return (urlIsIcelandic || htmlIsIcelandic || selectorIndicatesIcelandic) ? 'is' : 'en';
+      return isIcelandic ? 'is' : 'en';
     }
+    
+    // Get language from URL
+    const language = detectLanguage();
+    console.log('Detected language:', language);
     
     // Full absolute URL to widget bundle
     const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
+    
+    // For monitoring language toggle links
+    function setupLanguageToggleListeners() {
+      // Look for language toggle links
+      const languageLinks = document.querySelectorAll('a[href*="/is"], a[href="/"], .language-selector a');
+      
+      languageLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+          // Don't prevent default - let the navigation happen
+          // But store a flag in sessionStorage indicating a language change is happening
+          const targetLang = link.href.includes('/is') ? 'is' : 'en';
+          console.log('Language change detected, switching to:', targetLang);
+          sessionStorage.setItem('skylagoon_language_change', 'true');
+          sessionStorage.setItem('skylagoon_target_language', targetLang);
+        });
+      });
+    }
     
     // Load the widget bundle
     const script = document.createElement('script');
@@ -92,10 +93,6 @@
       try {
         setTimeout(function() {
           if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
-            // Detect current language
-            const language = detectLanguage();
-            console.log('Detected language:', language);
-            
             // Initialize the widget with the detected language
             window.SkyLagoonChat.default.init(container, {
               apiKey: 'sky-lagoon-secret-2024',
@@ -103,30 +100,12 @@
               baseUrl: baseUrl
             });
             
-            // Set up a language check at regular intervals to handle language switching
-            setInterval(function() {
-              const currentLang = detectLanguage();
-              // If language has changed, re-initialize the widget
-              if (window.SkyLagoonChatCurrentLang !== currentLang) {
-                console.log('Language changed to:', currentLang);
-                window.SkyLagoonChatCurrentLang = currentLang;
-                
-                // Remove the existing widget
-                while (container.firstChild) {
-                  container.removeChild(container.firstChild);
-                }
-                
-                // Re-initialize with new language
-                window.SkyLagoonChat.default.init(container, {
-                  apiKey: 'sky-lagoon-secret-2024',
-                  language: currentLang,
-                  baseUrl: baseUrl
-                });
-              }
-            }, 2000); // Check every 2 seconds
-            
-            // Store initial language
-            window.SkyLagoonChatCurrentLang = language;
+            // Try to set up language toggle listeners
+            try {
+              setupLanguageToggleListeners();
+            } catch (listenerError) {
+              console.error('Error setting up language listeners:', listenerError);
+            }
           }
         }, 100); // Small delay to ensure everything is loaded
       } catch (initError) {
@@ -135,6 +114,30 @@
     };
     
     document.head.appendChild(script);
+    
+    // Also handle the page visibility change event to ensure widget is always available
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible' && !document.getElementById('sky-lagoon-chat-root')) {
+        // If widget container is missing, recreate it
+        const newContainer = document.createElement('div');
+        newContainer.id = 'sky-lagoon-chat-root';
+        newContainer.style.position = 'fixed';
+        newContainer.style.bottom = '20px';
+        newContainer.style.right = '20px';
+        newContainer.style.zIndex = '999999';
+        document.body.appendChild(newContainer);
+        
+        // Reinitialize if widget object exists
+        if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
+          window.SkyLagoonChat.default.init(newContainer, {
+            apiKey: 'sky-lagoon-secret-2024',
+            language: detectLanguage(),
+            baseUrl: baseUrl
+          });
+        }
+      }
+    });
+    
   } catch (error) {
     // Silent fail to prevent affecting the parent site
     console.error('Error loading Sky Lagoon widget:', error);
