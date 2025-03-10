@@ -6,9 +6,8 @@
   <title>Sky Lagoon Chat</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Changed to absolute URL -->
-  <link rel="stylesheet" href="https://skylagoon-chat-demo.vercel.app/static/css/main.css">
   <link href="https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap" rel="stylesheet">
+  
   <style>
     body, html { 
       margin: 0; 
@@ -16,23 +15,31 @@
       height: 100%; 
       background: transparent !important; 
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
     }
+    
     #root { 
       width: 100%; 
       height: 100%; 
       background-color: transparent !important;
+      overflow: hidden;
     }
     
-    /* Force critical styles for chat input */
-    .chat-input-container {
-      display: flex !important;
+    img[src="/solrun.png"] {
+      content: url("https://skylagoon-chat-demo.vercel.app/solrun.png") !important;
+    }
+    
+    /* Force input styling to ensure it appears */
+    div[style*="padding: 12px 16px"], .chat-input-container {
       padding: 12px 16px !important;
+      display: flex !important;
+      width: 100% !important;
       background-color: white !important;
       border-top: 1px solid #eee !important;
-      width: 100% !important;
+      box-sizing: border-box !important;
     }
-
-    .chat-input {
+    
+    input[type="text"], .chat-input {
       flex: 1 !important;
       padding: 8px 16px !important;
       border-radius: 20px !important;
@@ -42,8 +49,8 @@
       margin-right: 8px !important;
       display: block !important;
     }
-
-    .send-button {
+    
+    button, .send-button {
       background-color: #70744E !important;
       color: white !important;
       border: none !important;
@@ -54,37 +61,12 @@
       font-weight: 500 !important;
       display: block !important;
     }
-    
-    /* Ensure messages are visible */
-    .message-bubble {
-      max-width: 70% !important;
-      padding: 12px 16px !important;
-      border-radius: 16px !important;
-      margin-bottom: 8px !important;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
-      display: block !important;
-    }
-    
-    .user-message {
-      background-color: #70744E !important;
-      color: white !important;
-      align-self: flex-end !important;
-      margin-left: auto !important;
-    }
-    
-    .bot-message {
-      background-color: #f5f5f5 !important;
-      color: #333 !important;
-      align-self: flex-start !important;
-      margin-right: auto !important;
-    }
   </style>
 </head>
 <body>
   <div id="root"></div>
   
   <script>
-    // Enhanced message passing with debug info
     window.sendResizeMessage = function(isMinimized) {
       console.log('Sending resize message:', isMinimized);
       if (window.parent) {
@@ -99,9 +81,28 @@
         }
       }
     };
+    
+    // Fix image paths and ensure input is visible
+    document.addEventListener('DOMContentLoaded', function() {
+      setInterval(function() {
+        // Fix images
+        document.querySelectorAll('img[src="/solrun.png"]').forEach(function(img) {
+          img.src = 'https://skylagoon-chat-demo.vercel.app/solrun.png';
+        });
+        
+        // Ensure input is visible
+        const inputContainers = document.querySelectorAll('div[style*="padding: 12px 16px"]');
+        if (inputContainers.length) {
+          inputContainers.forEach(function(container) {
+            container.style.display = 'flex';
+            container.style.width = '100%';
+          });
+        }
+      }, 1000);
+    });
   </script>
   
-  <!-- Changed to absolute URL -->
-  <script src="https://skylagoon-chat-demo.vercel.app/static/js/react-widget.js"></script>
+  <!-- Only load the JavaScript bundle with inlined CSS -->
+  <script src="./static/js/react-widget.js"></script>
 </body>
 </html>

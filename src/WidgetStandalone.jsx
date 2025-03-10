@@ -4,35 +4,53 @@ import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
 import './styles/BookingChangeRequest.css';
 
-// Enhanced debugging
-console.log('WidgetStandalone.jsx loaded');
-
-// Render when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM content loaded, preparing to render ChatWidget');
-  const root = document.getElementById('root');
+// Export an initialization function
+const init = (container, config = {}) => {
+  // Get base URL for assets
+  const baseUrl = config.baseUrl || '';
+  console.log('Initializing widget with baseUrl:', baseUrl);
   
-  if (root) {
-    // Get language from URL if available
-    const urlParams = new URLSearchParams(window.location.search);
-    const language = urlParams.get('language') || 'en';
-    console.log('Language detected:', language);
-    
-    // Force styles to apply even in iframe context
-    document.body.style.background = 'transparent';
-    
-    // Render the ChatWidget directly
-    console.log('Rendering ChatWidget with isEmbedded=true');
-    ReactDOM.render(
-      <ChatWidget 
-        webhookUrl="https://sky-lagoon-chat-2024.vercel.app/chat"
-        apiKey="sky-lagoon-secret-2024"
-        language={language}
-        isEmbedded={true}
-      />,
-      root
-    );
-  } else {
-    console.error('Root element not found!');
-  }
-});
+  // Inject CSS to fix image paths
+  const style = document.createElement('style');
+  style.textContent = `
+    img[src="/solrun.png"] {
+      content: url("${baseUrl}/solrun.png") !important;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  ReactDOM.render(
+    <ChatWidget 
+      webhookUrl="https://sky-lagoon-chat-2024.vercel.app/chat"
+      apiKey={config.apiKey || "sky-lagoon-secret-2024"}
+      language={config.language || "en"}
+      isEmbedded={true}
+      baseUrl={baseUrl}
+    />,
+    container
+  );
+  
+  // Return API for controlling the widget
+  return {
+    destroy: () => {
+      ReactDOM.unmountComponentAtNode(container);
+      // Also remove the style element we added
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+    }
+  };
+};
+
+// Auto-initialize if running standalone
+if (typeof window !== 'undefined' && !window.SkyLagoonChat) {
+  window.addEventListener('DOMContentLoaded', () => {
+    const rootElement = document.getElementById('root');
+    if (rootElement) {
+      init(rootElement);
+    }
+  });
+}
+
+// Export for use in embed.js
+export default { init };

@@ -1,88 +1,73 @@
-// Widget Embed Script
 (function() {
-    // Failsafe - completely exit the script
-    return; // <-- ADD THIS LINE TO COMPLETELY PREVENT THE WIDGET FROM LOADING
-
+  console.log('Sky Lagoon Chat Widget embed script running');
   
-  // Preload React dependencies
-  const preloadReact = document.createElement('link');
-  preloadReact.rel = 'preload';
-  preloadReact.href = 'https://unpkg.com/react@18/umd/react.production.min.js';
-  preloadReact.as = 'script';
-  preloadReact.crossOrigin = 'anonymous';
-  document.head.appendChild(preloadReact);
-
-  const preloadReactDOM = document.createElement('link');
-  preloadReactDOM.rel = 'preload';
-  preloadReactDOM.href = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
-  preloadReactDOM.as = 'script';
-  preloadReactDOM.crossOrigin = 'anonymous';
-  document.head.appendChild(preloadReactDOM);
+  // Create container element
+  const container = document.createElement('div');
+  container.id = 'sky-lagoon-chat-root';
+  container.style.position = 'fixed';
+  container.style.bottom = '20px';
+  container.style.right = '20px';
+  container.style.zIndex = '999999';
+  document.body.appendChild(container);
   
-  const iframe = document.createElement('iframe');
-  
-  iframe.style.cssText = `
-    position: fixed !important;
-    bottom: 20px !important;
-    right: 20px !important;
-    width: 80px !important; 
-    height: 80px !important;
-    border: none !important;
-    outline: none !important;
-    background-color: transparent !important;
-    z-index: 999999 !important;
-    overflow: hidden !important;
-    border-radius: 50% !important;
-    transition: all 0.3s ease !important;
-  `;
-  
-  iframe.id = 'sky-lagoon-chat-iframe';
-  iframe.src = 'https://skylagoon-chat-demo.vercel.app/widget.html';
-  iframe.frameBorder = '0';
-  iframe.scrolling = 'no';
-  iframe.allow = "clipboard-read; clipboard-write";
-  
-  // REMOVED failsafe line
-  
-  document.body.appendChild(iframe);
-  
-  window.addEventListener('message', function(event) {
-    if (event.origin !== 'https://skylagoon-chat-demo.vercel.app') return;
-    
-    console.log('Parent received message:', event.data);
-    
-    if (event.data && event.data.type === 'resize') {
-      if (event.data.isMinimized) {
-        iframe.style.cssText = `
-          position: fixed !important;
-          bottom: 20px !important;
-          right: 20px !important;
-          width: 80px !important;
-          height: 80px !important;
-          border: none !important;
-          outline: none !important;
-          background-color: transparent !important;
-          z-index: 999999 !important;
-          overflow: hidden !important;
-          border-radius: 50% !important;
-          transition: all 0.3s ease !important;
-        `;
-      } else {
-        iframe.style.cssText = `
-          position: fixed !important;
-          bottom: 20px !important;
-          right: 20px !important;
-          width: 380px !important;
-          height: 550px !important;
-          border: none !important;
-          outline: none !important;
-          background-color: transparent !important;
-          z-index: 999999 !important;
-          overflow: hidden !important;
-          border-radius: 12px !important;
-          transition: all 0.3s ease !important;
-        `;
+  try {
+    // Find this script in the document
+    const scripts = document.getElementsByTagName('script');
+    let currentScript = null;
+    for (let i = 0; i < scripts.length; i++) {
+      if (scripts[i].src && scripts[i].src.includes('embed.js')) {
+        currentScript = scripts[i];
+        break;
       }
     }
-  });
+    
+    // Extract domain from script src or use fallback
+    let baseUrl;
+    if (currentScript && currentScript.src) {
+      try {
+        const srcUrl = new URL(currentScript.src);
+        baseUrl = srcUrl.origin; // Get the origin (protocol + domain + port)
+        console.log('Base URL from script:', baseUrl);
+      } catch (error) {
+        // Fallback URLs based on environment
+        baseUrl = 'https://skylagoon-chat-demo.vercel.app';
+      }
+    } else {
+      // Fallback URL for production
+      baseUrl = 'https://skylagoon-chat-demo.vercel.app';
+    }
+    
+    // Full absolute URL to widget bundle
+    const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
+    
+    // Load the widget bundle
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.crossOrigin = 'anonymous'; // Add CORS attribute
+    
+    script.onerror = function(error) {
+      container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
+    };
+    
+    script.onload = function() {
+      try {
+        setTimeout(function() {
+          if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
+            window.SkyLagoonChat.default.init(container, {
+              apiKey: 'sky-lagoon-secret-2024',
+              language: 'en',
+              baseUrl: baseUrl // Pass baseUrl for loading assets like images
+            });
+          }
+        }, 100); // Small delay to ensure everything is loaded
+      } catch (initError) {
+        console.error('Error initializing widget:', initError);
+      }
+    };
+    
+    document.head.appendChild(script);
+  } catch (error) {
+    // Silent fail to prevent affecting the parent site
+    console.error('Error loading Sky Lagoon widget:', error);
+  }
 })();
