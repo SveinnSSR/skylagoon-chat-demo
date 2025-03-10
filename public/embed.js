@@ -20,9 +20,29 @@
   // Create speech bubble for preview text (initially shown)
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
-  speechBubble.style.position = 'fixed';
-  speechBubble.style.bottom = '100px'; // Increased spacing from chat icon
-  speechBubble.style.right = '20px';
+  
+  // Position the speech bubble - using a function that will be called after widget is loaded
+  const positionSpeechBubble = () => {
+    // Get the position of the chat widget icon (once it's loaded)
+    const chatIconElement = document.querySelector('#sky-lagoon-chat-root > div');
+    
+    if (chatIconElement) {
+      // Get the bounding rect of the chat icon
+      const rect = chatIconElement.getBoundingClientRect();
+      
+      // Set speech bubble position to be above the icon
+      speechBubble.style.position = 'fixed';
+      speechBubble.style.bottom = (window.innerHeight - rect.top + 20) + 'px';
+      speechBubble.style.right = '20px';
+    } else {
+      // Fallback positioning if we can't find the chat icon
+      speechBubble.style.position = 'fixed';
+      speechBubble.style.bottom = '140px'; // Increased to account for higher position
+      speechBubble.style.right = '20px';
+    }
+  };
+  
+  // Set other speech bubble styles
   speechBubble.style.backgroundColor = 'white';
   speechBubble.style.color = '#4d5a41'; // Sky Lagoon olive green color
   speechBubble.style.padding = '14px 18px';
@@ -114,6 +134,9 @@
   
   document.body.appendChild(speechBubble);
   
+  // Initial positioning (will be updated when chat loads)
+  positionSpeechBubble();
+  
   // Find this script in the document
   const scripts = document.getElementsByTagName('script');
   let currentScript = null;
@@ -163,6 +186,11 @@
             baseUrl: baseUrl
           });
           
+          // Position speech bubble relative to the chat icon (with a slight delay to ensure DOM is ready)
+          setTimeout(() => {
+            positionSpeechBubble();
+          }, 200);
+          
           // Hide speech bubble when chat is opened
           container.addEventListener('click', function() {
             speechBubble.style.display = 'none';
@@ -170,6 +198,9 @@
           
           // Store API for potential use later
           window.SkyLagoonChatAPI = widgetAPI;
+          
+          // Add window resize listener to update bubble position
+          window.addEventListener('resize', positionSpeechBubble);
         } else {
           console.error('SkyLagoonChat not found on window after loading');
         }
