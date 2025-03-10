@@ -2,13 +2,11 @@
   // FAILSAFE: Set to true to disable the widget completely
   const WIDGET_DISABLED = false;
   
-  // If the widget is disabled, exit immediately without showing anything
+  // If the widget is disabled, exit immediately
   if (WIDGET_DISABLED) {
     console.log('Sky Lagoon Chat Widget is currently disabled');
     return;
   }
-  
-  console.log('Sky Lagoon Chat Widget embed script running');
   
   // Create container element
   const container = document.createElement('div');
@@ -19,127 +17,136 @@
   container.style.zIndex = '999999';
   document.body.appendChild(container);
   
-  try {
-    // Find this script in the document
-    const scripts = document.getElementsByTagName('script');
-    let currentScript = null;
-    for (let i = 0; i < scripts.length; i++) {
-      if (scripts[i].src && scripts[i].src.includes('embed.js')) {
-        currentScript = scripts[i];
-        break;
-      }
+  // Create speech bubble for preview text (initially shown)
+  const speechBubble = document.createElement('div');
+  speechBubble.id = 'sky-lagoon-chat-preview';
+  speechBubble.style.position = 'fixed';
+  speechBubble.style.bottom = '80px';  // Position above the chat icon
+  speechBubble.style.right = '20px';
+  speechBubble.style.backgroundColor = 'white';
+  speechBubble.style.color = '#333';
+  speechBubble.style.padding = '12px 16px';
+  speechBubble.style.borderRadius = '18px';
+  speechBubble.style.maxWidth = '250px';
+  speechBubble.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+  speechBubble.style.zIndex = '999998';
+  speechBubble.style.fontSize = '14px';
+  speechBubble.style.lineHeight = '1.4';
+  speechBubble.style.transition = 'opacity 0.3s ease-in-out';
+  
+  // Detect language and set appropriate preview text
+  const isIcelandic = 
+    window.location.pathname.includes('/is/') || 
+    document.documentElement.lang === 'is' ||
+    document.documentElement.lang === 'is-IS';
+  
+  if (isIcelandic) {
+    speechBubble.textContent = 'Hæ! Ég heiti Sólrún og er AI spjallmenni hjá Sky Lagoon. Hvað get ég gert fyrir þig í dag?';
+  } else {
+    speechBubble.textContent = 'Hi! I\'m Sólrún, your chat assistant at Sky Lagoon. How can I help you today?';
+  }
+  
+  // Add small triangle/pointer at the bottom
+  const pointer = document.createElement('div');
+  pointer.style.position = 'absolute';
+  pointer.style.bottom = '-8px';
+  pointer.style.right = '24px';
+  pointer.style.width = '0';
+  pointer.style.height = '0';
+  pointer.style.borderLeft = '8px solid transparent';
+  pointer.style.borderRight = '8px solid transparent';
+  pointer.style.borderTop = '8px solid white';
+  speechBubble.appendChild(pointer);
+  
+  // Add close button for the speech bubble
+  const closeButton = document.createElement('div');
+  closeButton.textContent = '×';
+  closeButton.style.position = 'absolute';
+  closeButton.style.top = '8px';
+  closeButton.style.right = '10px';
+  closeButton.style.cursor = 'pointer';
+  closeButton.style.fontSize = '16px';
+  closeButton.style.color = '#999';
+  closeButton.style.fontWeight = 'bold';
+  closeButton.onclick = function(e) {
+    e.stopPropagation();
+    speechBubble.style.display = 'none';
+    // Store in session that bubble was closed
+    sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
+  };
+  speechBubble.appendChild(closeButton);
+  
+  // Only show if not closed in this session
+  if (sessionStorage.getItem('skyLagoonChatBubbleClosed') === 'true') {
+    speechBubble.style.display = 'none';
+  }
+  
+  document.body.appendChild(speechBubble);
+  
+  // Find this script in the document
+  const scripts = document.getElementsByTagName('script');
+  let currentScript = null;
+  for (let i = 0; i < scripts.length; i++) {
+    if (scripts[i].src && scripts[i].src.includes('embed.js')) {
+      currentScript = scripts[i];
+      break;
     }
-    
-    // Extract domain from script src or use fallback
-    let baseUrl;
-    if (currentScript && currentScript.src) {
-      try {
-        const srcUrl = new URL(currentScript.src);
-        baseUrl = srcUrl.origin; // Get the origin (protocol + domain + port)
-        console.log('Base URL from script:', baseUrl);
-      } catch (error) {
-        // Fallback URLs based on environment
-        baseUrl = 'https://skylagoon-chat-demo.vercel.app';
-      }
-    } else {
+  }
+  
+  // Extract domain from script src or use fallback
+  let baseUrl;
+  if (currentScript && currentScript.src) {
+    try {
+      const srcUrl = new URL(currentScript.src);
+      baseUrl = srcUrl.origin; // Get the origin (protocol + domain + port)
+    } catch (error) {
       // Fallback URL for production
       baseUrl = 'https://skylagoon-chat-demo.vercel.app';
     }
-    
-    // Detect page language
-    function detectLanguage() {
-      // Check for language in URL
-      const isIcelandic = window.location.pathname.includes('/is/') || 
-                         window.location.pathname === '/is' || 
-                         window.location.pathname.startsWith('/is/');
-      
-      return isIcelandic ? 'is' : 'en';
-    }
-    
-    // Get language from URL
-    const language = detectLanguage();
-    console.log('Detected language:', language);
-    
-    // Full absolute URL to widget bundle
-    const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
-    
-    // For monitoring language toggle links
-    function setupLanguageToggleListeners() {
-      // Look for language toggle links
-      const languageLinks = document.querySelectorAll('a[href*="/is"], a[href="/"], .language-selector a');
-      
-      languageLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-          // Don't prevent default - let the navigation happen
-          // But store a flag in sessionStorage indicating a language change is happening
-          const targetLang = link.href.includes('/is') ? 'is' : 'en';
-          console.log('Language change detected, switching to:', targetLang);
-          sessionStorage.setItem('skylagoon_language_change', 'true');
-          sessionStorage.setItem('skylagoon_target_language', targetLang);
-        });
-      });
-    }
-    
-    // Load the widget bundle
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.crossOrigin = 'anonymous'; // Add CORS attribute
-    
-    script.onerror = function(error) {
-      container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
-    };
-    
-    script.onload = function() {
+  } else {
+    // Fallback URL for production
+    baseUrl = 'https://skylagoon-chat-demo.vercel.app';
+  }
+  
+  // Full absolute URL to widget bundle
+  const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
+  
+  // Load the widget bundle
+  const script = document.createElement('script');
+  script.src = scriptUrl;
+  script.crossOrigin = 'anonymous'; // Add CORS attribute
+  
+  script.onerror = function(error) {
+    console.error('Failed to load widget bundle:', error);
+    container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
+  };
+  
+  script.onload = function() {
+    setTimeout(function() {
       try {
-        setTimeout(function() {
-          if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
-            // Initialize the widget with the detected language
-            window.SkyLagoonChat.default.init(container, {
-              apiKey: 'sky-lagoon-secret-2024',
-              language: language,
-              baseUrl: baseUrl
-            });
-            
-            // Try to set up language toggle listeners
-            try {
-              setupLanguageToggleListeners();
-            } catch (listenerError) {
-              console.error('Error setting up language listeners:', listenerError);
-            }
-          }
-        }, 100); // Small delay to ensure everything is loaded
-      } catch (initError) {
-        console.error('Error initializing widget:', initError);
-      }
-    };
-    
-    document.head.appendChild(script);
-    
-    // Also handle the page visibility change event to ensure widget is always available
-    document.addEventListener('visibilitychange', function() {
-      if (document.visibilityState === 'visible' && !document.getElementById('sky-lagoon-chat-root')) {
-        // If widget container is missing, recreate it
-        const newContainer = document.createElement('div');
-        newContainer.id = 'sky-lagoon-chat-root';
-        newContainer.style.position = 'fixed';
-        newContainer.style.bottom = '20px';
-        newContainer.style.right = '20px';
-        newContainer.style.zIndex = '999999';
-        document.body.appendChild(newContainer);
-        
-        // Reinitialize if widget object exists
         if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
-          window.SkyLagoonChat.default.init(newContainer, {
+          // Store a reference to the widget API
+          const widgetAPI = window.SkyLagoonChat.default.init(container, {
             apiKey: 'sky-lagoon-secret-2024',
-            language: detectLanguage(),
+            language: isIcelandic ? 'is' : 'en',
             baseUrl: baseUrl
           });
+          
+          // Hide speech bubble when chat is opened
+          container.addEventListener('click', function() {
+            speechBubble.style.display = 'none';
+          });
+          
+          // Store API for potential use later
+          window.SkyLagoonChatAPI = widgetAPI;
+        } else {
+          console.error('SkyLagoonChat not found on window after loading');
         }
+      } catch (e) {
+        console.error('Error initializing chat widget:', e);
       }
-    });
-    
-  } catch (error) {
-    // Silent fail to prevent affecting the parent site
-    console.error('Error loading Sky Lagoon widget:', error);
-  }
+    }, 100); // Small delay to ensure everything is loaded
+  };
+  
+  document.head.appendChild(script);
 })();
