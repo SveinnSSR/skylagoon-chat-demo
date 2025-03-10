@@ -21,18 +21,20 @@
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
   speechBubble.style.position = 'fixed';
-  speechBubble.style.bottom = '80px';  // Position above the chat icon
+  speechBubble.style.bottom = '100px'; // Increased spacing from chat icon
   speechBubble.style.right = '20px';
   speechBubble.style.backgroundColor = 'white';
-  speechBubble.style.color = '#333';
-  speechBubble.style.padding = '12px 16px';
-  speechBubble.style.borderRadius = '18px';
-  speechBubble.style.maxWidth = '250px';
-  speechBubble.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+  speechBubble.style.color = '#4d5a41'; // Sky Lagoon olive green color
+  speechBubble.style.padding = '14px 18px';
+  speechBubble.style.borderRadius = '12px';
+  speechBubble.style.maxWidth = '280px';
+  speechBubble.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.08)';
   speechBubble.style.zIndex = '999998';
   speechBubble.style.fontSize = '14px';
-  speechBubble.style.lineHeight = '1.4';
+  speechBubble.style.lineHeight = '1.5';
+  speechBubble.style.fontFamily = 'Arial, sans-serif';
   speechBubble.style.transition = 'opacity 0.3s ease-in-out';
+  speechBubble.style.border = '1px solid rgba(0,0,0,0.05)';
   
   // Detect language and set appropriate preview text
   const isIcelandic = 
@@ -50,13 +52,27 @@
   const pointer = document.createElement('div');
   pointer.style.position = 'absolute';
   pointer.style.bottom = '-8px';
-  pointer.style.right = '24px';
+  pointer.style.right = '28px'; // Positioned to align with the chat icon
   pointer.style.width = '0';
   pointer.style.height = '0';
   pointer.style.borderLeft = '8px solid transparent';
   pointer.style.borderRight = '8px solid transparent';
   pointer.style.borderTop = '8px solid white';
+  pointer.style.zIndex = '1';
   speechBubble.appendChild(pointer);
+  
+  // Also add a border for the pointer to match the bubble border
+  const pointerBorder = document.createElement('div');
+  pointerBorder.style.position = 'absolute';
+  pointerBorder.style.bottom = '-9px';
+  pointerBorder.style.right = '28px';
+  pointerBorder.style.width = '0';
+  pointerBorder.style.height = '0';
+  pointerBorder.style.borderLeft = '8px solid transparent';
+  pointerBorder.style.borderRight = '8px solid transparent';
+  pointerBorder.style.borderTop = '8px solid rgba(0,0,0,0.05)';
+  pointerBorder.style.zIndex = '0';
+  speechBubble.appendChild(pointerBorder);
   
   // Add close button for the speech bubble
   const closeButton = document.createElement('div');
@@ -65,15 +81,30 @@
   closeButton.style.top = '8px';
   closeButton.style.right = '10px';
   closeButton.style.cursor = 'pointer';
-  closeButton.style.fontSize = '16px';
+  closeButton.style.fontSize = '18px';
+  closeButton.style.fontWeight = 'normal';
   closeButton.style.color = '#999';
-  closeButton.style.fontWeight = 'bold';
+  closeButton.style.lineHeight = '14px';
+  closeButton.style.width = '16px';
+  closeButton.style.height = '16px';
+  closeButton.style.textAlign = 'center';
+  closeButton.style.borderRadius = '50%';
+  
+  closeButton.onmouseover = function() {
+    closeButton.style.color = '#666';
+  };
+  
+  closeButton.onmouseout = function() {
+    closeButton.style.color = '#999';
+  };
+  
   closeButton.onclick = function(e) {
     e.stopPropagation();
     speechBubble.style.display = 'none';
     // Store in session that bubble was closed
     sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
   };
+  
   speechBubble.appendChild(closeButton);
   
   // Only show if not closed in this session
