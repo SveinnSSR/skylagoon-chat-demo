@@ -175,6 +175,200 @@
     container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
   };
   
+  // ACCESSIBILITY FEATURE: Add resize functionality
+  // This will be used to track if we've already added the resize button
+  let resizeButtonAdded = false;
+  
+  // Utility function to find the chat header element with multiple possible selectors
+  function findChatHeader() {
+    // Try several possible selectors for the header
+    const possibleSelectors = [
+      '#sky-lagoon-chat-root [class*="header" i]', // Any element with "header" in class name
+      '#sky-lagoon-chat-root [class*="head" i]',  // Any element with "head" in class name 
+      '#sky-lagoon-chat-root > div > div:first-child', // First child of main container
+      '#sky-lagoon-chat-root div[style*="background-color"]', // Element with background-color
+      '#sky-lagoon-chat-root div[style*="background:#"][style*="color:white"]', // Element with background and white text
+      '#sky-lagoon-chat-root div:has(> img)', // Element containing an image
+      '#sky-lagoon-chat-root div:has(> [alt*="profile"])', // Element containing a profile image
+      // For the green header area shown in the screenshot
+      '#sky-lagoon-chat-root > div > div:first-child' 
+    ];
+    
+    // Try each selector
+    for (const selector of possibleSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // Check if this looks like a header (green background, contains text, at the top, etc.)
+        const styles = window.getComputedStyle(element);
+        const bgColor = styles.backgroundColor;
+        
+        // Check for common header characteristics
+        const isGreenish = bgColor.includes('rgb(77') || bgColor.includes('rgb(93'); // Common Sky Lagoon green shades
+        const hasReasonableHeight = element.offsetHeight > 20 && element.offsetHeight < 100;
+        const isAtTop = element.getBoundingClientRect().top < 150;
+        
+        // If it looks like a header, return it
+        if (hasReasonableHeight && isAtTop) {
+          console.log('Found chat header element:', element);
+          return element;
+        }
+      }
+    }
+    
+    // Fallback: find any green-colored div that contains "Sólrún" text
+    const allDivs = document.querySelectorAll('#sky-lagoon-chat-root div');
+    for (const div of allDivs) {
+      if (div.textContent.includes('Sólrún') || div.textContent.includes('Sky Lagoon')) {
+        const styles = window.getComputedStyle(div);
+        if (styles.backgroundColor.includes('rgb')) { // Has a background color set
+          console.log('Found header by text content:', div);
+          return div;
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  // Function to add the resize button
+  function addResizeButton() {
+    if (resizeButtonAdded) return; // Prevent adding multiple buttons
+    
+    const chatHeader = findChatHeader();
+    if (!chatHeader) {
+      console.log('Could not find chat header element, will retry');
+      return false; // Will retry
+    }
+    
+    // Create resize button
+    const resizeBtn = document.createElement('div');
+    resizeBtn.className = 'sky-lagoon-resize-btn';
+    resizeBtn.setAttribute('aria-label', isIcelandic ? 'Stækka spjallglugga' : 'Expand chat window');
+    resizeBtn.setAttribute('role', 'button');
+    resizeBtn.setAttribute('tabindex', '0');
+    
+    // Style the button
+    resizeBtn.style.position = 'absolute';
+    resizeBtn.style.top = '15px';
+    resizeBtn.style.left = '15px';
+    resizeBtn.style.width = '20px';
+    resizeBtn.style.height = '20px';
+    resizeBtn.style.cursor = 'pointer';
+    resizeBtn.style.zIndex = '999999';
+    resizeBtn.style.backgroundColor = 'transparent';
+    resizeBtn.style.border = 'none';
+    resizeBtn.style.padding = '0';
+    resizeBtn.style.display = 'flex';
+    resizeBtn.style.alignItems = 'center';
+    resizeBtn.style.justifyContent = 'center';
+    
+    // Create arrow SVG for the resize button
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("fill", "none");
+    
+    const path = document.createElementNS(svgNS, "path");
+    path.setAttribute("d", "M3.5 12.5L12.5 3.5M12.5 3.5H6.5M12.5 3.5V9.5");
+    path.setAttribute("stroke", "white");
+    path.setAttribute("stroke-width", "1.5");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    
+    svg.appendChild(path);
+    resizeBtn.appendChild(svg);
+    
+    // Track expanded state and original dimensions
+    let isExpanded = false;
+    let originalWidth, originalHeight;
+    let originalStyles = {};
+    
+    // Function to toggle chat size
+    function toggleChatSize(e) {
+      e.stopPropagation(); // Prevent header click from closing the chat
+      
+      // Get main chat container
+      const chatContainer = document.querySelector('#sky-lagoon-chat-root > div');
+      if (!chatContainer) return;
+      
+      // Find message container and input area
+      const messageContainer = document.querySelector('#sky-lagoon-chat-root [class*="message" i], #sky-lagoon-chat-root [class*="conversation" i]');
+      const inputArea = document.querySelector('#sky-lagoon-chat-root input, #sky-lagoon-chat-root textarea');
+      
+      if (!isExpanded) {
+        // Save original dimensions before expanding
+        originalWidth = chatContainer.offsetWidth;
+        originalHeight = chatContainer.offsetHeight;
+        
+        // Save original styles
+        originalStyles.container = chatContainer.style.cssText;
+        if (messageContainer) originalStyles.messageContainer = messageContainer.style.cssText;
+        if (inputArea) originalStyles.inputArea = inputArea.style.cssText;
+        
+        // Expand
+        chatContainer.style.width = Math.min(600, window.innerWidth - 40) + 'px';
+        chatContainer.style.height = Math.min(700, window.innerHeight - 40) + 'px';
+        
+        if (messageContainer) {
+          messageContainer.style.height = 'calc(100% - 160px)';
+          messageContainer.style.maxHeight = 'none';
+        }
+        
+        // Update button icon to collapse
+        path.setAttribute("d", "M12.5 3.5L3.5 12.5M3.5 12.5H9.5M3.5 12.5V6.5");
+        resizeBtn.setAttribute('aria-label', isIcelandic ? 'Minnka spjallglugga' : 'Collapse chat window');
+      } else {
+        // Restore original size
+        chatContainer.style.cssText = originalStyles.container;
+        
+        if (messageContainer && originalStyles.messageContainer) {
+          messageContainer.style.cssText = originalStyles.messageContainer;
+        }
+        
+        if (inputArea && originalStyles.inputArea) {
+          inputArea.style.cssText = originalStyles.inputArea;
+        }
+        
+        // Restore button icon to expand
+        path.setAttribute("d", "M3.5 12.5L12.5 3.5M12.5 3.5H6.5M12.5 3.5V9.5");
+        resizeBtn.setAttribute('aria-label', isIcelandic ? 'Stækka spjallglugga' : 'Expand chat window');
+      }
+      
+      isExpanded = !isExpanded;
+    }
+    
+    // Add event listeners
+    resizeBtn.addEventListener('click', toggleChatSize);
+    resizeBtn.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleChatSize(e);
+      }
+    });
+    
+    // Add the button to the header
+    chatHeader.style.position = 'relative'; // Ensure we can position absolutely within it
+    chatHeader.appendChild(resizeBtn);
+    
+    console.log('Resize button successfully added');
+    resizeButtonAdded = true;
+    return true;
+  }
+  
+  // Function to check if the chat is loaded and add the resize button
+  function addResizeButtonWhenReady() {
+    // Only proceed if the button hasn't been added yet
+    if (!resizeButtonAdded) {
+      const success = addResizeButton();
+      if (!success) {
+        // Retry after a delay if not successful
+        setTimeout(addResizeButtonWhenReady, 500);
+      }
+    }
+  }
+  
   script.onload = function() {
     setTimeout(function() {
       try {
@@ -201,6 +395,27 @@
           
           // Add window resize listener to update bubble position
           window.addEventListener('resize', positionSpeechBubble);
+          
+          // Add the resize button with a delay to ensure the chat UI is loaded
+          setTimeout(addResizeButtonWhenReady, 1000);
+          
+          // Also add a mutation observer to detect when the chat UI changes
+          // This helps catch when the chat is opened/closed or dynamically modified
+          const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+              if (mutation.type === 'childList' && !resizeButtonAdded) {
+                // Try to add the resize button if chat UI structure changed
+                addResizeButtonWhenReady();
+              }
+            });
+          });
+          
+          // Start observing the container
+          observer.observe(container, { 
+            childList: true,
+            subtree: true 
+          });
+          
         } else {
           console.error('SkyLagoonChat not found on window after loading');
         }
