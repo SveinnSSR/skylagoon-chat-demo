@@ -189,6 +189,9 @@
           // Position speech bubble relative to the chat icon (with a slight delay to ensure DOM is ready)
           setTimeout(() => {
             positionSpeechBubble();
+            
+            // ACCESSIBILITY ENHANCEMENT: Add resize functionality
+            addResizeButton();
           }, 200);
           
           // Hide speech bubble when chat is opened
@@ -211,4 +214,135 @@
   };
   
   document.head.appendChild(script);
+  
+  // Function to add the resize button to the chat widget
+  function addResizeButton() {
+    // Wait for the chat widget to be fully loaded
+    setTimeout(() => {
+      // First, find the chat window header (the green bar with Sólrún's name)
+      const chatHeaderElement = document.querySelector('#sky-lagoon-chat-root .ChatHeader');
+      
+      if (!chatHeaderElement) {
+        console.warn('Chat header element not found, retrying...');
+        // Try again after a short delay
+        setTimeout(addResizeButton, 500);
+        return;
+      }
+      
+      // Create the resize button
+      const resizeButton = document.createElement('div');
+      resizeButton.className = 'chat-resize-button';
+      resizeButton.setAttribute('aria-label', isIcelandic ? 'Stækka spjallglugga' : 'Expand chat window');
+      resizeButton.setAttribute('role', 'button');
+      resizeButton.setAttribute('tabindex', '0');
+      
+      // Set the button styles
+      resizeButton.style.position = 'absolute';
+      resizeButton.style.top = '10px';
+      resizeButton.style.left = '10px';
+      resizeButton.style.width = '24px';
+      resizeButton.style.height = '24px';
+      resizeButton.style.cursor = 'pointer';
+      resizeButton.style.zIndex = '10';
+      resizeButton.style.display = 'flex';
+      resizeButton.style.alignItems = 'center';
+      resizeButton.style.justifyContent = 'center';
+      
+      // Create the arrow SVG icon for expanding
+      resizeButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3.5 12.5L12.5 3.5M12.5 3.5H6.5M12.5 3.5V9.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `;
+      
+      // Store original size values
+      const chatContainer = document.querySelector('#sky-lagoon-chat-root > div');
+      let isExpanded = false;
+      let originalWidth, originalHeight;
+      let originalStyles = {};
+      
+      // Function to toggle between expanded and normal size
+      function toggleSize() {
+        const chatElement = document.querySelector('#sky-lagoon-chat-root > div');
+        const chatBody = document.querySelector('#sky-lagoon-chat-root .ChatBody');
+        const messageArea = document.querySelector('#sky-lagoon-chat-root .MessageContainer');
+        
+        if (!chatElement) return;
+        
+        if (!isExpanded) {
+          // Save original dimensions before expanding
+          originalWidth = chatElement.offsetWidth;
+          originalHeight = chatElement.offsetHeight;
+          
+          // Save original styles
+          if (chatElement) originalStyles.chatElement = chatElement.style.cssText;
+          if (chatBody) originalStyles.chatBody = chatBody.style.cssText;
+          if (messageArea) originalStyles.messageArea = messageArea.style.cssText;
+          
+          // Expand the chat
+          chatElement.style.width = Math.min(600, window.innerWidth - 40) + 'px';
+          chatElement.style.height = Math.min(700, window.innerHeight - 40) + 'px';
+          
+          if (chatBody) {
+            chatBody.style.height = 'calc(100% - 140px)';
+          }
+          
+          if (messageArea) {
+            messageArea.style.maxHeight = 'calc(100% - 30px)';
+          }
+          
+          // Update the icon to show collapse
+          resizeButton.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.5 3.5L3.5 12.5M3.5 12.5H9.5M3.5 12.5V6.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          
+          // Update button tooltip
+          resizeButton.setAttribute('aria-label', isIcelandic ? 'Minnka spjallglugga' : 'Collapse chat window');
+          
+        } else {
+          // Restore original size
+          if (originalStyles.chatElement) chatElement.style.cssText = originalStyles.chatElement;
+          if (chatBody && originalStyles.chatBody) chatBody.style.cssText = originalStyles.chatBody;
+          if (messageArea && originalStyles.messageArea) messageArea.style.cssText = originalStyles.messageArea;
+          
+          // Update the icon back to expand
+          resizeButton.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.5 12.5L12.5 3.5M12.5 3.5H6.5M12.5 3.5V9.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          
+          // Update button tooltip
+          resizeButton.setAttribute('aria-label', isIcelandic ? 'Stækka spjallglugga' : 'Expand chat window');
+        }
+        
+        isExpanded = !isExpanded;
+      }
+      
+      // Add click event listeners
+      resizeButton.addEventListener('click', function(e) {
+        e.stopPropagation(); // Prevent the header click from minimizing
+        toggleSize();
+      });
+      
+      // Add keyboard accessibility
+      resizeButton.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggleSize();
+        }
+      });
+      
+      // Add the button to the header
+      chatHeaderElement.appendChild(resizeButton);
+      
+      // Make sure the header click to minimize still works
+      // We don't need to modify this as the stopPropagation on our button
+      // prevents interference with existing functionality
+      
+      console.log('Resize button added successfully');
+    }, 500); // Wait for chat widget to be fully initialized
+  }
 })();
