@@ -27,12 +27,29 @@ const init = (container, config = {}) => {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
-    /* Fix for the Sun icon centering */
-    .content-icon.mb-3 {
+    /* More aggressive fix for the Sun icon centering */
+    img.content-icon.mb-3, 
+    img[src*="icon-sun.svg"],
+    .content-icon.mb-3,
+    img[title*="Experience the Heart of Icelandic Tradition"] {
       display: block !important;
       margin-left: auto !important;
       margin-right: auto !important;
       text-align: center !important;
+      float: none !important;
+      position: relative !important;
+      left: auto !important;
+      right: auto !important;
+    }
+    
+    /* Fix for parent container alignment */
+    div:has(> img.content-icon.mb-3),
+    div:has(> img[src*="icon-sun.svg"]) {
+      text-align: center !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
   `;
   document.head.appendChild(style);
