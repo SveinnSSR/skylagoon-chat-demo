@@ -18,6 +18,56 @@
   container.style.zIndex = '999999';
   document.body.appendChild(container);
   
+  // FIX THE SUN ICON - Direct DOM manipulation
+  // This needs to run after a slight delay to ensure the page has loaded
+  setTimeout(() => {
+    try {
+      // Try multiple selectors to find the sun icon
+      const sunIconSelectors = [
+        'img.content-icon.mb-3',
+        'img[src*="icon-sun.svg"]',
+        'img[title*="Experience the Heart"]'
+      ];
+      
+      // Try each selector
+      for (const selector of sunIconSelectors) {
+        const icons = document.querySelectorAll(selector);
+        icons.forEach(icon => {
+          // Get the parent container (try different levels)
+          let parent = icon.parentElement;
+          
+          // Fix the icon styling
+          icon.style.display = 'block';
+          icon.style.margin = '0 auto';
+          icon.style.float = 'none';
+          icon.style.position = 'relative';
+          icon.style.left = 'auto';
+          icon.style.right = 'auto';
+          
+          // Also fix the parent container - go up 3 levels to ensure we catch the real container
+          for (let i = 0; i < 3; i++) {
+            if (parent) {
+              parent.style.textAlign = 'center';
+              parent.style.display = 'block';
+              // Try the next parent
+              parent = parent.parentElement;
+            }
+          }
+        });
+      }
+      
+      // Special targeting for the specific container structure seen in your screenshots
+      const contentIconContainers = document.querySelectorAll('.col-lg-12, .strip-container');
+      contentIconContainers.forEach(container => {
+        container.style.textAlign = 'center';
+        container.style.display = 'block';
+      });
+    } catch (e) {
+      console.log('Icon centering fix had an error:', e);
+      // Non-critical error, continue with widget loading
+    }
+  }, 500);
+  
   // Create speech bubble for preview text (initially shown)
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
