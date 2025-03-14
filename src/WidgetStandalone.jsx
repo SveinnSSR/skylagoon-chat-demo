@@ -26,6 +26,14 @@ const init = (container, config = {}) => {
     .sky-lagoon-chat-widget {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
+    
+    /* Fix for the Sun icon centering */
+    .content-icon.mb-3 {
+      display: block !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      text-align: center !important;
+    }
   `;
   document.head.appendChild(style);
   
