@@ -6,15 +6,25 @@ import './styles/BookingChangeRequest.css';
 
 // Export an initialization function
 const init = (container, config = {}) => {
+  // Ensure the container has our namespace class
+  if (!container.classList.contains('sky-lagoon-chat-widget')) {
+    container.classList.add('sky-lagoon-chat-widget');
+  }
+  
   // Get base URL for assets
   const baseUrl = config.baseUrl || '';
   console.log('Initializing widget with baseUrl:', baseUrl);
   
-  // Inject CSS to fix image paths
+  // Inject CSS to fix image paths - now scoped to our namespace
   const style = document.createElement('style');
   style.textContent = `
-    img[src="/solrun.png"] {
+    .sky-lagoon-chat-widget img[src="/solrun.png"] {
       content: url("${baseUrl}/solrun.png") !important;
+    }
+    
+    /* Reset styles for the widget container to prevent inheritance issues */
+    .sky-lagoon-chat-widget {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
   `;
   document.head.appendChild(style);
@@ -47,6 +57,7 @@ if (typeof window !== 'undefined' && !window.SkyLagoonChat) {
   window.addEventListener('DOMContentLoaded', () => {
     const rootElement = document.getElementById('root');
     if (rootElement) {
+      rootElement.classList.add('sky-lagoon-chat-widget');
       init(rootElement);
     }
   });

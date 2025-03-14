@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Caudex:wght@400;700&display=swap');
 
-.menu-btn {
+.sky-lagoon-chat-widget .menu-btn {
     color: #70744E;
     font-family: 'Caudex', serif;
     font-size: 34px;
     text-align: left;
     padding-bottom: 12px;
-    border-bottom: 1px solid rgba(112, 116, 78, 0.2); /* updated rgba values */
+    border-bottom: 1px solid rgba(112, 116, 78, 0.2);
     transition: all 0.2s;
 }
 
-.menu-item {
+.sky-lagoon-chat-widget .menu-item {
     margin-bottom: 32px;
 }
 
-.submenu-btn {
+.sky-lagoon-chat-widget .submenu-btn {
     color: #70744E;
     font-size: 20px;
     text-align: left;
@@ -22,18 +22,18 @@
     opacity: 0.8;
 }
 
-.nav-btn {
+.sky-lagoon-chat-widget .nav-btn {
     color: #70744E;
     font-size: 14px;
     opacity: 0.8;
 }
 
-button {
+.sky-lagoon-chat-widget button {
     background: none;
     border: none;
     cursor: pointer;
 }
 
-button:hover {
+.sky-lagoon-chat-widget button:hover {
     opacity: 0.7;
 }

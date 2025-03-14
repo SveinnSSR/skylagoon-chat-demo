@@ -11,6 +11,7 @@
   // Create container element
   const container = document.createElement('div');
   container.id = 'sky-lagoon-chat-root';
+  container.className = 'sky-lagoon-chat-widget'; // Add namespace class
   container.style.position = 'fixed';
   container.style.bottom = '20px';
   container.style.right = '20px';
@@ -20,6 +21,7 @@
   // Create speech bubble for preview text (initially shown)
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
+  speechBubble.className = 'sky-lagoon-chat-widget'; // Add namespace to speech bubble too
   
   // Position the speech bubble - using a function that will be called after widget is loaded
   const positionSpeechBubble = () => {

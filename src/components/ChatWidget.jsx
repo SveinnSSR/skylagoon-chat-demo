@@ -240,7 +240,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     backgroundColor: '#93918f',
                     borderRadius: '50%',
                     opacity: 0.4,
-                    animation: 'typing 1s infinite'
+                    animation: 'sky-lagoon-chat-typing 1s infinite'
                 }}/>
                 <span style={{
                     height: '8px',
@@ -248,7 +248,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     backgroundColor: '#93918f',
                     borderRadius: '50%',
                     opacity: 0.4,
-                    animation: 'typing 1s infinite',
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
                     animationDelay: '0.2s'
                 }}/>
                 <span style={{
@@ -257,7 +257,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     backgroundColor: '#93918f',
                     borderRadius: '50%',
                     opacity: 0.4,
-                    animation: 'typing 1s infinite',
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
                     animationDelay: '0.4s'
                 }}/>
             </div>
@@ -917,9 +917,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 </div>
             )}
 
-            {/* Add keyframes for typing animation */}
-            <style jsx global>{`
-                @keyframes typing {
+            {/* Add keyframes for typing animation - renamed to be unique */}
+            <style jsx>{`
+                @keyframes sky-lagoon-chat-typing {
                     0% {
                         opacity: 0.4;
                     }
@@ -932,7 +932,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }
                 
                 @media (max-width: 768px) {
-                    input, button {
+                    .sky-lagoon-chat-widget input, 
+                    .sky-lagoon-chat-widget button {
                         font-size: 16px !important; /* Prevent zoom on mobile */
                     }
                 }
