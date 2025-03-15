@@ -1,10 +1,15 @@
 // src/components/ChatWidget.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
 import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
+
+// Add these constants for session management
+const SESSION_ID_KEY = 'skyLagoonChatSessionId';
+const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false }) => {
     const messagesEndRef = React.useRef(null);
@@ -28,6 +33,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [bookingRequestSent, setBookingRequestSent] = useState(false);
     // Add window width tracking for responsive design
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+    // Add session ID state
+    const [sessionId, setSessionId] = useState('');
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -50,6 +57,65 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     useEffect(() => {
         scrollToBottom();
     }, [messages, showBookingForm]);
+
+    // Functions for session management
+    const generateSessionId = useCallback(() => {
+        return `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    }, []);
+    
+    const checkSessionTimeout = useCallback(() => {
+        const lastActivity = localStorage.getItem(SESSION_LAST_ACTIVITY_KEY);
+        
+        if (lastActivity && Date.now() - parseInt(lastActivity) > SESSION_TIMEOUT) {
+            console.log('Session timed out, generating new session ID');
+            const newSessionId = generateSessionId();
+            localStorage.setItem(SESSION_ID_KEY, newSessionId);
+            setSessionId(newSessionId);
+        }
+        
+        // Update last activity time
+        localStorage.setItem(SESSION_LAST_ACTIVITY_KEY, Date.now().toString());
+    }, [generateSessionId]);
+    
+    const initializeSession = useCallback(() => {
+        // Check if there's an existing session ID
+        let existingSessionId = localStorage.getItem(SESSION_ID_KEY);
+        
+        if (!existingSessionId) {
+            // Generate a new session ID if none exists
+            existingSessionId = generateSessionId();
+            localStorage.setItem(SESSION_ID_KEY, existingSessionId);
+            console.log('Generated new session ID:', existingSessionId);
+        } else {
+            console.log('Using existing session ID:', existingSessionId);
+        }
+        
+        // Check for session timeout
+        const lastActivity = localStorage.getItem(SESSION_LAST_ACTIVITY_KEY);
+        if (lastActivity && Date.now() - parseInt(lastActivity) > SESSION_TIMEOUT) {
+            console.log('Session timed out, generating new session ID');
+            existingSessionId = generateSessionId();
+            localStorage.setItem(SESSION_ID_KEY, existingSessionId);
+        }
+        
+        // Set the session ID in state
+        setSessionId(existingSessionId);
+        
+        // Update last activity timestamp
+        localStorage.setItem(SESSION_LAST_ACTIVITY_KEY, Date.now().toString());
+    }, [generateSessionId]);
+    
+    // Initialize session on component mount
+    useEffect(() => {
+        initializeSession();
+        
+        // Optional: Periodically check for session timeout (every minute)
+        const intervalId = setInterval(checkSessionTimeout, 60000);
+        
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [initializeSession, checkSessionTimeout]);
 
     // Initialize Pusher
     useEffect(() => {
@@ -152,7 +218,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     chatId: chatId,
                     bot_token: botToken,
                     agent_credentials: agentCredentials,
-                    isBookingChangeRequest: true
+                    isBookingChangeRequest: true,
+                    sessionId: sessionId // Include session ID
                 })
             });
 
@@ -307,7 +374,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     messageContent,
                     timestamp: new Date().toISOString(),
                     chatId: chatId,
-                    language: language
+                    language: language,
+                    sessionId: sessionId // Include session ID
                 })
             });
             
@@ -328,7 +396,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         rating: isPositive,
                         content: messageContent,
                         timestamp: new Date().toISOString(),
-                        language: language
+                        language: language,
+                        sessionId: sessionId // Include session ID
                     })
                 });
                 
@@ -448,10 +517,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }]);
         
         setIsTyping(true);
+        
+        // Check for session timeout before sending
+        checkSessionTimeout();
     
         try {
             // Use props instead of environment variables
             console.log('Sending message to:', webhookUrl);
+            console.log('Using session ID:', sessionId);
+            
             const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
@@ -464,7 +538,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     chatId: chatId,
                     bot_token: botToken, // Add the bot token if available
                     agent_credentials: agentCredentials,
-                    isAgentMode: chatMode === 'agent'
+                    isAgentMode: chatMode === 'agent',
+                    sessionId: sessionId // Include session ID with every request
                 })
             });   
     
