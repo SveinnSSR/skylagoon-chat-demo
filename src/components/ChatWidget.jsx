@@ -11,7 +11,7 @@ const SESSION_ID_KEY = 'skyLagoonChatSessionId';
 const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
 
-const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false }) => {
+const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false, baseUrl }) => {
     const messagesEndRef = React.useRef(null);
     const [isMinimized, setIsMinimized] = useState(true);
     const [messages, setMessages] = useState([]);
@@ -35,6 +35,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
     // Add session ID state
     const [sessionId, setSessionId] = useState('');
+    // Add current language state to track language changes
+    const [currentLanguage, setCurrentLanguage] = useState(language);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -42,6 +44,43 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
       window.sendResizeMessage(isMinimized);
     }
     }, [isMinimized, isEmbedded]);
+
+    // Update internal language state when prop changes
+    useEffect(() => {
+        setCurrentLanguage(language);
+    }, [language]);
+
+    // Listen for language change events
+    useEffect(() => {
+        if (isEmbedded && typeof window !== 'undefined') {
+            const handleLanguageChange = (event) => {
+                if (event.detail && event.detail.language) {
+                    console.log('Language change event received:', event.detail.language);
+                    setCurrentLanguage(event.detail.language);
+                    
+                    // Optional: Show a message about language change
+                    if (event.detail.language !== currentLanguage) {
+                        const message = event.detail.language === 'en' 
+                            ? "Switching to English..."
+                            : "Skipta yfir í íslensku...";
+                        
+                        setMessages(prev => [...prev, {
+                            type: 'bot',
+                            content: message,
+                            id: 'bot-lang-' + Date.now()
+                        }]);
+                    }
+                }
+            };
+            
+            // Add event listener to the document
+            document.addEventListener('sky-lagoon-language-change', handleLanguageChange);
+            
+            return () => {
+                document.removeEventListener('sky-lagoon-language-change', handleLanguageChange);
+            };
+        }
+    }, [isEmbedded, currentLanguage]);
 
     // Add window resize listener for responsive design
     useEffect(() => {
@@ -138,7 +177,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     }, []);
 
     useEffect(() => {
-        const welcomeMessage = language === 'en' 
+        const welcomeMessage = currentLanguage === 'en' 
             ? "Hello! I'm Sólrún your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
             : "Hæ! Ég heiti Sólrún og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?";
             
@@ -147,7 +186,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             content: welcomeMessage,
             id: 'welcome-msg-' + Date.now()
         }]);
-    }, [language]);
+    }, [currentLanguage]);
 
     // Function to determine if a message should show feedback options
     const shouldShowFeedback = (message) => {
@@ -214,7 +253,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 body: JSON.stringify({
                     message: formattedMessage,
                     formData: JSON.stringify(formData),
-                    language: language,
+                    language: currentLanguage,
                     chatId: chatId,
                     bot_token: botToken,
                     agent_credentials: agentCredentials,
@@ -236,7 +275,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Add confirmation message
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: data.message || (language === 'en' ? 
+                content: data.message || (currentLanguage === 'en' ? 
                     "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours." :
                     "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda."),
                 id: 'bot-booking-confirm-' + Date.now()
@@ -252,7 +291,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Show error message
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: language === 'en' ? 
+                content: currentLanguage === 'en' ? 
                     "I'm sorry, we're having trouble submitting your booking change request. Please try again or call us at +354 527 6800." :
                     "Því miður erum við að lenda í vandræðum með að senda bókunarbeiðnina þína. Vinsamlegast reyndu aftur eða hringdu í +354 527 6800.",
                 id: 'bot-booking-error-' + Date.now()
@@ -265,7 +304,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         setShowBookingForm(false);
         setMessages(prev => [...prev, {
             type: 'bot',
-            content: language === 'en' ? 
+            content: currentLanguage === 'en' ? 
                 "I've cancelled the booking change request. Is there anything else I can help you with?" :
                 "Ég hef hætt við bókunarbreytingabeiðnina. Er eitthvað annað sem ég get aðstoðað þig með?",
             id: 'bot-booking-cancel-' + Date.now()
@@ -374,7 +413,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     messageContent,
                     timestamp: new Date().toISOString(),
                     chatId: chatId,
-                    language: language,
+                    language: currentLanguage,
                     sessionId: sessionId // Include session ID
                 })
             });
@@ -396,7 +435,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         rating: isPositive,
                         content: messageContent,
                         timestamp: new Date().toISOString(),
-                        language: language,
+                        language: currentLanguage,
                         sessionId: sessionId // Include session ID
                     })
                 });
@@ -534,7 +573,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 },
                 body: JSON.stringify({ 
                     message: messageText,
-                    language: language,
+                    language: currentLanguage,
                     chatId: chatId,
                     bot_token: botToken, // Add the bot token if available
                     agent_credentials: agentCredentials,
@@ -592,7 +631,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     id: 'bot-msg-' + Date.now()
                 }, {
                     type: 'bot',
-                    content: language === 'en' ? 
+                    content: currentLanguage === 'en' ? 
                         "You are now connected with a live agent. Please continue your conversation here." :
                         "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.",
                     id: 'bot-transfer-' + Date.now()
@@ -631,7 +670,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             setIsTyping(false);
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: language === 'en' ? 
+                content: currentLanguage === 'en' ? 
                     "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
                     "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.",
                 id: 'bot-error-' + Date.now()
@@ -719,7 +758,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 fontSize: '12px',
                                 marginTop: '4px'
                             }}>
-                                {language === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
+                                {currentLanguage === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
                             </div>
                         )}
                         {bookingRequestSent && (
@@ -731,7 +770,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 fontSize: '12px',
                                 marginTop: '4px'
                             }}>
-                                {language === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
+                                {currentLanguage === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
                             </div>
                         )}
                     </div>
@@ -825,7 +864,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             borderRadius: '12px',
                                             backgroundColor: 'rgba(112, 116, 78, 0.08)'
                                         }}>
-                                            {language === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
+                                            {currentLanguage === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
                                         </div>
                                     ) : (
                                         <>
@@ -853,12 +892,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     e.currentTarget.style.backgroundColor = 'transparent';
                                                     e.currentTarget.style.opacity = '0.8';
                                                 }}
-                                                aria-label={language === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                                aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
-                                                <span>{language === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
+                                                <span>{currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
                                             </button>
                                             
                                             <button 
@@ -885,12 +924,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     e.currentTarget.style.backgroundColor = 'transparent';
                                                     e.currentTarget.style.opacity = '0.8';
                                                 }}
-                                                aria-label={language === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                                aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
                                             >
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
-                                                <span>{language === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}</span>
+                                                <span>{currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}</span>
                                             </button>
                                         </>
                                     )}
@@ -933,7 +972,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     <BookingChangeRequest 
                                         onSubmit={handleBookingFormSubmit}
                                         onCancel={handleBookingFormCancel}
-                                        language={language === 'is' ? 'is' : 'en'} // Ensure proper language format
+                                        language={currentLanguage === 'is' ? 'is' : 'en'} // Ensure proper language format
                                     />
                                 </div>
                             </div>
@@ -959,7 +998,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
-                        placeholder={language === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
+                        placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
                         style={{
                             flex: 1,
                             padding: '8px 16px',
@@ -987,7 +1026,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             transition: 'all 0.3s ease'
                         }}
                     >
-                        {language === 'en' ? 'Send' : 'Senda'}
+                        {currentLanguage === 'en' ? 'Send' : 'Senda'}
                     </button>
                 </div>
             )}

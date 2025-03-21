@@ -68,6 +68,21 @@
     }
   }, 500);
   
+  // Language detection and update function
+  const updateWidgetLanguage = () => {
+    // Detect language from various sources
+    const isIcelandic = 
+      window.location.pathname.includes('/is/') || 
+      document.documentElement.lang === 'is' ||
+      document.documentElement.lang === 'is-IS';
+    
+    // Update widget language if API is available
+    if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.setLanguage) {
+      window.SkyLagoonChatAPI.setLanguage(isIcelandic ? 'is' : 'en');
+      console.log('Updated chat widget language to:', isIcelandic ? 'is' : 'en');
+    }
+  };
+  
   // Create speech bubble for preview text (initially shown)
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
@@ -253,6 +268,38 @@
           
           // Add window resize listener to update bubble position
           window.addEventListener('resize', positionSpeechBubble);
+          
+          // Set up language listeners
+          const languageButtons = document.querySelectorAll('a[href*="/is"], a[href="/"], .language-selector a');
+          languageButtons.forEach(button => {
+            button.addEventListener('click', () => {
+              // Wait for page to update
+              setTimeout(updateWidgetLanguage, 300);
+            });
+          });
+          
+          // Watch for URL changes
+          let lastPathname = window.location.pathname;
+          setInterval(() => {
+            if (window.location.pathname !== lastPathname) {
+              lastPathname = window.location.pathname;
+              updateWidgetLanguage();
+            }
+          }, 1000);
+          
+          // Watch for lang attribute changes on HTML element
+          const htmlObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.attributeName === 'lang') {
+                updateWidgetLanguage();
+              }
+            });
+          });
+          htmlObserver.observe(document.documentElement, { attributes: true });
+          
+          // Initial language detection
+          updateWidgetLanguage();
+          
         } else {
           console.error('SkyLagoonChat not found on window after loading');
         }

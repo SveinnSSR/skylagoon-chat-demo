@@ -73,6 +73,15 @@ const init = (container, config = {}) => {
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
+    },
+    // Add language change method
+    setLanguage: (newLanguage) => {
+      console.log('Setting widget language to:', newLanguage);
+      // Create a custom event for language change
+      const event = new CustomEvent('sky-lagoon-language-change', { 
+        detail: { language: newLanguage } 
+      });
+      document.dispatchEvent(event);
     }
   };
 };
