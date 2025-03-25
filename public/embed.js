@@ -132,7 +132,7 @@
   if (isIcelandic) {
     speechBubble.textContent = 'Hæ! Ég heiti Sólrún og er AI spjallmenni hjá Sky Lagoon. Hvað get ég gert fyrir þig í dag?';
   } else {
-    speechBubble.textContent = 'Hi! I\'m Sólrún, your chat assistant at Sky Lagoon. How can I help you today?';
+    speechBubble.textContent = 'Hi! I\'m Sólrún, your AI assistant at Sky Lagoon. How can I help you today?';
   }
   
   // Add small triangle/pointer at the bottom
