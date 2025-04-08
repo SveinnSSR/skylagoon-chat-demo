@@ -1,4 +1,3 @@
-
 // src/components/ChatWidget.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { theme } from '../styles/theme';
@@ -950,14 +949,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         // User messages always show instantly
                                         msg.content
                                     )}
-                                    {/* Show cursor only during active typing and when not at the end of a line */}
-                                    {msg.type === 'bot' && 
-                                     typingMessages[msg.id] && 
-                                     !typingMessages[msg.id].isComplete && 
-                                     typingMessages[msg.id].text.length > 0 &&
-                                     !typingMessages[msg.id].text.endsWith('\n') && (
-                                        <span className="typing-cursor"></span>
-                                    )}
+                                    {/* Cursor has been removed for cleaner look */}
                                 </div>
                             </div>
                             
@@ -1162,22 +1154,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     100% {
                         opacity: 0.4;
                     }
-                }
-                
-                .typing-cursor {
-                    display: inline-block;
-                    width: 2px;
-                    height: 1em;
-                    background-color: #70744E;
-                    margin-left: 2px;
-                    animation: cursor-blink 1s step-end infinite;
-                    vertical-align: middle;
-                    opacity: 0.7;
-                }
-                
-                @keyframes cursor-blink {
-                    0%, 100% { opacity: 0.7; }
-                    50% { opacity: 0; }
                 }
                 
                 @media (max-width: 768px) {
