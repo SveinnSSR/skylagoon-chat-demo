@@ -10,6 +10,7 @@ import '../styles/BookingChangeRequest.css';
 const SESSION_ID_KEY = 'skyLagoonChatSessionId';
 const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const TYPING_SPEED = 20; // Speed in milliseconds per character
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false, baseUrl }) => {
     const messagesEndRef = React.useRef(null);
@@ -37,6 +38,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [sessionId, setSessionId] = useState('');
     // Add current language state to track language changes
     const [currentLanguage, setCurrentLanguage] = useState(language);
+    // Add state for character-by-character typing effect
+    const [typingMessages, setTypingMessages] = useState({});
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -64,11 +67,17 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             ? "Switching to English..."
                             : "Skipta yfir í íslensku...";
                         
+                        const newMessageId = 'bot-lang-' + Date.now();
+                        
+                        // Add the message to both messages and typing messages
                         setMessages(prev => [...prev, {
                             type: 'bot',
                             content: message,
-                            id: 'bot-lang-' + Date.now()
+                            id: newMessageId
                         }]);
+                        
+                        // Start typing effect for this message
+                        startTypingEffect(newMessageId, message);
                     }
                 }
             };
@@ -95,7 +104,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, showBookingForm]);
+    }, [messages, showBookingForm, typingMessages]);
 
     // Functions for session management
     const generateSessionId = useCallback(() => {
@@ -176,16 +185,55 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
+    // Character-by-character typing effect function
+    const startTypingEffect = (messageId, fullText) => {
+        // Initialize with empty string
+        setTypingMessages(prev => ({
+            ...prev,
+            [messageId]: { text: '', isComplete: false }
+        }));
+        
+        let charIndex = 0;
+        
+        const typingInterval = setInterval(() => {
+            if (charIndex <= fullText.length) {
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: {
+                        text: fullText.substring(0, charIndex),
+                        isComplete: charIndex === fullText.length
+                    }
+                }));
+                charIndex++;
+                scrollToBottom();
+            } else {
+                clearInterval(typingInterval);
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: { text: fullText, isComplete: true }
+                }));
+            }
+        }, TYPING_SPEED);
+        
+        // Store the interval ID to clear it if needed
+        return typingInterval;
+    };
+
     useEffect(() => {
         const welcomeMessage = currentLanguage === 'en' 
             ? "Hello! I'm Sólrún your AI chatbot. I am new here and still learning but, will happily do my best to assist you. What can I do for you today?"
             : "Hæ! Ég heiti Sólrún og er AI spjallmenni. Ég er ný og enn að læra en mun aðstoða þig með glöðu geði. Hvað get ég gert fyrir þig í dag?";
-            
+        
+        const welcomeMessageId = 'welcome-msg-' + Date.now();
+        
         setMessages([{
             type: 'bot',
             content: welcomeMessage,
-            id: 'welcome-msg-' + Date.now()
+            id: welcomeMessageId
         }]);
+        
+        // Start typing effect for welcome message
+        startTypingEffect(welcomeMessageId, welcomeMessage);
     }, [currentLanguage]);
 
     // Function to determine if a message should show feedback options
@@ -272,14 +320,20 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: 'user-booking-' + Date.now()
             }]);
 
-            // Add confirmation message
+            // Add confirmation message with typing effect
+            const confirmMessageId = 'bot-booking-confirm-' + Date.now();
+            const confirmMessage = data.message || (currentLanguage === 'en' ? 
+                "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours." :
+                "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda.");
+            
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: data.message || (currentLanguage === 'en' ? 
-                    "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours." :
-                    "Takk fyrir beiðnina um breytingu á bókun. Teymi okkar mun yfirfara hana og svara tölvupóstinum þínum innan 24 klukkustunda."),
-                id: 'bot-booking-confirm-' + Date.now()
+                content: confirmMessage,
+                id: confirmMessageId
             }]);
+            
+            // Start typing effect for the confirmation message
+            startTypingEffect(confirmMessageId, confirmMessage);
 
             // Update state
             setBookingRequestSent(true);
@@ -288,27 +342,40 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.error('Error submitting booking request:', error);
             setIsTyping(false);
             
-            // Show error message
+            // Show error message with typing effect
+            const errorMessageId = 'bot-booking-error-' + Date.now();
+            const errorMessage = currentLanguage === 'en' ? 
+                "I'm sorry, we're having trouble submitting your booking change request. Please try again or call us at +354 527 6800." :
+                "Því miður erum við að lenda í vandræðum með að senda bókunarbeiðnina þína. Vinsamlegast reyndu aftur eða hringdu í +354 527 6800.";
+            
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: currentLanguage === 'en' ? 
-                    "I'm sorry, we're having trouble submitting your booking change request. Please try again or call us at +354 527 6800." :
-                    "Því miður erum við að lenda í vandræðum með að senda bókunarbeiðnina þína. Vinsamlegast reyndu aftur eða hringdu í +354 527 6800.",
-                id: 'bot-booking-error-' + Date.now()
+                content: errorMessage,
+                id: errorMessageId
             }]);
+            
+            // Start typing effect for the error message
+            startTypingEffect(errorMessageId, errorMessage);
         }
     };
 
     // Handle booking form cancellation
     const handleBookingFormCancel = () => {
         setShowBookingForm(false);
+        
+        const cancelMessageId = 'bot-booking-cancel-' + Date.now();
+        const cancelMessage = currentLanguage === 'en' ? 
+            "I've cancelled the booking change request. Is there anything else I can help you with?" :
+            "Ég hef hætt við bókunarbreytingabeiðnina. Er eitthvað annað sem ég get aðstoðað þig með?";
+        
         setMessages(prev => [...prev, {
             type: 'bot',
-            content: currentLanguage === 'en' ? 
-                "I've cancelled the booking change request. Is there anything else I can help you with?" :
-                "Ég hef hætt við bókunarbreytingabeiðnina. Er eitthvað annað sem ég get aðstoðað þig með?",
-            id: 'bot-booking-cancel-' + Date.now()
+            content: cancelMessage,
+            id: cancelMessageId
         }]);
+        
+        // Start typing effect for the cancellation message
+        startTypingEffect(cancelMessageId, cancelMessage);
     };
 
     const TypingIndicator = () => (
@@ -594,12 +661,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 if (data.bot_token) setBotToken(data.bot_token);
                 if (data.agent_credentials) setAgentCredentials(data.agent_credentials);
                 
-                // Add the bot message
+                // Add the bot message with typing effect
+                const botMsgId = 'bot-msg-' + Date.now();
                 setMessages(prev => [...prev, {
                     type: 'bot',
                     content: data.message,
-                    id: 'bot-msg-' + Date.now()
+                    id: botMsgId
                 }]);
+                
+                // Start typing effect for this message
+                startTypingEffect(botMsgId, data.message);
                 
                 // Show the booking form
                 setShowBookingForm(true);
@@ -624,18 +695,36 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 setChatMode('agent');
                 setChatId(data.chatId);
                 
-                // Add the transfer messages to the chat
+                // Add the transfer messages to the chat with typing effect
+                const botMsgId = 'bot-msg-' + Date.now();
+                const transferMsgId = 'bot-transfer-' + Date.now();
+                
+                // First message
                 setMessages(prev => [...prev, {
                     type: 'bot',
                     content: data.message,
-                    id: 'bot-msg-' + Date.now()
-                }, {
-                    type: 'bot',
-                    content: currentLanguage === 'en' ? 
-                        "You are now connected with a live agent. Please continue your conversation here." :
-                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.",
-                    id: 'bot-transfer-' + Date.now()
+                    id: botMsgId
                 }]);
+                
+                // Start typing effect for first message
+                startTypingEffect(botMsgId, data.message);
+                
+                // Second message (after a delay to simulate sequential typing)
+                setTimeout(() => {
+                    const transferMessage = currentLanguage === 'en' ? 
+                        "You are now connected with a live agent. Please continue your conversation here." :
+                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.";
+                    
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: transferMessage,
+                        id: transferMsgId
+                    }]);
+                    
+                    // Start typing effect for second message
+                    startTypingEffect(transferMsgId, transferMessage);
+                }, 1000); // Delay before showing the second message
+                
                 return;
             }
     
@@ -656,6 +745,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 content: data.message,
                 id: botMessageId
             }]);
+            
+            // Start typing effect for this message
+            startTypingEffect(botMessageId, data.message);
 
             // Store PostgreSQL ID if provided in response
             if (data.postgresqlMessageId) {
@@ -668,13 +760,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         } catch (error) {
             console.error('Error:', error);
             setIsTyping(false);
+            
+            // Error message with typing effect
+            const errorMsgId = 'bot-error-' + Date.now();
+            const errorMessage = currentLanguage === 'en' ? 
+                "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+            
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: currentLanguage === 'en' ? 
-                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.",
-                id: 'bot-error-' + Date.now()
+                content: errorMessage,
+                id: errorMsgId
             }]);
+            
+            // Start typing effect for error message
+            startTypingEffect(errorMsgId, errorMessage);
         }
     };
 
@@ -838,15 +938,28 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         '1px solid rgba(0, 0, 0, 0.05)'
                                 }}>
                                     {msg.type === 'bot' ? (
-                                        <MessageFormatter message={msg.content} />
+                                        // Apply typing effect only for bot messages
+                                        typingMessages[msg.id] ? 
+                                            <MessageFormatter message={typingMessages[msg.id].text} /> :
+                                            <MessageFormatter message={msg.content} />
                                     ) : (
+                                        // User messages always show instantly
                                         msg.content
+                                    )}
+                                    {/* Show cursor for incomplete typing */}
+                                    {msg.type === 'bot' && 
+                                     typingMessages[msg.id] && 
+                                     !typingMessages[msg.id].isComplete && (
+                                        <span className="typing-cursor">|</span>
                                     )}
                                 </div>
                             </div>
                             
                             {/* Feedback buttons - only shown for bot messages that pass the filter */}
-                            {msg.type === 'bot' && shouldShowFeedback(msg) && (
+                            {msg.type === 'bot' && 
+                             typingMessages[msg.id] && 
+                             typingMessages[msg.id].isComplete && 
+                             shouldShowFeedback(msg) && (
                                 <div style={{
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1043,6 +1156,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     100% {
                         opacity: 0.4;
                     }
+                }
+                
+                .typing-cursor {
+                    display: inline-block;
+                    width: 2px;
+                    height: 1em;
+                    background-color: #333;
+                    margin-left: 2px;
+                    animation: cursor-blink 1s step-end infinite;
+                    vertical-align: middle;
+                }
+                
+                @keyframes cursor-blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0; }
                 }
                 
                 @media (max-width: 768px) {
