@@ -1,3 +1,4 @@
+
 // src/components/ChatWidget.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { theme } from '../styles/theme';
@@ -208,10 +209,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 scrollToBottom();
             } else {
                 clearInterval(typingInterval);
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [messageId]: { text: fullText, isComplete: true }
-                }));
+                // When typing is complete, mark as complete and remove cursor
+                setTimeout(() => {
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [messageId]: { text: fullText, isComplete: true }
+                    }));
+                }, 500); // Remove cursor after 500ms of completing the text
             }
         }, TYPING_SPEED);
         
@@ -946,11 +950,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         // User messages always show instantly
                                         msg.content
                                     )}
-                                    {/* Show cursor for incomplete typing */}
+                                    {/* Show cursor only during active typing and when not at the end of a line */}
                                     {msg.type === 'bot' && 
                                      typingMessages[msg.id] && 
-                                     !typingMessages[msg.id].isComplete && (
-                                        <span className="typing-cursor">|</span>
+                                     !typingMessages[msg.id].isComplete && 
+                                     typingMessages[msg.id].text.length > 0 &&
+                                     !typingMessages[msg.id].text.endsWith('\n') && (
+                                        <span className="typing-cursor"></span>
                                     )}
                                 </div>
                             </div>
@@ -1162,14 +1168,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     display: inline-block;
                     width: 2px;
                     height: 1em;
-                    background-color: #333;
+                    background-color: #70744E;
                     margin-left: 2px;
                     animation: cursor-blink 1s step-end infinite;
                     vertical-align: middle;
+                    opacity: 0.7;
                 }
                 
                 @keyframes cursor-blink {
-                    0%, 100% { opacity: 1; }
+                    0%, 100% { opacity: 0.7; }
                     50% { opacity: 0; }
                 }
                 
