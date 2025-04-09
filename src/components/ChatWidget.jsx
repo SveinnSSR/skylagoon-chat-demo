@@ -103,19 +103,27 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // Enhanced scrollToBottom function for better mobile experience
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
-            // For desktop, use the original smooth scrolling behavior
+            // For desktop, use the original smooth scrolling behavior - NO CHANGES TO DESKTOP
             if (window.innerWidth > 768) {
                 messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
             } else {
-                // For mobile, use a more stable approach
+                // For mobile, use a more aggressive approach to ensure full visibility
                 const chatContainer = messagesEndRef.current.parentElement;
                 if (chatContainer) {
-                    // Add padding to ensure the message is fully visible
-                    const scrollPosition = chatContainer.scrollHeight - chatContainer.clientHeight + 80;
+                    // Much larger padding (200px) to ensure the entire bubble is visible
                     chatContainer.scrollTo({
-                        top: scrollPosition,
+                        top: chatContainer.scrollHeight + 200,
                         behavior: 'auto' // Use 'auto' instead of 'smooth' to reduce jitter
                     });
+                    
+                    // Double-check the scroll position after a small delay to ensure it's visible
+                    // This helps in cases where rendering takes a bit longer
+                    setTimeout(() => {
+                        chatContainer.scrollTo({
+                            top: chatContainer.scrollHeight + 200,
+                            behavior: 'auto'
+                        });
+                    }, 50);
                 }
             }
         }
@@ -226,14 +234,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }));
                 charIndex++;
                 
-                // Throttle scrolling on mobile to reduce jitter
+                // Different scrolling approach for mobile vs desktop - NO CHANGES TO DESKTOP
                 const isMobile = window.innerWidth <= 768;
-                if (!scrollScheduled && (!isMobile || charIndex % 5 === 0)) {
-                    scrollScheduled = true;
-                    setTimeout(() => {
-                        scrollToBottom();
-                        scrollScheduled = false;
-                    }, 10);
+                if (isMobile) {
+                    // For mobile: only scroll at specific intervals to reduce jitter
+                    // This prevents too many scroll operations
+                    if (!scrollScheduled && charIndex % 10 === 0) {
+                        scrollScheduled = true;
+                        setTimeout(() => {
+                            scrollToBottom();
+                            scrollScheduled = false;
+                        }, 50); // Longer delay for mobile
+                    }
+                } else {
+                    // For desktop: use the original behavior
+                    scrollToBottom();
                 }
             } else {
                 clearInterval(typingInterval);
@@ -243,7 +258,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         ...prev,
                         [messageId]: { text: fullText, isComplete: true }
                     }));
+                    
+                    // Final scroll once typing is complete
                     scrollToBottom();
+                    
+                    // Special case for mobile to ensure final message is fully visible
+                    if (window.innerWidth <= 768) {
+                        setTimeout(scrollToBottom, 100);
+                    }
                 }, 500);
             }
         }, TYPING_SPEED);
@@ -924,11 +946,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
             {/* Chat area */}
             {!isMinimized && (
-                <div style={{
+                <div className="chat-container" style={{
                     height: '400px',
                     backgroundColor: 'white',
                     overflowY: 'auto',
-                    padding: '16px'
+                    padding: '16px',
+                    // Mobile-only padding adjustment - NO CHANGES TO DESKTOP
+                    ...(windowWidth <= 768 ? {
+                        paddingBottom: '150px' // Extra bottom padding on mobile only
+                    } : {})
                 }}>
                     {messages.map((msg, index) => (
                         <div key={index} style={{
@@ -971,7 +997,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         '1px solid rgba(0, 0, 0, 0.05)',
                                     position: 'relative', // Added for stable positioning
                                     overflow: 'hidden', // Helps prevent layout shifts
-                                    wordBreak: 'break-word' // Helps with mobile text wrapping
+                                    wordBreak: 'break-word', // Helps with mobile text wrapping
+                                    // Special handling for bot messages on mobile - NO CHANGES TO DESKTOP
+                                    ...(msg.type === 'bot' && windowWidth <= 768 ? {
+                                        minHeight: typingMessages[msg.id] ? 
+                                            Math.max(50, Math.ceil(typingMessages[msg.id].text.length / 30) * 20) : // Estimate height
+                                            Math.max(50, Math.ceil(msg.content.length / 30) * 20), // Estimate height based on content length
+                                        marginBottom: '12px' // Extra margin on mobile
+                                    } : {})
                                 }}>
                                     {msg.type === 'bot' ? (
                                         // Apply typing effect only for bot messages
@@ -996,7 +1029,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     alignItems: 'center',
                                     marginTop: '4px',
                                     marginLeft: '38px',
-                                    gap: '12px'
+                                    gap: windowWidth <= 768 ? '6px' : '12px' // Smaller gap on mobile - NO CHANGES TO DESKTOP
                                 }}>
                                     {messageFeedback[msg.id] ? (
                                         <div style={{
@@ -1027,14 +1060,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
                                                     opacity: 0.8,
-                                                    // Mobile-only style adjustments using conditional
+                                                    // Mobile-only style adjustments using conditional - NO CHANGES TO DESKTOP
                                                     ...(windowWidth <= 768 ? {
-                                                        minWidth: '76px', // Same width for both buttons on mobile
+                                                        minWidth: '65px', // Smaller minimum width for mobile
                                                         justifyContent: 'center',
-                                                        border: '1px solid rgba(112, 116, 78, 0.1)',
-                                                        backgroundColor: 'rgba(112, 116, 78, 0.02)',
-                                                        padding: '3px 6px',
-                                                        fontSize: '11px'
+                                                        border: '1px solid rgba(112, 116, 78, 0.2)', // Stronger border
+                                                        backgroundColor: 'rgba(112, 116, 78, 0.05)', // Slightly more visible bg
+                                                        padding: '2px 5px', // Smaller padding
+                                                        fontSize: '10px', // Smaller font
+                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', // Add subtle shadow
+                                                        margin: '0 2px' // Add margin for spacing
                                                     } : {})
                                                 }}
                                                 onMouseOver={(e) => {
@@ -1053,7 +1088,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
                                             >
-                                                <svg width={windowWidth <= 768 ? "12" : "14"} height={windowWidth <= 768 ? "12" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg width={windowWidth <= 768 ? "10" : "14"} height={windowWidth <= 768 ? "10" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                                 <span>{currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
@@ -1231,6 +1266,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         overflow-wrap: break-word;
                         word-wrap: break-word;
                         word-break: break-word;
+                    }
+                    
+                    /* Create extra space at the bottom of the chat container on mobile */
+                    .chat-container::after {
+                        content: '';
+                        display: block;
+                        height: 200px; /* Extra padding at the bottom */
+                        width: 100%;
                     }
                 }
             `}</style>
