@@ -100,37 +100,24 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Enhanced scrollToBottom function with special mobile handling
+    // Enhanced scrollToBottom function with extreme mobile handling
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
-            // For desktop, use the original smooth scrolling behavior - NO CHANGES TO DESKTOP
+            // FOR DESKTOP - No changes at all to desktop behavior
             if (window.innerWidth > 768) {
                 messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-            } else {
-                // For mobile, completely different approach to ensure the FULL text box is visible
+            } 
+            // FOR MOBILE - Completely different approach
+            else {
                 const chatContainer = messagesEndRef.current.parentElement;
                 if (chatContainer) {
-                    // Find the last message container for more precise scrolling
-                    const allMessages = chatContainer.querySelectorAll('[data-message-container="true"]');
-                    if (allMessages && allMessages.length > 0) {
-                        const lastMessage = allMessages[allMessages.length - 1];
-                        
-                        // Calculate position to show the ENTIRE message bubble
-                        const messageBottom = lastMessage.getBoundingClientRect().bottom;
-                        const containerTop = chatContainer.getBoundingClientRect().top;
-                        const visibleHeight = chatContainer.clientHeight;
-                        
-                        // Calculate extra space needed to see the whole message
-                        // We add 80px extra padding to ensure we see below the message too
-                        const extraScroll = messageBottom - (containerTop + visibleHeight) + 80;
-                        
-                        if (extraScroll > 0) {
-                            chatContainer.scrollTop += extraScroll;
-                        }
-                    } else {
-                        // Fallback if we can't find message elements
-                        chatContainer.scrollTop = chatContainer.scrollHeight;
-                    }
+                    // SUPER AGGRESSIVE SCROLLING - go way beyond what's needed
+                    chatContainer.scrollTop = chatContainer.scrollHeight + 500;
+                    
+                    // For safety, do it again after a slight delay
+                    setTimeout(() => {
+                        chatContainer.scrollTop = chatContainer.scrollHeight + 500;
+                    }, 30);
                 }
             }
         }
@@ -228,7 +215,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }));
         
         let charIndex = 0;
-        let scrollScheduled = false;
         
         const typingInterval = setInterval(() => {
             if (charIndex <= fullText.length) {
@@ -244,18 +230,20 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Different scrolling approach for mobile vs desktop - NO CHANGES TO DESKTOP
                 const isMobile = window.innerWidth <= 768;
                 if (isMobile) {
-                    // For mobile: force scroll after EVERY character to ensure visibility
-                    requestAnimationFrame(() => {
-                        // Small delay to allow DOM update
-                        setTimeout(scrollToBottom, 10);
-                    });
+                    // For mobile: AGGRESSIVE SCROLL AFTER EVERY CHARACTER
+                    // Call scrollToBottom immediately
+                    scrollToBottom();
+                    
+                    // And again after a small delay to be super sure
+                    setTimeout(scrollToBottom, 10);
+                    setTimeout(scrollToBottom, 50);
                 } else {
-                    // For desktop: use the original behavior
+                    // For desktop: use the original behavior - NO CHANGES
                     scrollToBottom();
                 }
             } else {
                 clearInterval(typingInterval);
-                // When typing is complete, mark as complete
+                // When typing is complete
                 setTimeout(() => {
                     setTypingMessages(prev => ({
                         ...prev,
@@ -265,9 +253,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     // Final scroll once typing is complete
                     scrollToBottom();
                     
-                    // Special case for mobile to ensure final message is fully visible
+                    // Special case for mobile - super aggressive multiple scrolls
                     if (window.innerWidth <= 768) {
-                        setTimeout(scrollToBottom, 200);
+                        // Scroll multiple times with delays to be absolutely sure
+                        setTimeout(scrollToBottom, 100);
+                        setTimeout(scrollToBottom, 300);
+                        setTimeout(scrollToBottom, 500);
                     }
                 }, 500);
             }
@@ -954,9 +945,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     backgroundColor: 'white',
                     overflowY: 'auto',
                     padding: '16px',
-                    // Even more extreme padding on mobile
+                    // EXTREME padding on mobile
                     ...(windowWidth <= 768 ? {
-                        paddingBottom: '250px' // Much more bottom padding to ensure messages are visible
+                        paddingBottom: '500px' // MASSIVE bottom padding to ensure messages are visible
                     } : {})
                 }}>
                     {messages.map((msg, index) => (
@@ -1273,17 +1264,17 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         word-break: break-word;
                     }
                     
-                    /* Create extra space at the bottom of the chat container on mobile */
+                    /* Create extreme extra space at the bottom of the chat container on mobile */
                     .chat-container::after {
                         content: '';
                         display: block;
-                        height: 300px; /* Very large padding at the bottom */
+                        height: 500px; /* MASSIVE padding at the bottom */
                         width: 100%;
                     }
                     
                     /* Make message height stable during typing */
                     [data-message-container="true"] {
-                        margin-bottom: 30px !important; /* Extra space between messages */
+                        margin-bottom: 50px !important; /* HUGE space between messages */
                     }
                 }
             `}</style>
