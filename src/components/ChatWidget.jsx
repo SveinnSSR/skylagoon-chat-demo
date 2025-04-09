@@ -99,21 +99,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     }, []);
 
     const scrollToBottom = () => {
-        if (messagesEndRef.current) {
-            // Use different scrolling approach for mobile vs desktop
-            const isMobile = window.innerWidth <= 768;
-            
-            if (isMobile) {
-                // For mobile, use direct scrolling to prevent jitter
-                const chatContainer = messagesEndRef.current.parentElement;
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-            } else {
-                // For desktop, use the original smooth scrolling that worked well
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-            }
-        }
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
     useEffect(() => {
@@ -201,20 +187,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     // Character-by-character typing effect function
     const startTypingEffect = (messageId, fullText) => {
-        // Initialize with full text but visibility hidden
+        // Initialize with empty string
         setTypingMessages(prev => ({
             ...prev,
-            [messageId]: { 
-                text: fullText, // Use full text immediately to establish final dimensions
-                visibleChars: 0, // Track how many characters are visible
-                isComplete: false
-            }
+            [messageId]: { text: '', isComplete: false }
         }));
-        
-        // Scroll to bottom initially just once to handle the full text height
-        setTimeout(() => {
-            scrollToBottom();
-        }, 50);
         
         let charIndex = 0;
         
@@ -223,26 +200,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 setTypingMessages(prev => ({
                     ...prev,
                     [messageId]: {
-                        ...prev[messageId],
-                        visibleChars: charIndex,
+                        text: fullText.substring(0, charIndex),
                         isComplete: charIndex === fullText.length
                     }
                 }));
                 charIndex++;
-                // No scrolling during typing to prevent jitter
+                scrollToBottom();
             } else {
                 clearInterval(typingInterval);
-                // When typing is complete
+                // When typing is complete, mark as complete and remove cursor
                 setTimeout(() => {
-                    // Mark as complete
                     setTypingMessages(prev => ({
                         ...prev,
-                        [messageId]: { 
-                            ...prev[messageId],
-                            isComplete: true
-                        }
+                        [messageId]: { text: fullText, isComplete: true }
                     }));
-                }, 100);
+                }, 500); // Remove cursor after 500ms of completing the text
             }
         }, TYPING_SPEED);
         
@@ -966,41 +938,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
-                                        '1px solid rgba(0, 0, 0, 0.05)',
-                                    position: 'relative',
-                                    overflowWrap: 'break-word',
-                                    wordWrap: 'break-word',
-                                    wordBreak: 'break-word'
+                                        '1px solid rgba(0, 0, 0, 0.05)'
                                 }}>
                                     {msg.type === 'bot' ? (
                                         // Apply typing effect only for bot messages
-                                        typingMessages[msg.id] ? (
-                                            <div style={{ position: 'relative' }}>
-                                                {/* Invisible full text to maintain container size */}
-                                                <div style={{ 
-                                                    visibility: 'hidden', 
-                                                    position: 'absolute', 
-                                                    top: 0, 
-                                                    left: 0,
-                                                    width: '100%',
-                                                    height: 0,
-                                                    overflow: 'hidden' 
-                                                }}>
-                                                    <MessageFormatter message={typingMessages[msg.id].text} />
-                                                </div>
-                                                
-                                                {/* Visible partial text */}
-                                                <MessageFormatter 
-                                                    message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
-                                                />
-                                            </div>
-                                        ) : (
+                                        typingMessages[msg.id] ? 
+                                            <MessageFormatter message={typingMessages[msg.id].text} /> :
                                             <MessageFormatter message={msg.content} />
-                                        )
                                     ) : (
                                         // User messages always show instantly
                                         msg.content
                                     )}
+                                    {/* Cursor has been removed for cleaner look */}
                                 </div>
                             </div>
                             
@@ -1034,32 +983,25 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                 onClick={() => handleMessageFeedback(msg.id, true)}
                                                 style={{
                                                     background: 'none',
-                                                    border: windowWidth <= 768 ? '1px solid rgba(112, 116, 78, 0.1)' : 'none',
+                                                    border: 'none',
                                                     cursor: 'pointer',
                                                     color: '#70744E',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: windowWidth <= 768 ? '3px' : '4px',
-                                                    fontSize: windowWidth <= 768 ? '11px' : '12px',
-                                                    padding: windowWidth <= 768 ? '3px 6px' : '4px 8px',
+                                                    gap: '4px',
+                                                    fontSize: '12px',
+                                                    padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    minHeight: windowWidth <= 768 ? '24px' : 'auto',
-                                                    backgroundColor: windowWidth <= 768 ? 'rgba(112, 116, 78, 0.02)' : 'transparent',
-                                                    ...(windowWidth <= 768 ? { minWidth: '88px', justifyContent: 'center' } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
                                             >
@@ -1073,32 +1015,25 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                 onClick={() => handleMessageFeedback(msg.id, false)}
                                                 style={{
                                                     background: 'none',
-                                                    border: windowWidth <= 768 ? '1px solid rgba(112, 116, 78, 0.1)' : 'none',
+                                                    border: 'none',
                                                     cursor: 'pointer',
                                                     color: '#70744E',
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    gap: windowWidth <= 768 ? '3px' : '4px',
-                                                    fontSize: windowWidth <= 768 ? '11px' : '12px',
-                                                    padding: windowWidth <= 768 ? '3px 6px' : '4px 8px',
+                                                    gap: '4px',
+                                                    fontSize: '12px',
+                                                    padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    minHeight: windowWidth <= 768 ? '24px' : 'auto',
-                                                    backgroundColor: windowWidth <= 768 ? 'rgba(112, 116, 78, 0.02)' : 'transparent',
-                                                    ...(windowWidth <= 768 ? { minWidth: '88px', justifyContent: 'center' } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
                                             >
@@ -1218,25 +1153,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }
                     100% {
                         opacity: 0.4;
-                    }
-                }
-                
-                /* Ensure feedback buttons have consistent styling ONLY on mobile */
-                @media (max-width: 768px) {
-                    button[aria-label="Helpful"],
-                    button[aria-label="Not helpful"],
-                    button[aria-label="Hjálplegt"],
-                    button[aria-label="Ekki hjálplegt"] {
-                        padding: 3px 6px !important;
-                        margin: 2px 0 !important;
-                        border: 1px solid rgba(112, 116, 78, 0.1) !important;
-                        border-radius: 12px !important; 
-                        background-color: rgba(112, 116, 78, 0.02) !important;
-                        font-size: 11px !important;
-                        font-weight: normal !important;
-                        box-sizing: border-box !important;
-                        min-width: 88px !important;
-                        justify-content: center !important;
                     }
                 }
                 
