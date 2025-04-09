@@ -99,21 +99,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     }, []);
 
     const scrollToBottom = () => {
-        // Only use special mobile scrolling when on mobile
-        const isMobile = windowWidth <= 768;
-        
-        if (messagesEndRef.current) {
-            if (isMobile) {
-                // For mobile: Use direct scrolling to avoid jittering
-                const chatContainer = messagesEndRef.current.parentElement;
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
-            } else {
-                // For desktop: Keep existing behavior unchanged
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-            }
-        }
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
     useEffect(() => {
@@ -199,68 +185,34 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
-    // Character-by-character typing effect function (with mobile optimization)
+    // Character-by-character typing effect function
     const startTypingEffect = (messageId, fullText) => {
-        // Initialize with full visible text for positioning but hidden to create stable container
-        if (windowWidth <= 768) {
-            // Mobile-specific optimization to prevent jittering
-            // Initialize with empty visible text but full hidden text for stable layout
-            setTypingMessages(prev => ({
-                ...prev,
-                [messageId]: { 
-                    text: '', 
-                    isComplete: false,
-                    fullText: fullText // Store full text for layout calculation
-                }
-            }));
-        } else {
-            // Desktop behavior unchanged
-            setTypingMessages(prev => ({
-                ...prev,
-                [messageId]: { text: '', isComplete: false }
-            }));
-        }
+        // Initialize with empty string
+        setTypingMessages(prev => ({
+            ...prev,
+            [messageId]: { text: '', isComplete: false }
+        }));
         
         let charIndex = 0;
-        let scrollScheduled = false;
         
         const typingInterval = setInterval(() => {
             if (charIndex <= fullText.length) {
                 setTypingMessages(prev => ({
                     ...prev,
                     [messageId]: {
-                        ...(prev[messageId] || {}),
                         text: fullText.substring(0, charIndex),
                         isComplete: charIndex === fullText.length
                     }
                 }));
                 charIndex++;
-                
-                // Mobile-specific throttled scrolling
-                const isMobile = windowWidth <= 768;
-                if (isMobile) {
-                    if (!scrollScheduled && charIndex % 5 === 0) {
-                        scrollScheduled = true;
-                        setTimeout(() => {
-                            scrollToBottom();
-                            scrollScheduled = false;
-                        }, 10);
-                    }
-                } else {
-                    // Desktop scrolling unchanged
-                    scrollToBottom();
-                }
+                scrollToBottom();
             } else {
                 clearInterval(typingInterval);
                 // When typing is complete, mark as complete and remove cursor
                 setTimeout(() => {
                     setTypingMessages(prev => ({
                         ...prev,
-                        [messageId]: { 
-                            ...(prev[messageId] || {}),
-                            text: fullText, 
-                            isComplete: true 
-                        }
+                        [messageId]: { text: fullText, isComplete: true }
                     }));
                 }, 500); // Remove cursor after 500ms of completing the text
             }
@@ -986,26 +938,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
-                                        '1px solid rgba(0, 0, 0, 0.05)',
-                                    position: 'relative',
-                                    overflowWrap: 'break-word',
-                                    wordWrap: 'break-word',
-                                    wordBreak: 'break-word'
+                                        '1px solid rgba(0, 0, 0, 0.05)'
                                 }}>
-                                    {/* For mobile, add hidden complete text to maintain layout stability */}
-                                    {windowWidth <= 768 && msg.type === 'bot' && typingMessages[msg.id] && typingMessages[msg.id].fullText && !typingMessages[msg.id].isComplete && (
-                                        <div style={{
-                                            position: 'absolute',
-                                            visibility: 'hidden',
-                                            whiteSpace: 'pre-wrap',
-                                            pointerEvents: 'none',
-                                            height: 0,
-                                            overflow: 'hidden'
-                                        }}>
-                                            <MessageFormatter message={typingMessages[msg.id].fullText} />
-                                        </div>
-                                    )}
-                                    
                                     {msg.type === 'bot' ? (
                                         // Apply typing effect only for bot messages
                                         typingMessages[msg.id] ? 
@@ -1015,6 +949,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         // User messages always show instantly
                                         msg.content
                                     )}
+                                    {/* Cursor has been removed for cleaner look */}
                                 </div>
                             </div>
                             
@@ -1058,36 +993,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    ...(windowWidth <= 768 ? {
-                                                        minWidth: '65px',
-                                                        justifyContent: 'center',
-                                                        border: '1px solid rgba(112, 116, 78, 0.1)',
-                                                        backgroundColor: 'rgba(112, 116, 78, 0.03)',
-                                                        padding: '2px 5px',
-                                                        fontSize: '10px',
-                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                                        margin: '0 2px',
-                                                        gap: '3px'
-                                                    } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
                                             >
-                                                <svg width={windowWidth <= 768 ? "10" : "14"} height={windowWidth <= 768 ? "10" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                                 <span>{currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
@@ -1107,36 +1025,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    ...(windowWidth <= 768 ? {
-                                                        minWidth: '65px',
-                                                        justifyContent: 'center',
-                                                        border: '1px solid rgba(112, 116, 78, 0.1)',
-                                                        backgroundColor: 'rgba(112, 116, 78, 0.03)',
-                                                        padding: '2px 5px',
-                                                        fontSize: '10px',
-                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                                                        margin: '0 2px',
-                                                        gap: '3px'
-                                                    } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (windowWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
                                             >
-                                                <svg width={windowWidth <= 768 ? "10" : "14"} height={windowWidth <= 768 ? "10" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                                 <span>{currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}</span>
