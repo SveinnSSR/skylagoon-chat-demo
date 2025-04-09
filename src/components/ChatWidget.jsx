@@ -40,8 +40,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [currentLanguage, setCurrentLanguage] = useState(language);
     // Add state for character-by-character typing effect
     const [typingMessages, setTypingMessages] = useState({});
-    // Add this to track if scrolling is already scheduled (to prevent jitter on mobile)
-    const [scrollScheduled, setScrollScheduled] = useState(false);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -100,27 +98,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Enhanced scrollToBottom function with extreme mobile handling
     const scrollToBottom = () => {
-        if (messagesEndRef.current) {
-            // FOR DESKTOP - No changes at all to desktop behavior
-            if (window.innerWidth > 768) {
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-            } 
-            // FOR MOBILE - Completely different approach
-            else {
-                const chatContainer = messagesEndRef.current.parentElement;
-                if (chatContainer) {
-                    // SUPER AGGRESSIVE SCROLLING - go way beyond what's needed
-                    chatContainer.scrollTop = chatContainer.scrollHeight + 500;
-                    
-                    // For safety, do it again after a slight delay
-                    setTimeout(() => {
-                        chatContainer.scrollTop = chatContainer.scrollHeight + 500;
-                    }, 30);
-                }
-            }
-        }
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
     useEffect(() => {
@@ -206,7 +185,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
-    // Improved character-by-character typing effect function
+    // Character-by-character typing effect function
     const startTypingEffect = (messageId, fullText) => {
         // Initialize with empty string
         setTypingMessages(prev => ({
@@ -226,41 +205,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }
                 }));
                 charIndex++;
-                
-                // Different scrolling approach for mobile vs desktop - NO CHANGES TO DESKTOP
-                const isMobile = window.innerWidth <= 768;
-                if (isMobile) {
-                    // For mobile: AGGRESSIVE SCROLL AFTER EVERY CHARACTER
-                    // Call scrollToBottom immediately
-                    scrollToBottom();
-                    
-                    // And again after a small delay to be super sure
-                    setTimeout(scrollToBottom, 10);
-                    setTimeout(scrollToBottom, 50);
-                } else {
-                    // For desktop: use the original behavior - NO CHANGES
-                    scrollToBottom();
-                }
+                scrollToBottom();
             } else {
                 clearInterval(typingInterval);
-                // When typing is complete
+                // When typing is complete, mark as complete and remove cursor
                 setTimeout(() => {
                     setTypingMessages(prev => ({
                         ...prev,
                         [messageId]: { text: fullText, isComplete: true }
                     }));
-                    
-                    // Final scroll once typing is complete
-                    scrollToBottom();
-                    
-                    // Special case for mobile - super aggressive multiple scrolls
-                    if (window.innerWidth <= 768) {
-                        // Scroll multiple times with delays to be absolutely sure
-                        setTimeout(scrollToBottom, 100);
-                        setTimeout(scrollToBottom, 300);
-                        setTimeout(scrollToBottom, 500);
-                    }
-                }, 500);
+                }, 500); // Remove cursor after 500ms of completing the text
             }
         }, TYPING_SPEED);
         
@@ -940,15 +894,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
             {/* Chat area */}
             {!isMinimized && (
-                <div className="chat-container" style={{
+                <div style={{
                     height: '400px',
                     backgroundColor: 'white',
                     overflowY: 'auto',
-                    padding: '16px',
-                    // EXTREME padding on mobile
-                    ...(windowWidth <= 768 ? {
-                        paddingBottom: '500px' // MASSIVE bottom padding to ensure messages are visible
-                    } : {})
+                    padding: '16px'
                 }}>
                     {messages.map((msg, index) => (
                         <div key={index} style={{
@@ -962,9 +912,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
                                 alignItems: 'flex-start',
                                 width: '100%',
-                                gap: '8px',
-                                // Add data attribute for targeting in scrollToBottom function
-                                'data-message-container': 'true'
+                                gap: '8px'
                             }}>
                                 {msg.type === 'bot' && (
                                     <img 
@@ -990,17 +938,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
-                                        '1px solid rgba(0, 0, 0, 0.05)',
-                                    position: 'relative', // Added for stable positioning
-                                    overflow: 'hidden', // Helps prevent layout shifts
-                                    wordBreak: 'break-word', // Helps with mobile text wrapping
-                                    // Special handling for bot messages on mobile - NO CHANGES TO DESKTOP
-                                    ...(msg.type === 'bot' && windowWidth <= 768 ? {
-                                        minHeight: typingMessages[msg.id] ? 
-                                            Math.max(50, Math.ceil(typingMessages[msg.id].text.length / 30) * 20) : // Estimate height
-                                            Math.max(50, Math.ceil(msg.content.length / 30) * 20), // Estimate height based on content length
-                                        marginBottom: '12px' // Extra margin on mobile
-                                    } : {})
+                                        '1px solid rgba(0, 0, 0, 0.05)'
                                 }}>
                                     {msg.type === 'bot' ? (
                                         // Apply typing effect only for bot messages
@@ -1011,7 +949,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         // User messages always show instantly
                                         msg.content
                                     )}
-                                    {/* No cursor - removed for cleaner look */}
+                                    {/* Cursor has been removed for cleaner look */}
                                 </div>
                             </div>
                             
@@ -1025,7 +963,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     alignItems: 'center',
                                     marginTop: '4px',
                                     marginLeft: '38px',
-                                    gap: windowWidth <= 768 ? '6px' : '12px' // Smaller gap on mobile - NO CHANGES TO DESKTOP
+                                    gap: '12px'
                                 }}>
                                     {messageFeedback[msg.id] ? (
                                         <div style={{
@@ -1055,36 +993,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    // Mobile-only style adjustments using conditional - NO CHANGES TO DESKTOP
-                                                    ...(windowWidth <= 768 ? {
-                                                        minWidth: '65px', // Smaller minimum width for mobile
-                                                        justifyContent: 'center',
-                                                        border: '1px solid rgba(112, 116, 78, 0.2)', // Stronger border
-                                                        backgroundColor: 'rgba(112, 116, 78, 0.05)', // Slightly more visible bg
-                                                        padding: '2px 5px', // Smaller padding
-                                                        fontSize: '10px', // Smaller font
-                                                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)', // Add subtle shadow
-                                                        margin: '0 2px' // Add margin for spacing
-                                                    } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (window.innerWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (window.innerWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
                                             >
-                                                <svg width={windowWidth <= 768 ? "10" : "14"} height={windowWidth <= 768 ? "10" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                                 <span>{currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}</span>
@@ -1104,34 +1025,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                     padding: '4px 8px',
                                                     borderRadius: '12px',
                                                     transition: 'all 0.2s ease',
-                                                    opacity: 0.8,
-                                                    // Mobile-only style adjustments using conditional
-                                                    ...(windowWidth <= 768 ? {
-                                                        minWidth: '76px', // Same width for both buttons on mobile
-                                                        justifyContent: 'center',
-                                                        border: '1px solid rgba(112, 116, 78, 0.1)',
-                                                        backgroundColor: 'rgba(112, 116, 78, 0.02)',
-                                                        padding: '3px 6px',
-                                                        fontSize: '11px'
-                                                    } : {})
+                                                    opacity: 0.8
                                                 }}
                                                 onMouseOver={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (window.innerWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
                                                 }}
                                                 onMouseOut={(e) => {
-                                                    // Only apply hover effects on desktop
-                                                    if (window.innerWidth > 768) {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
                                                 }}
                                                 aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
                                             >
-                                                <svg width={windowWidth <= 768 ? "12" : "14"} height={windowWidth <= 768 ? "12" : "14"} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                                 </svg>
                                                 <span>{currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}</span>
@@ -1254,27 +1160,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     .sky-lagoon-chat-widget input, 
                     .sky-lagoon-chat-widget button {
                         font-size: 16px !important; /* Prevent zoom on mobile */
-                    }
-                    
-                    /* Mobile-only message stabilization */
-                    .message-bubble {
-                        position: relative;
-                        overflow-wrap: break-word;
-                        word-wrap: break-word;
-                        word-break: break-word;
-                    }
-                    
-                    /* Create extreme extra space at the bottom of the chat container on mobile */
-                    .chat-container::after {
-                        content: '';
-                        display: block;
-                        height: 500px; /* MASSIVE padding at the bottom */
-                        width: 100%;
-                    }
-                    
-                    /* Make message height stable during typing */
-                    [data-message-container="true"] {
-                        margin-bottom: 50px !important; /* HUGE space between messages */
                     }
                 }
             `}</style>
