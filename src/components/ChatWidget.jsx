@@ -191,6 +191,43 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
+    // Listen for agent messages from LiveChat
+    useEffect(() => {
+        if (pusherChannel) {
+            // Add listener for agent messages
+            pusherChannel.bind('agent-message', (data) => {
+                console.log('Received agent message:', data);
+                
+                // Check if this message is for our session
+                if (data.sessionId === sessionId) {
+                    // Create a unique ID for this agent message
+                    const agentMessageId = 'agent-msg-' + Date.now();
+                    
+                    // Add the agent message to the chat history
+                    setMessages(prevMessages => [
+                        ...prevMessages, 
+                        {
+                            type: 'agent',
+                            role: 'agent',
+                            content: data.message.content,
+                            sender: data.message.author || 'Agent',
+                            id: agentMessageId,
+                            timestamp: data.message.timestamp || new Date().toISOString()
+                        }
+                    ]);
+                    
+                    // Start typing effect for this agent message
+                    startTypingEffect(agentMessageId, data.message.content);
+                }
+            });
+            
+            // Return cleanup function
+            return () => {
+                pusherChannel.unbind('agent-message');
+            };
+        }
+    }, [pusherChannel, sessionId]);
+
     // Character-by-character typing effect function
     const startTypingEffect = (messageId, fullText) => {
         // Initialize with full text but visibility hidden
@@ -925,7 +962,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                            marginBottom: msg.type === 'bot' ? '16px' : '12px',
+                            marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
                         }}>
                             <div style={{
                                 display: 'flex',
@@ -947,25 +984,67 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         }}
                                     />
                                 )}
+                                {msg.type === 'agent' && (
+                                    <img 
+                                        src="/agent-icon.png" 
+                                        alt="Agent"
+                                        style={{
+                                            width: '30px',
+                                            height: '30px',
+                                            borderRadius: '50%',
+                                            marginTop: '4px',
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                            backgroundColor: '#4CAF50'
+                                        }}
+                                        onError={(e) => {
+                                            // Fallback if agent icon doesn't load
+                                            e.target.onerror = null;
+                                            e.target.style.backgroundColor = '#4CAF50';
+                                            e.target.style.color = 'white';
+                                            e.target.style.display = 'flex';
+                                            e.target.style.alignItems = 'center';
+                                            e.target.style.justifyContent = 'center';
+                                            e.target.style.fontSize = '14px';
+                                            e.target.style.fontWeight = 'bold';
+                                            e.target.style.textAlign = 'center';
+                                            e.target.innerHTML = 'A';
+                                        }}
+                                    />
+                                )}
                                 <div style={{
                                     maxWidth: '70%',
                                     padding: '12px 16px',
                                     borderRadius: '16px',
-                                    backgroundColor: msg.type === 'user' ? '#70744E' : '#f0f0f0',
+                                    backgroundColor: msg.type === 'user' ? '#70744E' : 
+                                                   msg.type === 'agent' ? '#f0f8ff' : '#f0f0f0',
                                     color: msg.type === 'user' ? 'white' : '#333333',
                                     fontSize: '14px',
                                     lineHeight: '1.5',
                                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
+                                        msg.type === 'agent' ?
+                                        '1px solid rgba(0, 100, 200, 0.1)' :
                                         '1px solid rgba(0, 0, 0, 0.05)',
                                     position: 'relative',
                                     overflowWrap: 'break-word',
                                     wordWrap: 'break-word',
                                     wordBreak: 'break-word'
                                 }}>
-                                    {msg.type === 'bot' ? (
-                                        // Apply typing effect only for bot messages
+                                    {/* Display agent name if it's an agent message */}
+                                    {msg.type === 'agent' && msg.sender && (
+                                        <div style={{
+                                            fontSize: '12px',
+                                            fontWeight: 'bold',
+                                            marginBottom: '4px',
+                                            color: '#4A6F8A'
+                                        }}>
+                                            {msg.sender}
+                                        </div>
+                                    )}
+                                    
+                                    {msg.type === 'bot' || msg.type === 'agent' ? (
+                                        // Apply typing effect only for bot and agent messages
                                         typingMessages[msg.id] ? (
                                             <div style={{ position: 'relative' }}>
                                                 {/* Invisible full text to maintain container size */}
