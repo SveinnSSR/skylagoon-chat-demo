@@ -40,8 +40,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [currentLanguage, setCurrentLanguage] = useState(language);
     // Add state for character-by-character typing effect
     const [typingMessages, setTypingMessages] = useState({});
-    // Track newly added messages for animation
-    const [newMessageIds, setNewMessageIds] = useState([]);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -217,23 +215,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             timestamp: data.message.timestamp || new Date().toISOString()
                         }
                     ]);
-                    
-                    // Mark this as a new message for animation
-                    setNewMessageIds(prev => [...prev, agentMessageId]);
-                    
-                    // Remove from new messages after animation completes
-                    setTimeout(() => {
-                        setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
-                    }, 1000);
-                    
-                    // Play notification sound for agent messages
-                    try {
-                        const notificationSound = new Audio('/notification.mp3');
-                        notificationSound.volume = 0.5;
-                        notificationSound.play();
-                    } catch (error) {
-                        console.log('Notification sound could not be played:', error);
-                    }
                     
                     // Start typing effect for this agent message
                     startTypingEffect(agentMessageId, data.message.content);
@@ -509,74 +490,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     backgroundColor: '#93918f',
                     borderRadius: '50%',
                     opacity: 0.4,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.4s'
-                }}/>
-            </div>
-        </div>
-    );
-
-    // Agent typing indicator with branded styling
-    const AgentTypingIndicator = () => (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '16px',
-            alignItems: 'flex-start',
-            gap: '8px'
-        }}>
-            <div className="agent-avatar-container">
-                <img 
-                    src="/agent-avatar.png" 
-                    alt="Agent"
-                    style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '50%',
-                        marginTop: '4px',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}
-                    onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.style.display = 'none';
-                        e.target.parentElement.classList.add('agent-avatar-fallback');
-                    }}
-                />
-                <div className="agent-avatar-fallback-content">A</div>
-            </div>
-            <div style={{
-                padding: '12px 16px',
-                borderRadius: '16px',
-                backgroundColor: 'rgba(112, 116, 78, 0.15)',
-                display: 'flex',
-                gap: '4px',
-                alignItems: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                border: '1px solid rgba(112, 116, 78, 0.2)'
-            }}>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
-                    animation: 'sky-lagoon-chat-typing 1s infinite'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.2s'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
                     animation: 'sky-lagoon-chat-typing 1s infinite',
                     animationDelay: '0.4s'
                 }}/>
@@ -1045,16 +958,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     padding: '16px'
                 }}>
                     {messages.map((msg, index) => (
-                        <div 
-                            key={index} 
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                                marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
-                                animation: newMessageIds.includes(msg.id) ? 'sky-lagoon-chat-new-message 0.5s ease-out' : 'none'
-                            }}
-                        >
+                        <div key={index} style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                            marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
+                        }}>
                             <div style={{
                                 display: 'flex',
                                 justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
@@ -1076,46 +985,38 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     />
                                 )}
                                 {msg.type === 'agent' && (
-                                    <div className="agent-avatar-container" style={{
-                                        width: '30px',
-                                        height: '30px',
-                                        borderRadius: '50%',
-                                        marginTop: '4px',
-                                        position: 'relative',
-                                        backgroundColor: '#70744E',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        color: 'white',
-                                        fontWeight: 'bold',
-                                        fontSize: '14px',
-                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                        overflow: 'hidden'
-                                    }}>
-                                        <img 
-                                            src="/agent-avatar.png" 
-                                            alt="Agent"
-                                            style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover'
-                                            }}
-                                            onError={(e) => {
-                                                // Fallback if avatar doesn't load
-                                                e.target.onerror = null;
-                                                e.target.style.display = 'none';
-                                                // First letter of agent name (or "A" if no name)
-                                                e.target.parentElement.innerText = msg.sender ? msg.sender[0].toUpperCase() : 'A';
-                                            }}
-                                        />
-                                    </div>
+                                    <img 
+                                        src="/agent-icon.png" 
+                                        alt="Agent"
+                                        style={{
+                                            width: '30px',
+                                            height: '30px',
+                                            borderRadius: '50%',
+                                            marginTop: '4px',
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                            backgroundColor: '#4CAF50'
+                                        }}
+                                        onError={(e) => {
+                                            // Fallback if agent icon doesn't load
+                                            e.target.onerror = null;
+                                            e.target.style.backgroundColor = '#4CAF50';
+                                            e.target.style.color = 'white';
+                                            e.target.style.display = 'flex';
+                                            e.target.style.alignItems = 'center';
+                                            e.target.style.justifyContent = 'center';
+                                            e.target.style.fontSize = '14px';
+                                            e.target.style.fontWeight = 'bold';
+                                            e.target.style.textAlign = 'center';
+                                            e.target.innerHTML = 'A';
+                                        }}
+                                    />
                                 )}
                                 <div style={{
                                     maxWidth: '70%',
                                     padding: '12px 16px',
                                     borderRadius: '16px',
                                     backgroundColor: msg.type === 'user' ? '#70744E' : 
-                                                   msg.type === 'agent' ? 'rgba(112, 116, 78, 0.15)' : '#f0f0f0',
+                                                   msg.type === 'agent' ? '#f0f8ff' : '#f0f0f0',
                                     color: msg.type === 'user' ? 'white' : '#333333',
                                     fontSize: '14px',
                                     lineHeight: '1.5',
@@ -1123,7 +1024,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     border: msg.type === 'user' ? 
                                         '1px solid rgba(255, 255, 255, 0.1)' : 
                                         msg.type === 'agent' ?
-                                        '1px solid rgba(112, 116, 78, 0.2)' :
+                                        '1px solid rgba(0, 100, 200, 0.1)' :
                                         '1px solid rgba(0, 0, 0, 0.05)',
                                     position: 'relative',
                                     overflowWrap: 'break-word',
@@ -1133,11 +1034,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     {/* Display agent name if it's an agent message */}
                                     {msg.type === 'agent' && msg.sender && (
                                         <div style={{
-                                            fontSize: '13px',
-                                            fontWeight: '600',
-                                            marginBottom: '6px',
-                                            color: '#70744E',
-                                            letterSpacing: '0.01em'
+                                            fontSize: '12px',
+                                            fontWeight: 'bold',
+                                            marginBottom: '4px',
+                                            color: '#4A6F8A'
                                         }}>
                                             {msg.sender}
                                         </div>
@@ -1370,7 +1270,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 </div>
             )}
 
-            {/* Add keyframes for typing animation and new message animation */}
+            {/* Add keyframes for typing animation - renamed to be unique */}
             <style jsx>{`
                 .message-bubble {
                     max-width: 70%;
@@ -1387,38 +1287,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     word-break: break-word;
                 }
                 
-                .agent-avatar-container {
-                    position: relative;
-                }
-                
-                .agent-avatar-container.agent-avatar-fallback:before {
-                    content: attr(data-initial);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 100%;
-                    height: 100%;
-                    background-color: #70744E;
-                    color: white;
-                    font-size: 14px;
-                    font-weight: bold;
-                }
-                
-                .agent-avatar-fallback-content {
-                    display: none;
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .agent-avatar-container.agent-avatar-fallback .agent-avatar-fallback-content {
-                    display: flex;
-                }
-                
                 @keyframes sky-lagoon-chat-typing {
                     0% {
                         opacity: 0.4;
@@ -1428,17 +1296,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     }
                     100% {
                         opacity: 0.4;
-                    }
-                }
-                
-                @keyframes sky-lagoon-chat-new-message {
-                    0% {
-                        opacity: 0;
-                        transform: translateY(10px);
-                    }
-                    100% {
-                        opacity: 1;
-                        transform: translateY(0);
                     }
                 }
                 
