@@ -29,7 +29,6 @@ class ErrorBoundary extends Component {
         border: '1px solid #ddd',
         borderRadius: '4px',
         margin: '8px',
-        color: '#555',
         fontSize: '12px',
         textAlign: 'center'
       }}>
@@ -44,7 +43,7 @@ class ErrorBoundary extends Component {
             cursor: 'pointer'
           }}
         >
-          Refresh Chat
+          Reload Chat
         </button>
       </div>;
     }
@@ -69,6 +68,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [chatId, setChatId] = useState(null);
     const [botToken, setBotToken] = useState(null); // Move this inside the component
     const [agentCredentials, setAgentCredentials] = useState(null);
+    // Add state to persist credentials between requests
+    const [storedCredentials, setStoredCredentials] = useState(null);
     // New state for tracking message feedback
     const [messageFeedback, setMessageFeedback] = useState({});
     // Add state to track PostgreSQL IDs for messages
@@ -446,7 +447,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     language: currentLanguage,
                     chatId: chatId,
                     bot_token: botToken,
-                    agent_credentials: agentCredentials,
+                    agent_credentials: agentCredentials || storedCredentials, // Use stored credentials as fallback
                     isBookingChangeRequest: true,
                     sessionId: sessionId // Include session ID
                 })
@@ -842,21 +843,32 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.log('Sending message to:', webhookUrl);
             console.log('Using session ID:', sessionId);
             
+            // Log credential status
+            console.log('CREDENTIALS CHECK:', {
+                chatId: chatId,
+                isAgentMode: chatMode === 'agent',
+                hasAgentCredentials: !!agentCredentials,
+                hasStoredCredentials: !!storedCredentials
+            });
+            
+            // Prepare the request body with credential fallbacks
+            const requestBody = { 
+                message: messageText,
+                language: currentLanguage,
+                chatId: chatId,
+                bot_token: botToken,
+                agent_credentials: agentCredentials || storedCredentials, // Use stored credentials as fallback
+                isAgentMode: chatMode === 'agent',
+                sessionId: sessionId
+            };
+            
             const response = await fetch(webhookUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'x-api-key': apiKey
                 },
-                body: JSON.stringify({ 
-                    message: messageText,
-                    language: currentLanguage,
-                    chatId: chatId,
-                    bot_token: botToken, // Add the bot token if available
-                    agent_credentials: agentCredentials,
-                    isAgentMode: chatMode === 'agent',
-                    sessionId: sessionId // Include session ID with every request
-                })
+                body: JSON.stringify(requestBody)
             });   
     
             const data = await response.json();
@@ -869,7 +881,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Save the chat ID and tokens if provided
                 if (data.chatId) setChatId(data.chatId);
                 if (data.bot_token) setBotToken(data.bot_token);
-                if (data.agent_credentials) setAgentCredentials(data.agent_credentials);
+                if (data.agent_credentials) {
+                    setAgentCredentials(data.agent_credentials);
+                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                    console.log('Stored agent credentials from booking form response');
+                }
                 
                 // Add the bot message with typing effect
                 const botMsgId = 'bot-msg-' + Date.now();
@@ -896,9 +912,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     console.log('Bot token received');
                     setBotToken(data.bot_token);
                 }
+                
+                // Save agent credentials if provided
                 if (data.agent_credentials) {
-                    console.log('Agent credentials received');
+                    console.log('Agent credentials received and stored');
                     setAgentCredentials(data.agent_credentials);
+                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
                 }
     
                 // Set chat state to agent mode
@@ -938,9 +957,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 return;
             }
     
-            // Update bot token if provided in agent mode
+            // Update credentials if provided
             if (data.bot_token) {
                 setBotToken(data.bot_token);
+            }
+            
+            if (data.agent_credentials) {
+                console.log('New agent credentials received and stored');
+                setAgentCredentials(data.agent_credentials);
+                setStoredCredentials(data.agent_credentials); // Store for reuse
             }
     
             // If message was suppressed (in agent mode), don't show any response
