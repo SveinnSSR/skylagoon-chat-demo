@@ -1,42 +1,10 @@
 // src/components/ChatWidget.jsx
-import React, { useState, useEffect, useCallback, Component } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
 import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
-
-// Error boundary to prevent UI crashes
-class ErrorBoundary extends Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("ChatWidget error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <div style={{
-        padding: '16px',
-        backgroundColor: '#f8f8f8',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        margin: '10px',
-        color: '#555'
-      }}>
-        Something went wrong with the chat. Please refresh the page.
-      </div>;
-    }
-    return this.props.children;
-  }
-}
 
 // Add these constants for session management
 const SESSION_ID_KEY = 'skyLagoonChatSessionId';
@@ -74,8 +42,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [typingMessages, setTypingMessages] = useState({});
     // Track newly added messages for animation
     const [newMessageIds, setNewMessageIds] = useState([]);
-    // Tracking agent message errors to prevent UI crashes
-    const [agentMessageErrors, setAgentMessageErrors] = useState(0);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -234,76 +200,43 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             pusherChannel.bind('agent-message', (data) => {
                 console.log('Received agent message:', data);
                 
-                // ENHANCED ERROR HANDLING: Check for valid data structure
-                try {
-                    // Check if this message is for our session
-                    if (!data || !data.sessionId) {
-                        console.warn('Invalid agent message format - missing sessionId', data);
-                        return;
+                // Check if this message is for our session
+                if (data.sessionId === sessionId) {
+                    // Create a unique ID for this agent message
+                    const agentMessageId = 'agent-msg-' + Date.now();
+                    
+                    // Add the agent message to the chat history
+                    setMessages(prevMessages => [
+                        ...prevMessages, 
+                        {
+                            type: 'agent',
+                            role: 'agent',
+                            content: data.message.content,
+                            sender: data.message.author || 'Agent',
+                            id: agentMessageId,
+                            timestamp: data.message.timestamp || new Date().toISOString()
+                        }
+                    ]);
+                    
+                    // Mark this as a new message for animation
+                    setNewMessageIds(prev => [...prev, agentMessageId]);
+                    
+                    // Remove from new messages after animation completes
+                    setTimeout(() => {
+                        setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
+                    }, 1000);
+                    
+                    // Play notification sound for agent messages
+                    try {
+                        const notificationSound = new Audio('/notification.mp3');
+                        notificationSound.volume = 0.5;
+                        notificationSound.play();
+                    } catch (error) {
+                        console.log('Notification sound could not be played:', error);
                     }
                     
-                    if (data.sessionId === sessionId) {
-                        // Validate message exists and has required properties
-                        if (!data.message) {
-                            console.warn('Invalid agent message - missing message object', data);
-                            return;
-                        }
-                        
-                        // Create a unique ID for this agent message
-                        const agentMessageId = 'agent-msg-' + Date.now();
-                        
-                        // Sanitize the message data with fallbacks for missing properties
-                        const safeContent = data.message.content || 'Message content unavailable';
-                        const safeAuthor = data.message.author || 'Agent';
-                        const safeTimestamp = data.message.timestamp || new Date().toISOString();
-                        
-                        // Add the agent message to the chat history with sanitized content
-                        setMessages(prevMessages => [
-                            ...prevMessages, 
-                            {
-                                type: 'agent',
-                                role: 'agent',
-                                content: safeContent,
-                                sender: safeAuthor,
-                                id: agentMessageId,
-                                timestamp: safeTimestamp
-                            }
-                        ]);
-                        
-                        // Mark this as a new message for animation
-                        setNewMessageIds(prev => [...prev, agentMessageId]);
-                        
-                        // Remove from new messages after animation completes
-                        setTimeout(() => {
-                            setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
-                        }, 1000);
-                        
-                        // Play notification sound for agent messages with error handling
-                        try {
-                            const notificationSound = new Audio('/notification.mp3');
-                            notificationSound.volume = 0.5;
-                            
-                            // Add error handling for audio playback
-                            notificationSound.onerror = (e) => {
-                                console.warn('Notification sound failed to play:', e);
-                            };
-                            
-                            const playPromise = notificationSound.play();
-                            if (playPromise) {
-                                playPromise.catch(error => {
-                                    console.warn('Notification sound could not be played:', error);
-                                });
-                            }
-                        } catch (error) {
-                            console.warn('Notification sound could not be played:', error);
-                        }
-                        
-                        // Start typing effect for this agent message
-                        startTypingEffect(agentMessageId, safeContent);
-                    }
-                } catch (error) {
-                    console.error('Error processing agent message:', error);
-                    setAgentMessageErrors(prev => prev + 1);
+                    // Start typing effect for this agent message
+                    startTypingEffect(agentMessageId, data.message.content);
                 }
             });
             
@@ -316,64 +249,53 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     // Character-by-character typing effect function
     const startTypingEffect = (messageId, fullText) => {
-        try {
-            // Safety check for undefined text
-            if (!fullText) {
-                console.warn('Attempted to start typing effect with empty text');
-                return null;
+        // Initialize with full text but visibility hidden
+        setTypingMessages(prev => ({
+            ...prev,
+            [messageId]: { 
+                text: fullText, // Use full text immediately to establish final dimensions
+                visibleChars: 0, // Track how many characters are visible
+                isComplete: false
             }
-            
-            // Initialize with full text but visibility hidden
-            setTypingMessages(prev => ({
-                ...prev,
-                [messageId]: { 
-                    text: fullText, // Use full text immediately to establish final dimensions
-                    visibleChars: 0, // Track how many characters are visible
-                    isComplete: false
-                }
-            }));
-            
-            // Scroll to bottom initially just once to handle the full text height
-            setTimeout(() => {
-                scrollToBottom();
-            }, 50);
-            
-            let charIndex = 0;
-            
-            const typingInterval = setInterval(() => {
-                if (charIndex <= fullText.length) {
+        }));
+        
+        // Scroll to bottom initially just once to handle the full text height
+        setTimeout(() => {
+            scrollToBottom();
+        }, 50);
+        
+        let charIndex = 0;
+        
+        const typingInterval = setInterval(() => {
+            if (charIndex <= fullText.length) {
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: {
+                        ...prev[messageId],
+                        visibleChars: charIndex,
+                        isComplete: charIndex === fullText.length
+                    }
+                }));
+                charIndex++;
+                // No scrolling during typing to prevent jitter
+            } else {
+                clearInterval(typingInterval);
+                // When typing is complete
+                setTimeout(() => {
+                    // Mark as complete
                     setTypingMessages(prev => ({
                         ...prev,
-                        [messageId]: {
+                        [messageId]: { 
                             ...prev[messageId],
-                            visibleChars: charIndex,
-                            isComplete: charIndex === fullText.length
+                            isComplete: true
                         }
                     }));
-                    charIndex++;
-                    // No scrolling during typing to prevent jitter
-                } else {
-                    clearInterval(typingInterval);
-                    // When typing is complete
-                    setTimeout(() => {
-                        // Mark as complete
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [messageId]: { 
-                                ...prev[messageId],
-                                isComplete: true
-                            }
-                        }));
-                    }, 100);
-                }
-            }, TYPING_SPEED);
-            
-            // Store the interval ID to clear it if needed
-            return typingInterval;
-        } catch (error) {
-            console.error('Error in typing effect:', error);
-            return null;
-        }
+                }, 100);
+            }
+        }, TYPING_SPEED);
+        
+        // Store the interval ID to clear it if needed
+        return typingInterval;
     };
 
     useEffect(() => {
@@ -1004,369 +926,143 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     };
 
     return (
-        <ErrorBoundary>
-            <div style={{
-                position: 'fixed',
-                bottom: '20px',
-                right: '20px',
-                width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
-                height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
-                maxHeight: isMinimized ? 'auto' : 'calc(100vh - 40px)',
-                backgroundColor: isMinimized ? 'rgba(112, 116, 78, 0.95)' : 'rgba(112, 116, 78, 1)', // Change to match header color
-                borderRadius: isMinimized ? '50%' : '16px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
-                border: 'none', // Remove the border
-                fontFamily: theme.fonts.body,
-                overflow: 'hidden',
-                transformOrigin: 'bottom right',
-                transition: 'all 0.3s ease', // Simpler transition
-                backdropFilter: 'blur(8px)',
-                zIndex: 9999,
-                maxWidth: isMinimized ? 'auto' : '90vw'
-            }}>
-                {/* Header */}
-                <div 
-                    onClick={() => setIsMinimized(!isMinimized)}
-                    style={{
-                        padding: isMinimized ? '0' : '20px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: isMinimized ? 'center' : 'flex-start',
-                        cursor: 'pointer',
-                        gap: '12px',
-                        backgroundColor: 'rgba(112, 116, 78, 1)',
-                        width: '100%',
-                        height: isMinimized ? '100%' : 'auto',
-                        boxSizing: 'border-box',
-                        flexDirection: isMinimized ? 'row' : 'column',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+        <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
+            height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
+            maxHeight: isMinimized ? 'auto' : 'calc(100vh - 40px)',
+            backgroundColor: isMinimized ? 'rgba(112, 116, 78, 0.95)' : 'rgba(112, 116, 78, 1)', // Change to match header color
+            borderRadius: isMinimized ? '50%' : '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.1)',
+            border: 'none', // Remove the border
+            fontFamily: theme.fonts.body,
+            overflow: 'hidden',
+            transformOrigin: 'bottom right',
+            transition: 'all 0.3s ease', // Simpler transition
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            maxWidth: isMinimized ? 'auto' : '90vw'
+        }}>
+            {/* Header */}
+            <div 
+                onClick={() => setIsMinimized(!isMinimized)}
+                style={{
+                    padding: isMinimized ? '0' : '20px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isMinimized ? 'center' : 'flex-start',
+                    cursor: 'pointer',
+                    gap: '12px',
+                    backgroundColor: 'rgba(112, 116, 78, 1)',
+                    width: '100%',
+                    height: isMinimized ? '100%' : 'auto',
+                    boxSizing: 'border-box',
+                    flexDirection: isMinimized ? 'row' : 'column',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+            >
+                <img 
+                    src="/solrun.png" 
+                    alt="Sólrún" 
+                    style={{ 
+                        height: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
+                        width: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        boxShadow: isMinimized ? '0 1px 3px rgba(0, 0, 0, 0.1)' : '0 2px 4px rgba(0, 0, 0, 0.1)'
                     }}
-                >
-                    <img 
-                        src="/solrun.png" 
-                        alt="Sólrún" 
-                        style={{ 
-                            height: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
-                            width: isMinimized ? (windowWidth <= 768 ? '40px' : '50px') : '60px',
-                            borderRadius: '50%',
-                            objectFit: 'cover',
-                            boxShadow: isMinimized ? '0 1px 3px rgba(0, 0, 0, 0.1)' : '0 2px 4px rgba(0, 0, 0, 0.1)'
-                        }}
-                    />
-                    {!isMinimized && (
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px'
-                        }}>
-                            <span style={{ 
-                                color: 'white',
-                                fontSize: '16px',
-                                fontWeight: '500',
-                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                            }}>
-                                {chatMode === 'agent' ? 'Agent' : 'Sólrún'}
-                            </span>
-                            <span style={{ 
-                                color: '#e0e0e0',
-                                fontSize: '14px',
-                                textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                            }}>
-                                Sky Lagoon
-                            </span>
-                            {chatMode === 'agent' && (
-                                <div style={{
-                                    backgroundColor: '#4CAF50',
-                                    color: 'white',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '12px',
-                                    marginTop: '4px'
-                                }}>
-                                    {currentLanguage === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
-                                </div>
-                            )}
-                            {bookingRequestSent && (
-                                <div style={{
-                                    backgroundColor: '#70744E',
-                                    color: 'white',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '12px',
-                                    marginTop: '4px'
-                                }}>
-                                    {currentLanguage === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    {!isMinimized && (
-                        <span style={{ 
-                            color: 'white',
-                            fontSize: '12px',
-                            position: 'absolute',
-                            right: '16px',
-                            top: '16px',
-                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
-                        }}>
-                            ▽
-                        </span>
-                    )}
-                </div>
-
-                {/* Chat area */}
+                />
                 {!isMinimized && (
                     <div style={{
-                        height: '400px',
-                        backgroundColor: 'white',
-                        overflowY: 'auto',
-                        padding: '16px'
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px'
                     }}>
-                        {messages.map((msg, index) => (
-                            <div 
-                                key={index} 
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                                    marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
-                                    animation: newMessageIds.includes(msg.id) ? 'sky-lagoon-chat-new-message 0.5s ease-out' : 'none'
-                                }}
-                            >
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                                    alignItems: 'flex-start',
-                                    width: '100%',
-                                    gap: '8px'
-                                }}>
-                                    {msg.type === 'bot' && (
-                                        <img 
-                                            src="/solrun.png" 
-                                            alt="Sólrún"
-                                            style={{
-                                                width: '30px',
-                                                height: '30px',
-                                                borderRadius: '50%',
-                                                marginTop: '4px',
-                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                                            }}
-                                        />
-                                    )}
-                                    {msg.type === 'agent' && (
-                                        <div className="agent-avatar-container" style={{
-                                            width: '30px',
-                                            height: '30px',
-                                            borderRadius: '50%',
-                                            marginTop: '4px',
-                                            position: 'relative',
-                                            backgroundColor: '#70744E',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            color: 'white',
-                                            fontWeight: 'bold',
-                                            fontSize: '14px',
-                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                            overflow: 'hidden'
-                                        }}>
-                                            <img 
-                                                src="/agent-avatar.png" 
-                                                alt="Agent"
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    objectFit: 'cover'
-                                                }}
-                                                onError={(e) => {
-                                                    // Fallback if avatar doesn't load
-                                                    e.target.onerror = null;
-                                                    e.target.style.display = 'none';
-                                                    // First letter of agent name (or "A" if no name)
-                                                    e.target.parentElement.innerText = msg.sender ? msg.sender[0].toUpperCase() : 'A';
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-                                    <div style={{
-                                        maxWidth: '70%',
-                                        padding: '12px 16px',
-                                        borderRadius: '16px',
-                                        backgroundColor: msg.type === 'user' ? '#70744E' : 
-                                                      msg.type === 'agent' ? 'rgba(112, 116, 78, 0.15)' : '#f0f0f0',
-                                        color: msg.type === 'user' ? 'white' : '#333333',
-                                        fontSize: '14px',
-                                        lineHeight: '1.5',
-                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                        border: msg.type === 'user' ? 
-                                            '1px solid rgba(255, 255, 255, 0.1)' : 
-                                            msg.type === 'agent' ?
-                                            '1px solid rgba(112, 116, 78, 0.2)' :
-                                            '1px solid rgba(0, 0, 0, 0.05)',
-                                        position: 'relative',
-                                        overflowWrap: 'break-word',
-                                        wordWrap: 'break-word',
-                                        wordBreak: 'break-word'
-                                    }}>
-                                        {/* Display agent name if it's an agent message */}
-                                        {msg.type === 'agent' && msg.sender && (
-                                            <div style={{
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                marginBottom: '6px',
-                                                color: '#70744E',
-                                                letterSpacing: '0.01em'
-                                            }}>
-                                                {msg.sender}
-                                            </div>
-                                        )}
-                                        
-                                        {msg.type === 'bot' || msg.type === 'agent' ? (
-                                            // Apply typing effect only for bot and agent messages
-                                            typingMessages[msg.id] ? (
-                                                <div style={{ position: 'relative' }}>
-                                                    {/* Invisible full text to maintain container size */}
-                                                    <div style={{ 
-                                                        visibility: 'hidden', 
-                                                        position: 'absolute', 
-                                                        top: 0, 
-                                                        left: 0,
-                                                        width: '100%',
-                                                        height: 0,
-                                                        overflow: 'hidden' 
-                                                    }}>
-                                                        <MessageFormatter message={typingMessages[msg.id].text} />
-                                                    </div>
-                                                    
-                                                    {/* Visible partial text */}
-                                                    <MessageFormatter 
-                                                        message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <MessageFormatter message={msg.content} />
-                                            )
-                                        ) : (
-                                            // User messages always show instantly
-                                            msg.content
-                                        )}
-                                    </div>
-                                </div>
-                                
-                                {/* Feedback buttons - only shown for bot messages that pass the filter */}
-                                {msg.type === 'bot' && 
-                                typingMessages[msg.id] && 
-                                typingMessages[msg.id].isComplete && 
-                                shouldShowFeedback(msg) && (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        marginTop: '4px',
-                                        marginLeft: '38px',
-                                        gap: '8px'
-                                    }}>
-                                        {messageFeedback[msg.id] ? (
-                                            <div style={{
-                                                fontSize: '12px',
-                                                color: '#70744E',
-                                                fontStyle: 'italic',
-                                                opacity: 0.8,
-                                                padding: '4px 8px',
-                                                borderRadius: '12px',
-                                                backgroundColor: 'rgba(112, 116, 78, 0.08)'
-                                            }}>
-                                                {currentLanguage === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button 
-                                                    onClick={() => handleMessageFeedback(msg.id, true)}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        color: '#70744E',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        fontSize: '12px',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '12px',
-                                                        transition: 'all 0.2s ease',
-                                                        opacity: 0.8,
-                                                        fontWeight: windowWidth <= 768 ? '600' : 'normal',
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }}
-                                                    aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    </svg>
-                                                    <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
-                                                        {currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
-                                                    </span>
-                                                </button>
-                                                
-                                                <button 
-                                                    onClick={() => handleMessageFeedback(msg.id, false)}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        color: '#70744E',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        fontSize: '12px',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '12px',
-                                                        transition: 'all 0.2s ease',
-                                                        opacity: 0.8,
-                                                        fontWeight: windowWidth <= 768 ? '600' : 'normal',
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }}
-                                                    aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    </svg>
-                                                    <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
-                                                        {currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
-                                                    </span>
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
+                        <span style={{ 
+                            color: 'white',
+                            fontSize: '16px',
+                            fontWeight: '500',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            {chatMode === 'agent' ? 'Agent' : 'Sólrún'}
+                        </span>
+                        <span style={{ 
+                            color: '#e0e0e0',
+                            fontSize: '14px',
+                            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                        }}>
+                            Sky Lagoon
+                        </span>
+                        {chatMode === 'agent' && (
+                            <div style={{
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                marginTop: '4px'
+                            }}>
+                                {currentLanguage === 'en' ? 'Live Agent Connected' : 'Þjónustufulltrúi Tengdur'}
                             </div>
-                        ))}
+                        )}
+                        {bookingRequestSent && (
+                            <div style={{
+                                backgroundColor: '#70744E',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                marginTop: '4px'
+                            }}>
+                                {currentLanguage === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
+                            </div>
+                        )}
+                    </div>
+                )}
+                {!isMinimized && (
+                    <span style={{ 
+                        color: 'white',
+                        fontSize: '12px',
+                        position: 'absolute',
+                        right: '16px',
+                        top: '16px',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                    }}>
+                        ▽
+                    </span>
+                )}
+            </div>
 
-                        {/* Show booking form if requested */}
-                        {showBookingForm && !bookingRequestSent && (
-                            <div className="message bot">
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'flex-start',
-                                    alignItems: 'flex-start',
-                                    width: '100%',
-                                    gap: '8px',
-                                    marginBottom: '16px'
-                                }}>
+            {/* Chat area */}
+            {!isMinimized && (
+                <div style={{
+                    height: '400px',
+                    backgroundColor: 'white',
+                    overflowY: 'auto',
+                    padding: '16px'
+                }}>
+                    {messages.map((msg, index) => (
+                        <div 
+                            key={index} 
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
+                                animation: newMessageIds.includes(msg.id) ? 'sky-lagoon-chat-new-message 0.5s ease-out' : 'none'
+                            }}
+                        >
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                alignItems: 'flex-start',
+                                width: '100%',
+                                gap: '8px'
+                            }}>
+                                {msg.type === 'bot' && (
                                     <img 
                                         src="/solrun.png" 
                                         alt="Sólrún"
@@ -1378,158 +1074,382 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
                                         }}
                                     />
-                                    <div className="bubble form-container" style={{
-                                        maxWidth: '90%',
-                                        padding: '0',
-                                        borderRadius: '16px',
-                                        backgroundColor: '#f0f0f0',
-                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                                )}
+                                {msg.type === 'agent' && (
+                                    <div className="agent-avatar-container" style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        marginTop: '4px',
+                                        position: 'relative',
+                                        backgroundColor: '#70744E',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        fontSize: '14px',
+                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
                                         overflow: 'hidden'
                                     }}>
-                                        <BookingChangeRequest 
-                                            onSubmit={handleBookingFormSubmit}
-                                            onCancel={handleBookingFormCancel}
-                                            language={currentLanguage === 'is' ? 'is' : 'en'} // Ensure proper language format
+                                        <img 
+                                            src="/agent-avatar.png" 
+                                            alt="Agent"
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover'
+                                            }}
+                                            onError={(e) => {
+                                                // Fallback if avatar doesn't load
+                                                e.target.onerror = null;
+                                                e.target.style.display = 'none';
+                                                // First letter of agent name (or "A" if no name)
+                                                e.target.parentElement.innerText = msg.sender ? msg.sender[0].toUpperCase() : 'A';
+                                            }}
                                         />
                                     </div>
+                                )}
+                                <div style={{
+                                    maxWidth: '70%',
+                                    padding: '12px 16px',
+                                    borderRadius: '16px',
+                                    backgroundColor: msg.type === 'user' ? '#70744E' : 
+                                                   msg.type === 'agent' ? 'rgba(112, 116, 78, 0.15)' : '#f0f0f0',
+                                    color: msg.type === 'user' ? 'white' : '#333333',
+                                    fontSize: '14px',
+                                    lineHeight: '1.5',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    border: msg.type === 'user' ? 
+                                        '1px solid rgba(255, 255, 255, 0.1)' : 
+                                        msg.type === 'agent' ?
+                                        '1px solid rgba(112, 116, 78, 0.2)' :
+                                        '1px solid rgba(0, 0, 0, 0.05)',
+                                    position: 'relative',
+                                    overflowWrap: 'break-word',
+                                    wordWrap: 'break-word',
+                                    wordBreak: 'break-word'
+                                }}>
+                                    {/* Display agent name if it's an agent message */}
+                                    {msg.type === 'agent' && msg.sender && (
+                                        <div style={{
+                                            fontSize: '13px',
+                                            fontWeight: '600',
+                                            marginBottom: '6px',
+                                            color: '#70744E',
+                                            letterSpacing: '0.01em'
+                                        }}>
+                                            {msg.sender}
+                                        </div>
+                                    )}
+                                    
+                                    {msg.type === 'bot' || msg.type === 'agent' ? (
+                                        // Apply typing effect only for bot and agent messages
+                                        typingMessages[msg.id] ? (
+                                            <div style={{ position: 'relative' }}>
+                                                {/* Invisible full text to maintain container size */}
+                                                <div style={{ 
+                                                    visibility: 'hidden', 
+                                                    position: 'absolute', 
+                                                    top: 0, 
+                                                    left: 0,
+                                                    width: '100%',
+                                                    height: 0,
+                                                    overflow: 'hidden' 
+                                                }}>
+                                                    <MessageFormatter message={typingMessages[msg.id].text} />
+                                                </div>
+                                                
+                                                {/* Visible partial text */}
+                                                <MessageFormatter 
+                                                    message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
+                                                />
+                                            </div>
+                                        ) : (
+                                            <MessageFormatter message={msg.content} />
+                                        )
+                                    ) : (
+                                        // User messages always show instantly
+                                        msg.content
+                                    )}
                                 </div>
                             </div>
-                        )}
+                            
+                            {/* Feedback buttons - only shown for bot messages that pass the filter */}
+                            {msg.type === 'bot' && 
+                             typingMessages[msg.id] && 
+                             typingMessages[msg.id].isComplete && 
+                             shouldShowFeedback(msg) && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    marginTop: '4px',
+                                    marginLeft: '38px',
+                                    gap: '8px'
+                                }}>
+                                    {messageFeedback[msg.id] ? (
+                                        <div style={{
+                                            fontSize: '12px',
+                                            color: '#70744E',
+                                            fontStyle: 'italic',
+                                            opacity: 0.8,
+                                            padding: '4px 8px',
+                                            borderRadius: '12px',
+                                            backgroundColor: 'rgba(112, 116, 78, 0.08)'
+                                        }}>
+                                            {currentLanguage === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button 
+                                                onClick={() => handleMessageFeedback(msg.id, true)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: '#70744E',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    fontSize: '12px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '12px',
+                                                    transition: 'all 0.2s ease',
+                                                    opacity: 0.8,
+                                                    fontWeight: windowWidth <= 768 ? '600' : 'normal',
+                                                }}
+                                                onMouseOver={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
+                                                }}
+                                                aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                                <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
+                                                    {currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                                </span>
+                                            </button>
+                                            
+                                            <button 
+                                                onClick={() => handleMessageFeedback(msg.id, false)}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: '#70744E',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px',
+                                                    fontSize: '12px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '12px',
+                                                    transition: 'all 0.2s ease',
+                                                    opacity: 0.8,
+                                                    fontWeight: windowWidth <= 768 ? '600' : 'normal',
+                                                }}
+                                                onMouseOver={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                    e.currentTarget.style.opacity = '1';
+                                                }}
+                                                onMouseOut={(e) => {
+                                                    e.currentTarget.style.backgroundColor = 'transparent';
+                                                    e.currentTarget.style.opacity = '0.8';
+                                                }}
+                                                aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                                <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
+                                                    {currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                                </span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ))}
 
-                        {isTyping && <TypingIndicator />}
-                        <div ref={messagesEndRef} />
-                    </div>
-                )}
+                    {/* Show booking form if requested */}
+                    {showBookingForm && !bookingRequestSent && (
+                        <div className="message bot">
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'flex-start',
+                                alignItems: 'flex-start',
+                                width: '100%',
+                                gap: '8px',
+                                marginBottom: '16px'
+                            }}>
+                                <img 
+                                    src="/solrun.png" 
+                                    alt="Sólrún"
+                                    style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        marginTop: '4px',
+                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                />
+                                <div className="bubble form-container" style={{
+                                    maxWidth: '90%',
+                                    padding: '0',
+                                    borderRadius: '16px',
+                                    backgroundColor: '#f0f0f0',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                                    overflow: 'hidden'
+                                }}>
+                                    <BookingChangeRequest 
+                                        onSubmit={handleBookingFormSubmit}
+                                        onCancel={handleBookingFormCancel}
+                                        language={currentLanguage === 'is' ? 'is' : 'en'} // Ensure proper language format
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                {/* Input area */}
-                {!isMinimized && (
-                    <div style={{
-                        padding: '12px 16px',
-                        backgroundColor: 'white',
-                        borderTop: '1px solid #eee',
-                        display: 'flex',
-                        gap: '8px'
-                    }}>
-                        <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
-                            placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
-                            style={{
-                                flex: 1,
-                                padding: '8px 16px',
-                                borderRadius: '20px',
-                                border: '1px solid #ddd',
-                                outline: 'none',
-                                fontSize: '14px',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                            }}
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={isTyping}
-                            style={{
-                                backgroundColor: isTyping ? '#a0a0a0' : '#70744E',
-                                color: 'white',
-                                border: 'none',
-                                padding: '8px 20px',
-                                borderRadius: '20px',
-                                cursor: isTyping ? 'default' : 'pointer',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                opacity: isTyping ? 0.7 : 1,
-                                transition: 'all 0.3s ease'
-                            }}
-                        >
-                            {currentLanguage === 'en' ? 'Send' : 'Senda'}
-                        </button>
-                    </div>
-                )}
+                    {isTyping && <TypingIndicator />}
+                    <div ref={messagesEndRef} />
+                </div>
+            )}
 
-                {/* Add keyframes for typing animation and new message animation */}
-                <style jsx>{`
-                    .message-bubble {
-                        max-width: 70%;
-                        padding: 12px 16px;
-                        border-radius: 16px;
-                        color: #333333;
-                        font-size: 14px;
-                        line-height: 1.5;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                        border: 1px solid rgba(0, 0, 0, 0.05);
-                        position: relative;
-                        overflow-wrap: break-word;
-                        word-wrap: break-word;
-                        word-break: break-word;
+            {/* Input area */}
+            {!isMinimized && (
+                <div style={{
+                    padding: '12px 16px',
+                    backgroundColor: 'white',
+                    borderTop: '1px solid #eee',
+                    display: 'flex',
+                    gap: '8px'
+                }}>
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
+                        placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
+                        style={{
+                            flex: 1,
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            border: '1px solid #ddd',
+                            outline: 'none',
+                            fontSize: '14px',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                        }}
+                    />
+                    <button
+                        onClick={handleSend}
+                        disabled={isTyping}
+                        style={{
+                            backgroundColor: isTyping ? '#a0a0a0' : '#70744E',
+                            color: 'white',
+                            border: 'none',
+                            padding: '8px 20px',
+                            borderRadius: '20px',
+                            cursor: isTyping ? 'default' : 'pointer',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                            opacity: isTyping ? 0.7 : 1,
+                            transition: 'all 0.3s ease'
+                        }}
+                    >
+                        {currentLanguage === 'en' ? 'Send' : 'Senda'}
+                    </button>
+                </div>
+            )}
+
+            {/* Add keyframes for typing animation and new message animation */}
+            <style jsx>{`
+                .message-bubble {
+                    max-width: 70%;
+                    padding: 12px 16px;
+                    border-radius: 16px;
+                    color: #333333;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                    border: 1px solid rgba(0, 0, 0, 0.05);
+                    position: relative;
+                    overflow-wrap: break-word;
+                    word-wrap: break-word;
+                    word-break: break-word;
+                }
+                
+                .agent-avatar-container {
+                    position: relative;
+                }
+                
+                .agent-avatar-container.agent-avatar-fallback:before {
+                    content: attr(data-initial);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    height: 100%;
+                    background-color: #70744E;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                
+                .agent-avatar-fallback-content {
+                    display: none;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .agent-avatar-container.agent-avatar-fallback .agent-avatar-fallback-content {
+                    display: flex;
+                }
+                
+                @keyframes sky-lagoon-chat-typing {
+                    0% {
+                        opacity: 0.4;
                     }
-                    
-                    .agent-avatar-container {
-                        position: relative;
+                    50% {
+                        opacity: 1;
                     }
-                    
-                    .agent-avatar-container.agent-avatar-fallback:before {
-                        content: attr(data-initial);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 100%;
-                        height: 100%;
-                        background-color: #70744E;
-                        color: white;
-                        font-size: 14px;
-                        font-weight: bold;
+                    100% {
+                        opacity: 0.4;
                     }
-                    
-                    .agent-avatar-fallback-content {
-                        display: none;
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        align-items: center;
-                        justify-content: center;
+                }
+                
+                @keyframes sky-lagoon-chat-new-message {
+                    0% {
+                        opacity: 0;
+                        transform: translateY(10px);
                     }
-                    
-                    .agent-avatar-container.agent-avatar-fallback .agent-avatar-fallback-content {
-                        display: flex;
+                    100% {
+                        opacity: 1;
+                        transform: translateY(0);
                     }
-                    
-                    @keyframes sky-lagoon-chat-typing {
-                        0% {
-                            opacity: 0.4;
-                        }
-                        50% {
-                            opacity: 1;
-                        }
-                        100% {
-                            opacity: 0.4;
-                        }
+                }
+                
+                @media (max-width: 768px) {
+                    .sky-lagoon-chat-widget input, 
+                    .sky-lagoon-chat-widget button {
+                        font-size: 16px !important; /* Prevent zoom on mobile */
                     }
-                    
-                    @keyframes sky-lagoon-chat-new-message {
-                        0% {
-                            opacity: 0;
-                            transform: translateY(10px);
-                        }
-                        100% {
-                            opacity: 1;
-                            transform: translateY(0);
-                        }
-                    }
-                    
-                    @media (max-width: 768px) {
-                        .sky-lagoon-chat-widget input, 
-                        .sky-lagoon-chat-widget button {
-                            font-size: 16px !important; /* Prevent zoom on mobile */
-                        }
-                    }
-                `}</style>
-            </div>
-        </ErrorBoundary>
+                }
+            `}</style>
+        </div>
     );
 };
 
