@@ -230,70 +230,60 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // Listen for agent messages from LiveChat - ultra-defensive implementation
     useEffect(() => {
         if (pusherChannel) {
-            // Add listener for agent messages
-            pusherChannel.bind('agent-message', (data) => {
+            const handleAgentMessage = (data) => {
                 try {
-                    console.log('Received agent message:', data);
+                    console.log('Received agent message data:', JSON.stringify(data));
                     
-                    // Validate sessionId
+                    // Basic validation - must be an object with a sessionId that matches ours
                     if (!data || typeof data !== 'object') {
                         console.warn('Invalid agent message: not an object');
                         return;
                     }
                     
-                    if (!data.sessionId) {
+                    if (typeof data.sessionId !== 'string') {
                         console.warn('Invalid agent message: missing sessionId');
                         return;
                     }
                     
                     // Only process messages for our session
                     if (data.sessionId === sessionId) {
-                        // Create a unique ID for this agent message
-                        const agentMessageId = 'agent-msg-' + Date.now();
-                        
-                        // Very defensive content extraction
+                        // Extract message content with multiple fallbacks
                         let messageContent = '';
                         let authorName = 'Agent';
-                        let messageTimestamp = new Date().toISOString();
                         
-                        try {
-                            // Try to get content from data.message structure
-                            if (data.message && typeof data.message === 'object') {
-                                if (typeof data.message.content === 'string') {
-                                    messageContent = data.message.content;
-                                }
+                        // Try to extract content from different possible structures
+                        if (data.message && typeof data.message === 'object') {
+                            // Primary structure
+                            messageContent = typeof data.message.content === 'string' 
+                                ? data.message.content 
+                                : '';
                                 
-                                if (typeof data.message.author === 'string') {
-                                    authorName = data.message.author;
-                                }
-                                
-                                if (data.message.timestamp) {
-                                    messageTimestamp = data.message.timestamp;
-                                }
-                            }
-                        } catch (dataError) {
-                            console.warn('Error extracting message data:', dataError);
-                            // Continue with defaults
+                            authorName = typeof data.message.author === 'string'
+                                ? data.message.author
+                                : 'Agent';
+                        } else if (typeof data.text === 'string') {
+                            // Alternative structure
+                            messageContent = data.text;
                         }
                         
-                        // Only add message if we have some content
-                        if (messageContent) {
-                            console.log('Adding agent message to chat:', messageContent);
+                        // Only proceed if we have valid content
+                        if (messageContent.trim()) {
+                            const agentMessageId = `agent-${Date.now()}`;
                             
-                            // Add the agent message to the chat history
-                            setMessages(prevMessages => [
-                                ...prevMessages, 
+                            // Add message to state
+                            setMessages(prev => [
+                                ...prev,
                                 {
                                     type: 'agent',
                                     role: 'agent',
                                     content: messageContent,
                                     sender: authorName,
                                     id: agentMessageId,
-                                    timestamp: messageTimestamp
+                                    timestamp: new Date().toISOString()
                                 }
                             ]);
                             
-                            // Mark this as a new message for animation
+                            // Mark as new message for animation
                             setNewMessageIds(prev => [...prev, agentMessageId]);
                             
                             // Remove from new messages after animation completes
@@ -301,43 +291,26 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
                             }, 1000);
                             
-                            // Play notification sound with full error handling
-                            try {
-                                const notificationSound = new Audio('/notification.mp3');
-                                notificationSound.volume = 0.5;
-                                
-                                // Add error handling for audio playback
-                                notificationSound.onerror = (e) => {
-                                    console.warn('Audio error:', e);
-                                };
-                                
-                                const playPromise = notificationSound.play();
-                                if (playPromise) {
-                                    playPromise.catch(e => {
-                                        console.warn('Audio play error:', e);
-                                    });
-                                }
-                            } catch (audioError) {
-                                console.warn('Audio creation error:', audioError);
-                            }
-                            
                             // Start typing effect for this agent message
                             try {
                                 startTypingEffect(agentMessageId, messageContent);
                             } catch (typingError) {
                                 console.warn('Typing effect error:', typingError);
+                                // Continue even if typing effect fails
                             }
                         }
                     }
                 } catch (error) {
-                    console.error('Agent message processing error:', error);
-                    // Continue execution - error boundary will catch if needed
+                    console.error('Error processing agent message:', error);
+                    // Continue execution - error boundary will handle if needed
                 }
-            });
+            };
             
-            // Return cleanup function
+            // Bind with named function for cleaner cleanup
+            pusherChannel.bind('agent-message', handleAgentMessage);
+            
             return () => {
-                pusherChannel.unbind('agent-message');
+                pusherChannel.unbind('agent-message', handleAgentMessage);
             };
         }
     }, [pusherChannel, sessionId]);
