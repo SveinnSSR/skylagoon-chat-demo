@@ -227,83 +227,111 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
-    // Listen for agent messages from LiveChat
+    // Listen for agent messages from LiveChat - ultra-defensive implementation
     useEffect(() => {
         if (pusherChannel) {
-            // Add listener for agent messages with improved error handling
+            // Add listener for agent messages
             pusherChannel.bind('agent-message', (data) => {
                 try {
                     console.log('Received agent message:', data);
                     
-                    // ENHANCED ERROR HANDLING: Check for valid data structure
-                    if (!data || !data.sessionId) {
-                        console.warn('Invalid agent message format - missing sessionId', data);
+                    // Validate sessionId
+                    if (!data || typeof data !== 'object') {
+                        console.warn('Invalid agent message: not an object');
                         return;
                     }
                     
+                    if (!data.sessionId) {
+                        console.warn('Invalid agent message: missing sessionId');
+                        return;
+                    }
+                    
+                    // Only process messages for our session
                     if (data.sessionId === sessionId) {
-                        // Validate message exists and has required properties
-                        if (!data.message) {
-                            console.warn('Invalid agent message - missing message object', data);
-                            return;
-                        }
-                        
                         // Create a unique ID for this agent message
                         const agentMessageId = 'agent-msg-' + Date.now();
                         
-                        // Sanitize the message data with fallbacks for missing properties
-                        const safeContent = data.message.content || 'Message content unavailable';
-                        const safeAuthor = data.message.author || 'Agent';
-                        const safeTimestamp = data.message.timestamp || new Date().toISOString();
+                        // Very defensive content extraction
+                        let messageContent = '';
+                        let authorName = 'Agent';
+                        let messageTimestamp = new Date().toISOString();
                         
-                        // Add the agent message to the chat history with sanitized content
-                        setMessages(prevMessages => [
-                            ...prevMessages, 
-                            {
-                                type: 'agent',
-                                role: 'agent',
-                                content: safeContent,
-                                sender: safeAuthor,
-                                id: agentMessageId,
-                                timestamp: safeTimestamp
-                            }
-                        ]);
-                        
-                        // Mark this as a new message for animation
-                        setNewMessageIds(prev => [...prev, agentMessageId]);
-                        
-                        // Remove from new messages after animation completes
-                        setTimeout(() => {
-                            setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
-                        }, 1000);
-                        
-                        // Play notification sound for agent messages with error handling
                         try {
-                            const notificationSound = new Audio('/notification.mp3');
-                            notificationSound.volume = 0.5;
-                            
-                            // Add error handling for audio playback
-                            notificationSound.onerror = (e) => {
-                                console.warn('Notification sound failed to play:', e);
-                            };
-                            
-                            const playPromise = notificationSound.play();
-                            if (playPromise) {
-                                playPromise.catch(error => {
-                                    console.warn('Notification sound could not be played:', error);
-                                });
+                            // Try to get content from data.message structure
+                            if (data.message && typeof data.message === 'object') {
+                                if (typeof data.message.content === 'string') {
+                                    messageContent = data.message.content;
+                                }
+                                
+                                if (typeof data.message.author === 'string') {
+                                    authorName = data.message.author;
+                                }
+                                
+                                if (data.message.timestamp) {
+                                    messageTimestamp = data.message.timestamp;
+                                }
                             }
-                        } catch (error) {
-                            console.warn('Notification sound could not be played:', error);
+                        } catch (dataError) {
+                            console.warn('Error extracting message data:', dataError);
+                            // Continue with defaults
                         }
                         
-                        // Start typing effect for this agent message
-                        startTypingEffect(agentMessageId, safeContent);
+                        // Only add message if we have some content
+                        if (messageContent) {
+                            console.log('Adding agent message to chat:', messageContent);
+                            
+                            // Add the agent message to the chat history
+                            setMessages(prevMessages => [
+                                ...prevMessages, 
+                                {
+                                    type: 'agent',
+                                    role: 'agent',
+                                    content: messageContent,
+                                    sender: authorName,
+                                    id: agentMessageId,
+                                    timestamp: messageTimestamp
+                                }
+                            ]);
+                            
+                            // Mark this as a new message for animation
+                            setNewMessageIds(prev => [...prev, agentMessageId]);
+                            
+                            // Remove from new messages after animation completes
+                            setTimeout(() => {
+                                setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
+                            }, 1000);
+                            
+                            // Play notification sound with full error handling
+                            try {
+                                const notificationSound = new Audio('/notification.mp3');
+                                notificationSound.volume = 0.5;
+                                
+                                // Add error handling for audio playback
+                                notificationSound.onerror = (e) => {
+                                    console.warn('Audio error:', e);
+                                };
+                                
+                                const playPromise = notificationSound.play();
+                                if (playPromise) {
+                                    playPromise.catch(e => {
+                                        console.warn('Audio play error:', e);
+                                    });
+                                }
+                            } catch (audioError) {
+                                console.warn('Audio creation error:', audioError);
+                            }
+                            
+                            // Start typing effect for this agent message
+                            try {
+                                startTypingEffect(agentMessageId, messageContent);
+                            } catch (typingError) {
+                                console.warn('Typing effect error:', typingError);
+                            }
+                        }
                     }
                 } catch (error) {
-                    console.error('Error processing agent message:', error);
-                    setAgentMessageErrors(prev => prev + 1);
-                    // Continue execution even if there's an error
+                    console.error('Agent message processing error:', error);
+                    // Continue execution - error boundary will catch if needed
                 }
             });
             
