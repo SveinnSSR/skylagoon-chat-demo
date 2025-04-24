@@ -6,7 +6,7 @@ import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
 
-// Error boundary to prevent UI crashes
+// Less intrusive error boundary
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -18,20 +18,34 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("ChatWidget error:", error, errorInfo);
+    console.error("Chat error:", error);
   }
 
   render() {
     if (this.state.hasError) {
       return <div style={{
-        padding: '16px',
+        padding: '8px',
         backgroundColor: '#f8f8f8',
         border: '1px solid #ddd',
-        borderRadius: '8px',
-        margin: '10px',
-        color: '#555'
+        borderRadius: '4px',
+        margin: '8px',
+        color: '#555',
+        fontSize: '12px',
+        textAlign: 'center'
       }}>
-        Something went wrong with the chat. Please refresh the page.
+        <button 
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '4px 8px',
+            backgroundColor: '#70744E',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Refresh Chat
+        </button>
       </div>;
     }
     return this.props.children;
@@ -227,86 +241,56 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         };
     }, []);
 
-    // Listen for agent messages from LiveChat - ultra-defensive implementation
+    // Listen for agent messages from LiveChat - ultra-minimal implementation
     useEffect(() => {
         if (pusherChannel) {
             const handleAgentMessage = (data) => {
                 try {
-                    console.log('Received agent message data:', JSON.stringify(data));
+                    console.log('AGENT MESSAGE RECEIVED:', data);
                     
-                    // Basic validation - must be an object with a sessionId that matches ours
-                    if (!data || typeof data !== 'object') {
-                        console.warn('Invalid agent message: not an object');
+                    // Basic validation only
+                    if (!data || !data.sessionId || data.sessionId !== sessionId) {
+                        console.log('Invalid agent message or wrong session');
                         return;
                     }
                     
-                    if (typeof data.sessionId !== 'string') {
-                        console.warn('Invalid agent message: missing sessionId');
-                        return;
-                    }
+                    // Extract message with minimal processing
+                    let content = '';
+                    let author = 'Agent';
                     
-                    // Only process messages for our session
-                    if (data.sessionId === sessionId) {
-                        // Extract message content with multiple fallbacks
-                        let messageContent = '';
-                        let authorName = 'Agent';
-                        
-                        // Try to extract content from different possible structures
-                        if (data.message && typeof data.message === 'object') {
-                            // Primary structure
-                            messageContent = typeof data.message.content === 'string' 
-                                ? data.message.content 
-                                : '';
-                                
-                            authorName = typeof data.message.author === 'string'
-                                ? data.message.author
-                                : 'Agent';
-                        } else if (typeof data.text === 'string') {
-                            // Alternative structure
-                            messageContent = data.text;
+                    // Very simple extraction logic
+                    if (data.message) {
+                        if (typeof data.message.content === 'string') {
+                            content = data.message.content;
                         }
                         
-                        // Only proceed if we have valid content
-                        if (messageContent.trim()) {
-                            const agentMessageId = `agent-${Date.now()}`;
-                            
-                            // Add message to state
-                            setMessages(prev => [
-                                ...prev,
-                                {
-                                    type: 'agent',
-                                    role: 'agent',
-                                    content: messageContent,
-                                    sender: authorName,
-                                    id: agentMessageId,
-                                    timestamp: new Date().toISOString()
-                                }
-                            ]);
-                            
-                            // Mark as new message for animation
-                            setNewMessageIds(prev => [...prev, agentMessageId]);
-                            
-                            // Remove from new messages after animation completes
-                            setTimeout(() => {
-                                setNewMessageIds(prev => prev.filter(id => id !== agentMessageId));
-                            }, 1000);
-                            
-                            // Start typing effect for this agent message
-                            try {
-                                startTypingEffect(agentMessageId, messageContent);
-                            } catch (typingError) {
-                                console.warn('Typing effect error:', typingError);
-                                // Continue even if typing effect fails
+                        if (typeof data.message.author === 'string') {
+                            author = data.message.author;
+                        }
+                    }
+                    
+                    // Only add if we have content
+                    if (content) {
+                        const id = 'agent-' + Date.now();
+                        
+                        // Add message directly with minimal fields
+                        setMessages(prev => [
+                            ...prev, 
+                            {
+                                type: 'agent',
+                                role: 'agent',
+                                content: content,
+                                sender: author,
+                                id: id
                             }
-                        }
+                        ]);
                     }
                 } catch (error) {
-                    console.error('Error processing agent message:', error);
-                    // Continue execution - error boundary will handle if needed
+                    // Log but don't crash
+                    console.error('Agent message error:', error);
                 }
             };
             
-            // Bind with named function for cleaner cleanup
             pusherChannel.bind('agent-message', handleAgentMessage);
             
             return () => {
