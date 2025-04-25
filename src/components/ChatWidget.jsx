@@ -51,6 +51,36 @@ class ErrorBoundary extends Component {
   }
 }
 
+// NEW: Message-level error boundary to prevent full widget crashes
+class MessageErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Message rendering error:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div style={{
+        padding: '8px', 
+        fontSize: '12px',
+        color: '#777',
+        fontStyle: 'italic'
+      }}>
+        Message could not be displayed
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 // Add these constants for session management
 const SESSION_ID_KEY = 'skyLagoonChatSessionId';
 const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
@@ -91,6 +121,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [newMessageIds, setNewMessageIds] = useState([]);
     // Tracking agent message errors to prevent UI crashes
     const [agentMessageErrors, setAgentMessageErrors] = useState(0);
+
+    // NEW: Add component mount/unmount diagnostic logging
+    useEffect(() => {
+        // Component mounting diagnostic
+        console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
+        
+        return () => {
+            console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
+        };
+    }, []);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -243,6 +283,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     }, []);
 
     // Listen for agent messages from LiveChat - format-normalized implementation
+    // FIXED: Removed 'messages' from dependency array to prevent loops
     useEffect(() => {
         if (pusherChannel) {
             // Explicitly unbind first to prevent duplicate handlers
@@ -338,6 +379,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         return newMessages;
                     });
                     
+                    // NEW: Skip typing effect for agent messages, mark as completed immediately
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [id]: { 
+                            text: content,
+                            visibleChars: content.length,
+                            isComplete: true
+                        }
+                    }));
+                    
                     console.log('[AgentHandler] State update triggered');
                 } catch (error) {
                     // Log complete error details but don't crash
@@ -354,7 +405,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 pusherChannel.unbind('agent-message', handleAgentMessage);
             };
         }
-    }, [pusherChannel, sessionId, messages]); // Added messages to dependencies for safety
+    }, [pusherChannel, sessionId]); // FIXED: Removed 'messages' from dependencies
 
     // Add this debugging effect to monitor message state
     useEffect(() => {
@@ -370,7 +421,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         );
     }, [messages]);
 
-    // Character-by-character typing effect function
+    // Character-by-character typing effect function with enhanced error handling
     const startTypingEffect = (messageId, fullText) => {
         try {
             // Safety check for undefined text
@@ -379,11 +430,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 return null;
             }
             
+            // NEW: Normalize fullText to ensure it's a string
+            const safeText = typeof fullText === 'string' ? fullText : 
+                            (fullText ? String(fullText) : '');
+            
+            if (safeText !== fullText) {
+                console.warn('Typing effect received non-string content, converted to:', safeText);
+            }
+            
             // Initialize with full text but visibility hidden
             setTypingMessages(prev => ({
                 ...prev,
                 [messageId]: { 
-                    text: fullText, // Use full text immediately to establish final dimensions
+                    text: safeText, // Use normalized text
                     visibleChars: 0, // Track how many characters are visible
                     isComplete: false
                 }
@@ -397,13 +456,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             let charIndex = 0;
             
             const typingInterval = setInterval(() => {
-                if (charIndex <= fullText.length) {
+                if (charIndex <= safeText.length) { // Use safeText instead of fullText
                     setTypingMessages(prev => ({
                         ...prev,
                         [messageId]: {
                             ...prev[messageId],
                             visibleChars: charIndex,
-                            isComplete: charIndex === fullText.length
+                            isComplete: charIndex === safeText.length // Use safeText
                         }
                     }));
                     charIndex++;
@@ -427,7 +486,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Store the interval ID to clear it if needed
             return typingInterval;
         } catch (error) {
+            // NEW: Enhanced error recovery for typing effect
             console.error('Error in typing effect:', error);
+            // Recovery: set the message as complete immediately
+            try {
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: { 
+                        text: typeof fullText === 'string' ? fullText : String(fullText || ''),
+                        visibleChars: typeof fullText === 'string' ? fullText.length : 0,
+                        isComplete: true
+                    }
+                }));
+            } catch (recoveryError) {
+                console.error('Failed to recover from typing effect error:', recoveryError);
+            }
             return null;
         }
     };
@@ -1204,236 +1277,239 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         padding: '16px'
                     }}>
                         {messages.map((msg, index) => (
-                            <div 
-                                key={index} 
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                                    marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
-                                    animation: newMessageIds.includes(msg.id) ? 'sky-lagoon-chat-new-message 0.5s ease-out' : 'none'
-                                }}
-                            >
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
-                                    alignItems: 'flex-start',
-                                    width: '100%',
-                                    gap: '8px'
-                                }}>
-                                    {msg.type === 'bot' && (
-                                        <img 
-                                            src="/solrun.png" 
-                                            alt="Sólrún"
-                                            style={{
+                            // NEW: Add MessageErrorBoundary around each message
+                            <MessageErrorBoundary key={`error-boundary-${index}`}>
+                                <div 
+                                    key={index} 
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                        marginBottom: msg.type === 'bot' || msg.type === 'agent' ? '16px' : '12px',
+                                        animation: newMessageIds.includes(msg.id) ? 'sky-lagoon-chat-new-message 0.5s ease-out' : 'none'
+                                    }}
+                                >
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start',
+                                        alignItems: 'flex-start',
+                                        width: '100%',
+                                        gap: '8px'
+                                    }}>
+                                        {msg.type === 'bot' && (
+                                            <img 
+                                                src="/solrun.png" 
+                                                alt="Sólrún"
+                                                style={{
+                                                    width: '30px',
+                                                    height: '30px',
+                                                    borderRadius: '50%',
+                                                    marginTop: '4px',
+                                                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                                }}
+                                            />
+                                        )}
+                                        {msg.type === 'agent' && (
+                                            <div className="agent-avatar-container" style={{
                                                 width: '30px',
                                                 height: '30px',
                                                 borderRadius: '50%',
                                                 marginTop: '4px',
-                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                                            }}
-                                        />
-                                    )}
-                                    {msg.type === 'agent' && (
-                                        <div className="agent-avatar-container" style={{
-                                            width: '30px',
-                                            height: '30px',
-                                            borderRadius: '50%',
-                                            marginTop: '4px',
-                                            position: 'relative',
-                                            backgroundColor: '#70744E',
-                                            display: 'flex',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            color: 'white',
-                                            fontWeight: 'bold',
-                                            fontSize: '14px',
-                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                            overflow: 'hidden'
-                                        }}>
-                                            <img 
-                                                src="/agent-avatar.png" 
-                                                alt="Agent"
-                                                style={{
-                                                    width: '100%',
-                                                    height: '100%',
-                                                    objectFit: 'cover'
-                                                }}
-                                                onError={(e) => {
-                                                    // Fallback if avatar doesn't load
-                                                    e.target.onerror = null;
-                                                    e.target.style.display = 'none';
-                                                    // First letter of agent name (or "A" if no name)
-                                                    e.target.parentElement.innerText = msg.sender ? msg.sender[0].toUpperCase() : 'A';
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-                                    <div style={{
-                                        maxWidth: '70%',
-                                        padding: '12px 16px',
-                                        borderRadius: '16px',
-                                        backgroundColor: msg.type === 'user' ? '#70744E' : 
-                                                      msg.type === 'agent' ? 'rgba(112, 116, 78, 0.15)' : '#f0f0f0',
-                                        color: msg.type === 'user' ? 'white' : '#333333',
-                                        fontSize: '14px',
-                                        lineHeight: '1.5',
-                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                                        border: msg.type === 'user' ? 
-                                            '1px solid rgba(255, 255, 255, 0.1)' : 
-                                            msg.type === 'agent' ?
-                                            '1px solid rgba(112, 116, 78, 0.2)' :
-                                            '1px solid rgba(0, 0, 0, 0.05)',
-                                        position: 'relative',
-                                        overflowWrap: 'break-word',
-                                        wordWrap: 'break-word',
-                                        wordBreak: 'break-word'
-                                    }}>
-                                        {/* Display agent name if it's an agent message */}
-                                        {msg.type === 'agent' && msg.sender && (
-                                            <div style={{
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                marginBottom: '6px',
-                                                color: '#70744E',
-                                                letterSpacing: '0.01em'
+                                                position: 'relative',
+                                                backgroundColor: '#70744E',
+                                                display: 'flex',
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                                color: 'white',
+                                                fontWeight: 'bold',
+                                                fontSize: '14px',
+                                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                                overflow: 'hidden'
                                             }}>
-                                                {msg.sender}
+                                                <img 
+                                                    src="/agent-avatar.png" 
+                                                    alt="Agent"
+                                                    style={{
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        objectFit: 'cover'
+                                                    }}
+                                                    onError={(e) => {
+                                                        // Fallback if avatar doesn't load
+                                                        e.target.onerror = null;
+                                                        e.target.style.display = 'none';
+                                                        // First letter of agent name (or "A" if no name)
+                                                        e.target.parentElement.innerText = msg.sender ? msg.sender[0].toUpperCase() : 'A';
+                                                    }}
+                                                />
                                             </div>
                                         )}
-                                        
-                                        {msg.type === 'bot' || msg.type === 'agent' ? (
-                                            // Apply typing effect only for bot and agent messages
-                                            typingMessages[msg.id] ? (
-                                                <div style={{ position: 'relative' }}>
-                                                    {/* Invisible full text to maintain container size */}
-                                                    <div style={{ 
-                                                        visibility: 'hidden', 
-                                                        position: 'absolute', 
-                                                        top: 0, 
-                                                        left: 0,
-                                                        width: '100%',
-                                                        height: 0,
-                                                        overflow: 'hidden' 
-                                                    }}>
-                                                        <MessageFormatter message={typingMessages[msg.id].text} />
+                                        <div style={{
+                                            maxWidth: '70%',
+                                            padding: '12px 16px',
+                                            borderRadius: '16px',
+                                            backgroundColor: msg.type === 'user' ? '#70744E' : 
+                                                        msg.type === 'agent' ? 'rgba(112, 116, 78, 0.15)' : '#f0f0f0',
+                                            color: msg.type === 'user' ? 'white' : '#333333',
+                                            fontSize: '14px',
+                                            lineHeight: '1.5',
+                                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                            border: msg.type === 'user' ? 
+                                                '1px solid rgba(255, 255, 255, 0.1)' : 
+                                                msg.type === 'agent' ?
+                                                '1px solid rgba(112, 116, 78, 0.2)' :
+                                                '1px solid rgba(0, 0, 0, 0.05)',
+                                            position: 'relative',
+                                            overflowWrap: 'break-word',
+                                            wordWrap: 'break-word',
+                                            wordBreak: 'break-word'
+                                        }}>
+                                            {/* Display agent name if it's an agent message */}
+                                            {msg.type === 'agent' && msg.sender && (
+                                                <div style={{
+                                                    fontSize: '13px',
+                                                    fontWeight: '600',
+                                                    marginBottom: '6px',
+                                                    color: '#70744E',
+                                                    letterSpacing: '0.01em'
+                                                }}>
+                                                    {msg.sender}
+                                                </div>
+                                            )}
+                                            
+                                            {msg.type === 'bot' || msg.type === 'agent' ? (
+                                                // Apply typing effect only for bot and agent messages
+                                                typingMessages[msg.id] ? (
+                                                    <div style={{ position: 'relative' }}>
+                                                        {/* Invisible full text to maintain container size */}
+                                                        <div style={{ 
+                                                            visibility: 'hidden', 
+                                                            position: 'absolute', 
+                                                            top: 0, 
+                                                            left: 0,
+                                                            width: '100%',
+                                                            height: 0,
+                                                            overflow: 'hidden' 
+                                                        }}>
+                                                            <MessageFormatter message={typingMessages[msg.id].text} />
+                                                        </div>
+                                                        
+                                                        {/* Visible partial text */}
+                                                        <MessageFormatter 
+                                                            message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
+                                                        />
                                                     </div>
-                                                    
-                                                    {/* Visible partial text */}
-                                                    <MessageFormatter 
-                                                        message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
-                                                    />
+                                                ) : (
+                                                    <MessageFormatter message={msg.content} />
+                                                )
+                                            ) : (
+                                                // User messages always show instantly
+                                                msg.content
+                                            )}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Feedback buttons - only shown for bot messages that pass the filter */}
+                                    {msg.type === 'bot' && 
+                                    typingMessages[msg.id] && 
+                                    typingMessages[msg.id].isComplete && 
+                                    shouldShowFeedback(msg) && (
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            marginTop: '4px',
+                                            marginLeft: '38px',
+                                            gap: '8px'
+                                        }}>
+                                            {messageFeedback[msg.id] ? (
+                                                <div style={{
+                                                    fontSize: '12px',
+                                                    color: '#70744E',
+                                                    fontStyle: 'italic',
+                                                    opacity: 0.8,
+                                                    padding: '4px 8px',
+                                                    borderRadius: '12px',
+                                                    backgroundColor: 'rgba(112, 116, 78, 0.08)'
+                                                }}>
+                                                    {currentLanguage === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
                                                 </div>
                                             ) : (
-                                                <MessageFormatter message={msg.content} />
-                                            )
-                                        ) : (
-                                            // User messages always show instantly
-                                            msg.content
-                                        )}
-                                    </div>
+                                                <>
+                                                    <button 
+                                                        onClick={() => handleMessageFeedback(msg.id, true)}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            color: '#70744E',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            fontSize: '12px',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '12px',
+                                                            transition: 'all 0.2s ease',
+                                                            opacity: 0.8,
+                                                            fontWeight: windowWidth <= 768 ? '600' : 'normal',
+                                                        }}
+                                                        onMouseOver={(e) => {
+                                                            e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                            e.currentTarget.style.opacity = '1';
+                                                        }}
+                                                        onMouseOut={(e) => {
+                                                            e.currentTarget.style.backgroundColor = 'transparent';
+                                                            e.currentTarget.style.opacity = '0.8';
+                                                        }}
+                                                        aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                        <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
+                                                            {currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
+                                                        </span>
+                                                    </button>
+                                                    
+                                                    <button 
+                                                        onClick={() => handleMessageFeedback(msg.id, false)}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            color: '#70744E',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            fontSize: '12px',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '12px',
+                                                            transition: 'all 0.2s ease',
+                                                            opacity: 0.8,
+                                                            fontWeight: windowWidth <= 768 ? '600' : 'normal',
+                                                        }}
+                                                        onMouseOver={(e) => {
+                                                            e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
+                                                            e.currentTarget.style.opacity = '1';
+                                                        }}
+                                                        onMouseOut={(e) => {
+                                                            e.currentTarget.style.backgroundColor = 'transparent';
+                                                            e.currentTarget.style.opacity = '0.8';
+                                                        }}
+                                                        aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                        <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
+                                                            {currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
+                                                        </span>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                                
-                                {/* Feedback buttons - only shown for bot messages that pass the filter */}
-                                {msg.type === 'bot' && 
-                                 typingMessages[msg.id] && 
-                                 typingMessages[msg.id].isComplete && 
-                                 shouldShowFeedback(msg) && (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        marginTop: '4px',
-                                        marginLeft: '38px',
-                                        gap: '8px'
-                                    }}>
-                                        {messageFeedback[msg.id] ? (
-                                            <div style={{
-                                                fontSize: '12px',
-                                                color: '#70744E',
-                                                fontStyle: 'italic',
-                                                opacity: 0.8,
-                                                padding: '4px 8px',
-                                                borderRadius: '12px',
-                                                backgroundColor: 'rgba(112, 116, 78, 0.08)'
-                                            }}>
-                                                {currentLanguage === 'en' ? 'Thank you for your feedback!' : 'Takk fyrir endurgjöfina!'}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button 
-                                                    onClick={() => handleMessageFeedback(msg.id, true)}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        color: '#70744E',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        fontSize: '12px',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '12px',
-                                                        transition: 'all 0.2s ease',
-                                                        opacity: 0.8,
-                                                        fontWeight: windowWidth <= 768 ? '600' : 'normal',
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }}
-                                                    aria-label={currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M7 22H4C3.46957 22 2.96086 21.7893 2.58579 21.4142C2.21071 21.0391 2 20.5304 2 20V13C2 12.4696 2.21071 11.9609 2.58579 11.5858C2.96086 11.2107 3.46957 11 4 11H7M14 9V5C14 4.20435 13.6839 3.44129 13.1213 2.87868C12.5587 2.31607 11.7956 2 11 2L7 11V22H18.28C18.7623 22.0055 19.2304 21.8364 19.5979 21.524C19.9654 21.2116 20.2077 20.7769 20.28 20.3L21.66 11.3C21.7035 11.0134 21.6842 10.7207 21.6033 10.4423C21.5225 10.1638 21.3821 9.90629 21.1919 9.68751C21.0016 9.46873 20.7661 9.29393 20.5016 9.17522C20.2371 9.0565 19.9499 8.99672 19.66 9H14Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    </svg>
-                                                    <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
-                                                        {currentLanguage === 'en' ? 'Helpful' : 'Hjálplegt'}
-                                                    </span>
-                                                </button>
-                                                
-                                                <button 
-                                                    onClick={() => handleMessageFeedback(msg.id, false)}
-                                                    style={{
-                                                        background: 'none',
-                                                        border: 'none',
-                                                        cursor: 'pointer',
-                                                        color: '#70744E',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        fontSize: '12px',
-                                                        padding: '4px 8px',
-                                                        borderRadius: '12px',
-                                                        transition: 'all 0.2s ease',
-                                                        opacity: 0.8,
-                                                        fontWeight: windowWidth <= 768 ? '600' : 'normal',
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'rgba(112, 116, 78, 0.1)';
-                                                        e.currentTarget.style.opacity = '1';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                                        e.currentTarget.style.opacity = '0.8';
-                                                    }}
-                                                    aria-label={currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
-                                                >
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <path d="M17 2H20C20.5304 2 21.0391 2.21071 21.4142 2.58579C21.7893 2.96086 22 3.46957 22 4V11C22 11.5304 21.7893 12.0391 21.4142 12.4142C21.0391 12.7893 20.5304 13 20 13H17M10 15V19C10 19.7956 10.3161 20.5587 10.8787 21.1213C11.4413 21.6839 12.2044 22 13 22L17 13V2H5.72C5.23964 1.99453 4.77175 2.16359 4.40125 2.47599C4.03075 2.78839 3.78958 3.22309 3.72 3.7L2.34 12.7C2.29651 12.9866 2.31583 13.2793 2.39666 13.5577C2.4775 13.8362 2.61788 14.0937 2.80812 14.3125C2.99836 14.5313 3.23395 14.7061 3.49843 14.8248C3.76291 14.9435 4.05009 15.0033 4.34 15H10Z" stroke="#70744E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                                    </svg>
-                                                    <span style={{ fontWeight: windowWidth <= 768 ? '600' : 'normal' }}>
-                                                        {currentLanguage === 'en' ? 'Not helpful' : 'Ekki hjálplegt'}
-                                                    </span>
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
+                            </MessageErrorBoundary>
                         ))}
 
                         {/* Show booking form if requested */}
