@@ -284,22 +284,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.log('[AgentHandler] Cleaning up previous handlers');
             pusherChannel.unbind('agent-message');
             
-            // Use a ref to track if connection message has been shown
-            const connectionMessageShownRef = React.useRef(false);
-            
-            // Check current messages to initialize the ref
-            const hasConnectionMessage = messages.some(m => 
-                m.content && typeof m.content === 'string' && 
-                m.content.includes("connected with a live agent")
-            );
-            
-            if (hasConnectionMessage) {
-                connectionMessageShownRef.current = true;
-            }
-            
             const handleAgentMessage = (data) => {
                 try {
                     console.log('[AgentHandler] Received message data:', data);
+                    if (typeof data === 'object') {
+                        console.log('[AgentHandler] Data structure:', 
+                            Object.keys(data).join(', '));
+                    }
                     
                     // Basic validation with detailed logging
                     if (!data) {
@@ -351,16 +342,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         return;
                     }
                     
-                    // ENHANCED: Check if this is a connection message
-                    if (content.includes("connected with a live agent")) {
-                        if (connectionMessageShownRef.current) {
-                            console.log('[AgentHandler] Connection message already shown, skipping');
-                            return;
-                        }
-                        connectionMessageShownRef.current = true;
-                    }
-                    
-                    // ENHANCED: Check if this message is an echo of a recent user message
+                    // NEW: Check if this message is an echo of a recent user message
                     const isEchoOfUserMessage = messages.some(m => 
                         m.type === 'user' && 
                         m.content && 
@@ -373,7 +355,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         console.log('[AgentHandler] Skipping echo of user message:', content);
                         return;
                     }
-
+                    
                     // Check for duplicate messages (sent in the last few seconds)
                     const isDuplicate = messages.some(m => 
                         m.content === content && 
@@ -383,6 +365,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     if (isDuplicate) {
                         console.log('[AgentHandler] Skipping duplicate message');
                         return;
+                    }
+
+                    // Skip the connection message if we've seen it before
+                    if (content.includes("You are now connected with a live agent") || 
+                        content.includes("connected with a live agent")) {
+                        
+                        // Check if we already have this message
+                        const hasConnectMessage = messages.some(m => 
+                            m.content && m.content.includes("connected with a live agent")
+                        );
+                        
+                        if (hasConnectMessage) {
+                            console.log('[AgentHandler] Skipping repeated connection message');
+                            return;
+                        }
                     }
                     
                     // Create consistent message object
@@ -397,6 +394,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     };
                     
                     console.log(`[AgentHandler] Created normalized message object with ID: ${id}`);
+                    
+                    // Log messages state BEFORE update for debugging
+                    console.log('[AgentHandler] Current messages count:', 
+                        Array.isArray(messages) ? messages.length : 'not an array');
                     
                     // Update state with normalized message
                     console.log('[AgentHandler] Updating messages state...');
@@ -438,7 +439,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 pusherChannel.unbind('agent-message', handleAgentMessage);
             };
         }
-    }, [pusherChannel, sessionId]); // Removed 'messages' to prevent loops
+    }, [pusherChannel, sessionId]); // FIXED: Removed 'messages' from dependencies
 
     // Add this debugging effect to monitor message state
     useEffect(() => {
