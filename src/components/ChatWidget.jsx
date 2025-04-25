@@ -51,7 +51,7 @@ class ErrorBoundary extends Component {
   }
 }
 
-// NEW: Message-level error boundary to prevent full widget crashes
+// Message-level error boundary to prevent full widget crashes
 class MessageErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -68,14 +68,8 @@ class MessageErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return <div style={{
-        padding: '8px', 
-        fontSize: '12px',
-        color: '#777',
-        fontStyle: 'italic'
-      }}>
-        Message could not be displayed
-      </div>;
+      // Instead of showing an error message, return null to hide completely
+      return null;
     }
     return this.props.children;
   }
@@ -346,6 +340,32 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     if (!content.trim()) {
                         console.log('[AgentHandler] Skipping empty content');
                         return;
+                    }
+                    
+                    // NEW: Check for duplicate messages (sent in the last few seconds)
+                    const isDuplicate = messages.some(m => 
+                        m.content === content && 
+                        Date.now() - (m.timestamp || 0) < 5000 // 5 seconds threshold
+                    );
+
+                    if (isDuplicate) {
+                        console.log('[AgentHandler] Skipping duplicate message');
+                        return;
+                    }
+
+                    // NEW: Skip the connection message if we've seen it before
+                    if (content.includes("You are now connected with a live agent") || 
+                        content.includes("connected with a live agent")) {
+                        
+                        // Check if we already have this message
+                        const hasConnectMessage = messages.some(m => 
+                            m.content && m.content.includes("connected with a live agent")
+                        );
+                        
+                        if (hasConnectMessage) {
+                            console.log('[AgentHandler] Skipping repeated connection message');
+                            return;
+                        }
                     }
                     
                     // Create consistent message object
