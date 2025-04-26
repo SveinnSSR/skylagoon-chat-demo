@@ -6,6 +6,10 @@ import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
 
+// Define constants for connection messages to ensure consistent checks
+const CONNECTION_MESSAGE_EN = "You are now connected with a live agent. Please continue your conversation here.";
+const CONNECTION_MESSAGE_IS = "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.";
+
 // Less intrusive error boundary
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -117,14 +121,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [agentMessageErrors, setAgentMessageErrors] = useState(0);
     // NEW: Add connection message tracking ref
     const connectionMessageShownRef = React.useRef(false);
+    // NEW: Add a state variable for tracking transfer completion
+    const [isTransferComplete, setIsTransferComplete] = useState(false);
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
         // Component mounting diagnostic
         console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
+        console.log('[ConnectionRef] Initial value:', connectionMessageShownRef.current);
         
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
+            console.log('[ConnectionRef] Final value on unmount:', connectionMessageShownRef.current);
         };
     }, []);
 
@@ -369,18 +377,22 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         return;
                     }
 
-                    // Skip the connection message if we've seen it before
-                    if (content.includes("You are now connected with a live agent") || 
+                    // UPDATED: Skip the connection message if we've seen it before (using both state and ref)
+                    if (content.includes(CONNECTION_MESSAGE_EN) || 
+                        content.includes(CONNECTION_MESSAGE_IS) ||
                         content.includes("connected with a live agent")) {
                         
-                        if (connectionMessageShownRef.current) {
-                            console.log('[AgentHandler] Connection message already shown via ref, skipping');
+                        console.log('[ConnectionRef] Checking connection message, ref value:', connectionMessageShownRef.current, 'state:', isTransferComplete);
+                        
+                        if (connectionMessageShownRef.current || isTransferComplete) {
+                            console.log('[ConnectionRef] SKIPPING connection message - already shown');
                             return;
                         }
                         
                         // If we get here, mark it as shown and continue
+                        console.log('[ConnectionRef] SHOWING connection message and setting ref/state to true');
                         connectionMessageShownRef.current = true;
-                        console.log('[AgentHandler] First connection message, showing and marking as shown');
+                        setIsTransferComplete(true);
                     }
                     
                     // Create consistent message object
@@ -440,7 +452,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 pusherChannel.unbind('agent-message', handleAgentMessage);
             };
         }
-    }, [pusherChannel, sessionId]); // FIXED: Removed 'messages' from dependencies
+    }, [pusherChannel, sessionId, messages, isTransferComplete]); // Added messages and isTransferComplete to deps
 
     // Add this debugging effect to monitor message state
     useEffect(() => {
@@ -556,8 +568,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         // Start typing effect for welcome message
         startTypingEffect(welcomeMessageId, welcomeMessage);
 
-        // Initialize connection message ref
+        // Initialize connection message ref and state
         connectionMessageShownRef.current = false;
+        setIsTransferComplete(false);
     }, [currentLanguage]);
 
     // Function to determine if a message should show feedback options
@@ -1119,20 +1132,31 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Start typing effect for first message
                 startTypingEffect(botMsgId, data.message);
                 
-                // Second message (after a delay to simulate sequential typing)
+                // UPDATED: Second message - check if already shown using ref and state
                 setTimeout(() => {
-                    const transferMessage = currentLanguage === 'en' ? 
-                        "You are now connected with a live agent. Please continue your conversation here." :
-                        "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.";
+                    console.log('[TRANSFER] Checking connection message state:', isTransferComplete, 'ref:', connectionMessageShownRef.current);
                     
-                    setMessages(prev => [...prev, {
-                        type: 'bot',
-                        content: transferMessage,
-                        id: transferMsgId
-                    }]);
-                    
-                    // Start typing effect for second message
-                    startTypingEffect(transferMsgId, transferMessage);
+                    // Only show this message if we haven't completed a transfer yet
+                    if (!isTransferComplete && !connectionMessageShownRef.current) {
+                        console.log('[TRANSFER] First time showing connection message, marking transfer as complete');
+                        const transferMessage = currentLanguage === 'en' ? 
+                            CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
+                        
+                        setMessages(prev => [...prev, {
+                            type: 'bot',
+                            content: transferMessage,
+                            id: transferMsgId
+                        }]);
+                        
+                        // Start typing effect for second message
+                        startTypingEffect(transferMsgId, transferMessage);
+                        
+                        // Mark transfer as complete in both ref and state
+                        connectionMessageShownRef.current = true;
+                        setIsTransferComplete(true);
+                    } else {
+                        console.log('[TRANSFER] Transfer already completed, skipping connection message');
+                    }
                 }, 1000); // Delay before showing the second message
                 
                 return;
