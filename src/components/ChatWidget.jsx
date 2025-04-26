@@ -115,6 +115,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [newMessageIds, setNewMessageIds] = useState([]);
     // Tracking agent message errors to prevent UI crashes
     const [agentMessageErrors, setAgentMessageErrors] = useState(0);
+    // NEW: Add connection message tracking ref
+    const connectionMessageShownRef = React.useRef(false);
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
@@ -371,15 +373,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     if (content.includes("You are now connected with a live agent") || 
                         content.includes("connected with a live agent")) {
                         
-                        // Check if we already have this message
-                        const hasConnectMessage = messages.some(m => 
-                            m.content && m.content.includes("connected with a live agent")
-                        );
-                        
-                        if (hasConnectMessage) {
-                            console.log('[AgentHandler] Skipping repeated connection message');
+                        if (connectionMessageShownRef.current) {
+                            console.log('[AgentHandler] Connection message already shown via ref, skipping');
                             return;
                         }
+                        
+                        // If we get here, mark it as shown and continue
+                        connectionMessageShownRef.current = true;
+                        console.log('[AgentHandler] First connection message, showing and marking as shown');
                     }
                     
                     // Create consistent message object
@@ -554,6 +555,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         
         // Start typing effect for welcome message
         startTypingEffect(welcomeMessageId, welcomeMessage);
+
+        // Initialize connection message ref
+        connectionMessageShownRef.current = false;
     }, [currentLanguage]);
 
     // Function to determine if a message should show feedback options
