@@ -1045,6 +1045,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 hasStoredCredentials: !!storedCredentials
             });
             
+            // Add this new debug log
+            console.log('\n🔍 SENDING MESSAGE STATE:', {
+                chatMode,
+                isAgentMode: chatMode === 'agent',
+                hasChatId: !!chatId,
+                chatId,
+                messageText: messageText.substring(0, 30) // Show first 30 chars of message
+            });
+            
             // Prepare the request body with credential fallbacks
             const requestBody = { 
                 message: messageText,
