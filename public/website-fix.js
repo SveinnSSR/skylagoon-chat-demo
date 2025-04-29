@@ -7,6 +7,7 @@
  * 1. List bullets and numbers not displaying properly in content areas
  * 2. Paragraph and heading margins being removed
  * 3. Logo alignment issues in the booking flow
+ * 4. Language selector color in different contexts
  * 
  * Created: April 2025
  * Last updated: April 29, 2025
@@ -39,20 +40,32 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Fix ONLY booking page logo alignment - with very specific selector
-    document.querySelectorAll('.checkout-header img[src*="logo"], img[alt*="Sky Lagoon"][src*="logo"]').forEach(logo => {
-      if (logo.parentElement) {
-        logo.parentElement.style.textAlign = 'center';
-      }
-      logo.style.margin = '0 auto';
-      logo.style.display = 'inline-block';
+    // Fix 4: Fix BOOKING PAGE LOGO alignment - with VERY specific targeting
+    document.querySelectorAll('.checkout-header').forEach(header => {
+      // Center the header container itself
+      header.style.textAlign = 'center';
+      header.style.display = 'flex';
+      header.style.justifyContent = 'center';
+      
+      // Find and center any logos inside it
+      const logos = header.querySelectorAll('img[src*="logo"], img[alt*="Sky Lagoon"]');
+      logos.forEach(logo => {
+        logo.style.margin = '0 auto';
+        logo.style.display = 'block';
+      });
     });
     
-    // Fix 5: VERY targeted language selector color fix - ONLY for side menu black EN text
-    document.querySelectorAll('.overlay a, .side-menu a, [role="dialog"] a, .drawer a, .modal a').forEach(link => {
-      if ((link.textContent.trim() === 'EN' || link.textContent.includes('EN')) && 
-          getComputedStyle(link).color === 'rgb(0, 0, 0)') {  // Only fix if it's black
+    // Fix 5: VERY targeted language selector color fix
+    // First, use attribute selectors for all EN links in overlays
+    document.querySelectorAll('.overlay a, .side-menu a, [role="dialog"] a, .drawer a, .modal a, .hamburger-menu a').forEach(link => {
+      // Check if it contains "EN" text and is currently black
+      if ((link.textContent.trim() === 'EN' || 
+           link.textContent.includes('EN') || 
+           link.textContent.includes('/ EN')) && 
+          getComputedStyle(link).color === 'rgb(0, 0, 0)') {
+        
         link.style.color = '#70744E'; // Sky Lagoon green color
+        console.log('Fixed black EN link:', link);
       }
     });
     
@@ -76,6 +89,40 @@
         el.style.marginBottom = '1rem';
       }
     });
+    
+    // SUPER TARGETED fix for black EN in hamburger menu
+    // This uses a more aggressive approach to find and fix these specifically
+    setTimeout(() => {
+      // After a delay, check for all spans and links on the page
+      document.querySelectorAll('*').forEach(el => {
+        // Only process elements that are visible
+        const style = window.getComputedStyle(el);
+        if (style.display !== 'none' && style.visibility !== 'hidden') {
+          // Check if this contains exactly "EN" text and is black
+          if (el.textContent === 'EN' && style.color === 'rgb(0, 0, 0)') {
+            el.style.color = '#70744E';
+            console.log('Fixed isolated black EN text:', el);
+          }
+          // Also check for "IS / EN" format
+          else if (el.textContent === 'IS / EN' && style.color === 'rgb(0, 0, 0)') {
+            // Find the EN part and color it
+            Array.from(el.childNodes).forEach(node => {
+              if (node.textContent && node.textContent.includes('EN')) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                  // If it's a text node, wrap it in a span to style it
+                  const span = document.createElement('span');
+                  span.textContent = node.textContent;
+                  span.style.color = '#70744E';
+                  node.parentNode.replaceChild(span, node);
+                } else {
+                  node.style.color = '#70744E';
+                }
+              }
+            });
+          }
+        }
+      });
+    }, 1000); // Wait 1 second after page elements have loaded
   }
   
   // Apply fixes immediately
@@ -195,11 +242,21 @@
       margin-bottom: 1rem !important;
     }
     
-    /* BOOKING PAGE Logo alignment ONLY - much more specific selector */
+    /* BOOKING PAGE Logo alignment - super specific fix */
+    .checkout-header, header[class*="checkout"], div[class*="booking-header"] {
+      text-align: center !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      width: 100% !important;
+    }
+    
     .checkout-header img[src*="logo"], 
+    header[class*="checkout"] img,
+    div[class*="booking-header"] img,
     img[alt*="Sky Lagoon"][src*="logo"] {
       margin: 0 auto !important;
-      display: inline-block !important;
+      display: block !important;
     }
     
     /* Ensure headers on experience and ritual pages stay left-aligned */
@@ -219,12 +276,55 @@
     }
     
     /* Specific fix for sidebar menu EN language selector when it's black */
-    .overlay a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]),
-    .modal a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]),
-    .side-menu a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]) {
+    .overlay a[href*="/en"],
+    .modal a[href*="/en"],
+    .side-menu a[href*="/en"],
+    .hamburger-menu a[href*="/en"],
+    [role="dialog"] a[href*="/en"] {
+      color: #70744E !important;
+    }
+    
+    /* Super specific fix for black EN text */
+    [class*="menu"] a:contains("EN"),
+    .overlay a:contains("EN"),
+    .modal a:contains("EN") {
       color: #70744E !important;
     }
   `;
   document.head.appendChild(fixStyles);
   
+  // Add a special fix for :contains which doesn't exist in CSS
+  try {
+    // Create a stylesheet for JavaScript-based dynamic rules
+    const dynamicSheet = document.createElement('style');
+    document.head.appendChild(dynamicSheet);
+    
+    // Use JavaScript to find and fix all black EN links
+    function fixBlackENLinks() {
+      document.querySelectorAll('a, span, div').forEach(el => {
+        if ((el.textContent.trim() === 'EN' || el.textContent.trim() === 'IS / EN') && 
+            window.getComputedStyle(el).color === 'rgb(0, 0, 0)') {
+          // Skip if it's inside the chat widget
+          if (!el.closest('.sky-lagoon-chat-widget')) {
+            el.style.color = '#70744E';
+            
+            // For combined elements like "IS / EN", style just the EN part if possible
+            if (el.textContent.trim() === 'IS / EN') {
+              el.innerHTML = el.innerHTML.replace(
+                /EN/g, 
+                '<span style="color: #70744E !important;">EN</span>'
+              );
+            }
+          }
+        }
+      });
+    }
+    
+    // Run this fix multiple times to catch dynamic elements
+    fixBlackENLinks();
+    setTimeout(fixBlackENLinks, 1000);
+    setTimeout(fixBlackENLinks, 2000);
+  } catch (e) {
+    console.error('Dynamic EN fix failed:', e);
+  }
 })();
