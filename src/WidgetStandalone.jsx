@@ -15,7 +15,92 @@ const init = (container, config = {}) => {
   const baseUrl = config.baseUrl || '';
   console.log('Initializing widget with baseUrl:', baseUrl);
   
-  // Inject CSS to fix image paths and counter style leakage
+  // Function to apply fixes to the website
+  const applyWebsiteFixes = () => {
+    // Create or update the fix stylesheet
+    let fixStylesheet = document.getElementById('sky-lagoon-fix-styles');
+    if (!fixStylesheet) {
+      fixStylesheet = document.createElement('style');
+      fixStylesheet.id = 'sky-lagoon-fix-styles';
+      document.body.appendChild(fixStylesheet);
+    }
+    
+    fixStylesheet.textContent = `
+      /* Fix for list bullets and numbers */
+      body ul:not(.sky-lagoon-chat-widget ul) {
+        list-style-type: disc !important;
+        padding-left: 40px !important;
+        margin-left: 0 !important;
+      }
+      
+      body ol:not(.sky-lagoon-chat-widget ol) {
+        list-style-type: decimal !important;
+        padding-left: 40px !important;
+        margin-left: 0 !important;
+      }
+      
+      body ul:not(.sky-lagoon-chat-widget ul) li,
+      body ol:not(.sky-lagoon-chat-widget ol) li {
+        display: list-item !important;
+        list-style: inherit !important;
+        padding-left: 0 !important;
+      }
+      
+      body ul:not(.sky-lagoon-chat-widget ul) li::before,
+      body ol:not(.sky-lagoon-chat-widget ol) li::before {
+        display: none !important;
+        content: none !important;
+      }
+      
+      /* Fix for paragraph and heading margins */
+      body h1:not(.sky-lagoon-chat-widget h1),
+      body h2:not(.sky-lagoon-chat-widget h2),
+      body h3:not(.sky-lagoon-chat-widget h3) {
+        margin-bottom: 1.5rem !important;
+        margin-top: 1.5rem !important;
+      }
+      
+      body p:not(.sky-lagoon-chat-widget p) {
+        margin-bottom: 1rem !important;
+      }
+      
+      /* Fix for booking flow logo alignment */
+      .checkout-header img,
+      .checkout-header .logo,
+      img[alt*="Sky Lagoon"],
+      img[src*="logo"] {
+        margin: auto !important;
+        text-align: center !important;
+      }
+      
+      /* Fix for logo image container */
+      .checkout-header,
+      header[class*="checkout"],
+      div[class*="header"] {
+        text-align: center !important;
+        margin: 0 auto !important;
+      }
+      
+      /* Fix for the sun icon centering */
+      img.content-icon.mb-3, 
+      img[src*="icon-sun.svg"],
+      .content-icon.mb-3,
+      img[title*="Experience the Heart of Icelandic Tradition"] {
+        display: block !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        text-align: center !important;
+        float: none !important;
+        position: relative !important;
+        left: auto !important;
+        right: auto !important;
+      }
+    `;
+    
+    console.log('Applied website style fixes');
+  };
+  
+  // Inject CSS for our widget
   const style = document.createElement('style');
   style.textContent = `
     .sky-lagoon-chat-widget img[src="/solrun.png"] {
@@ -26,103 +111,29 @@ const init = (container, config = {}) => {
     .sky-lagoon-chat-widget {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    
-    /* Fix for the Sun icon centering */
-    img.content-icon.mb-3, 
-    img[src*="icon-sun.svg"],
-    .content-icon.mb-3,
-    img[title*="Experience the Heart of Icelandic Tradition"] {
-      display: block !important;
-      margin-left: auto !important;
-      margin-right: auto !important;
-      text-align: center !important;
-      float: none !important;
-      position: relative !important;
-      left: auto !important;
-      right: auto !important;
-    }
-    
-    /* Fix for parent container alignment */
-    div:has(> img.content-icon.mb-3),
-    div:has(> img[src*="icon-sun.svg"]) {
-      text-align: center !important;
-      display: flex !important;
-      flex-direction: column !important;
-      align-items: center !important;
-      justify-content: center !important;
-    }
-    
-    /* NEW FIXES FOR JOHN'S ISSUES */
-    
-    /* Fix 1: Restore list bullets and numbers */
-    :not(.sky-lagoon-chat-widget) ul {
-      list-style-type: disc !important;
-      margin-left: 1em !important;
-      padding-left: 1em !important;
-    }
-    
-    :not(.sky-lagoon-chat-widget) ol {
-      list-style-type: decimal !important;
-      margin-left: 1em !important;
-      padding-left: 1em !important;
-    }
-    
-    :not(.sky-lagoon-chat-widget) li {
-      display: list-item !important;
-    }
-    
-    :not(.sky-lagoon-chat-widget) li::before {
-      display: none !important;
-    }
-    
-    /* Fix 2: Restore paragraph and heading margins */
-    :not(.sky-lagoon-chat-widget) p {
-      margin-bottom: 1rem !important;
-    }
-    
-    :not(.sky-lagoon-chat-widget) h1, 
-    :not(.sky-lagoon-chat-widget) h2, 
-    :not(.sky-lagoon-chat-widget) h3, 
-    :not(.sky-lagoon-chat-widget) h4, 
-    :not(.sky-lagoon-chat-widget) h5, 
-    :not(.sky-lagoon-chat-widget) h6 {
-      margin-bottom: 0.5rem !important;
-    }
-    
-    /* Fix 3: Booking flow logo alignment */
-    .checkout-header img, 
-    .checkout-header .logo,
-    img[alt*="Sky Lagoon"] {
-      margin: 0 !important;
-      display: inline-block !important;
-      text-align: initial !important;
-      float: none !important;
-    }
-    
-    /* Fix loading graphic alignment */
-    .checkout-content img,
-    img[alt*="loading"] {
-      display: inline-block !important;
-      float: none !important;
-      text-align: initial !important;
-    }
-    
-    /* General fixes to prevent further alignment issues */
-    body:not(.sky-lagoon-chat-widget) img {
-      display: inline-block !important;
-    }
-    
-    /* Restore center alignment for specific elements */
-    .text-center img,
-    .center img,
-    .centered img,
-    [class*="center"] img {
-      display: block !important;
-      margin-left: auto !important;
-      margin-right: auto !important;
-    }
   `;
   document.head.appendChild(style);
+  
+  // Apply fixes immediately
+  applyWebsiteFixes();
+  
+  // Set up an observer to detect DOM changes and reapply fixes
+  const observer = new MutationObserver((mutations) => {
+    // Reapply fixes when DOM changes
+    applyWebsiteFixes();
+  });
+  
+  // Start observing
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'style']
+  });
+  
+  // Also apply fixes after a short delay to ensure everything is loaded
+  setTimeout(applyWebsiteFixes, 500);
+  setTimeout(applyWebsiteFixes, 1500);
   
   ReactDOM.render(
     <ChatWidget 
@@ -138,8 +149,17 @@ const init = (container, config = {}) => {
   // Return API for controlling the widget
   return {
     destroy: () => {
+      // Remove the observer when widget is destroyed
+      observer.disconnect();
+      
+      // Remove the fix stylesheet
+      const fixStylesheet = document.getElementById('sky-lagoon-fix-styles');
+      if (fixStylesheet && fixStylesheet.parentNode) {
+        fixStylesheet.parentNode.removeChild(fixStylesheet);
+      }
+      
       ReactDOM.unmountComponentAtNode(container);
-      // Also remove the style element we added
+      // Remove the style element we added
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
