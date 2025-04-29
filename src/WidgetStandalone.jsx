@@ -15,7 +15,7 @@ const init = (container, config = {}) => {
   const baseUrl = config.baseUrl || '';
   console.log('Initializing widget with baseUrl:', baseUrl);
   
-  // Inject CSS to fix image paths - now scoped to our namespace
+  // Inject CSS to fix image paths and counter style leakage
   const style = document.createElement('style');
   style.textContent = `
     .sky-lagoon-chat-widget img[src="/solrun.png"] {
@@ -27,7 +27,7 @@ const init = (container, config = {}) => {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
-    /* More aggressive fix for the Sun icon centering */
+    /* Fix for the Sun icon centering */
     img.content-icon.mb-3, 
     img[src*="icon-sun.svg"],
     .content-icon.mb-3,
@@ -50,6 +50,76 @@ const init = (container, config = {}) => {
       flex-direction: column !important;
       align-items: center !important;
       justify-content: center !important;
+    }
+    
+    /* NEW FIXES FOR JOHN'S ISSUES */
+    
+    /* Fix 1: Restore list bullets and numbers */
+    :not(.sky-lagoon-chat-widget) ul {
+      list-style-type: disc !important;
+      margin-left: 1em !important;
+      padding-left: 1em !important;
+    }
+    
+    :not(.sky-lagoon-chat-widget) ol {
+      list-style-type: decimal !important;
+      margin-left: 1em !important;
+      padding-left: 1em !important;
+    }
+    
+    :not(.sky-lagoon-chat-widget) li {
+      display: list-item !important;
+    }
+    
+    :not(.sky-lagoon-chat-widget) li::before {
+      display: none !important;
+    }
+    
+    /* Fix 2: Restore paragraph and heading margins */
+    :not(.sky-lagoon-chat-widget) p {
+      margin-bottom: 1rem !important;
+    }
+    
+    :not(.sky-lagoon-chat-widget) h1, 
+    :not(.sky-lagoon-chat-widget) h2, 
+    :not(.sky-lagoon-chat-widget) h3, 
+    :not(.sky-lagoon-chat-widget) h4, 
+    :not(.sky-lagoon-chat-widget) h5, 
+    :not(.sky-lagoon-chat-widget) h6 {
+      margin-bottom: 0.5rem !important;
+    }
+    
+    /* Fix 3: Booking flow logo alignment */
+    .checkout-header img, 
+    .checkout-header .logo,
+    img[alt*="Sky Lagoon"] {
+      margin: 0 !important;
+      display: inline-block !important;
+      text-align: initial !important;
+      float: none !important;
+    }
+    
+    /* Fix loading graphic alignment */
+    .checkout-content img,
+    img[alt*="loading"] {
+      display: inline-block !important;
+      float: none !important;
+      text-align: initial !important;
+    }
+    
+    /* General fixes to prevent further alignment issues */
+    body:not(.sky-lagoon-chat-widget) img {
+      display: inline-block !important;
+    }
+    
+    /* Restore center alignment for specific elements */
+    .text-center img,
+    .center img,
+    .centered img,
+    [class*="center"] img {
+      display: block !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
     }
   `;
   document.head.appendChild(style);
