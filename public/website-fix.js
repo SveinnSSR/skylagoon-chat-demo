@@ -7,7 +7,6 @@
  * 1. List bullets and numbers not displaying properly in content areas
  * 2. Paragraph and heading margins being removed
  * 3. Logo alignment issues in the booking flow
- * 4. Language selector color issues
  * 
  * Created: April 2025
  */
@@ -48,23 +47,14 @@
       logo.style.display = 'inline-block';
     });
     
-    // Fix 5: More aggressive language selector color fix
-    // Target ALL instances of "EN" text in links or spans, regardless of context
-    document.querySelectorAll('a, span, div').forEach(el => {
-      if (el.textContent.trim() === 'EN' || 
-          el.textContent.trim() === 'IS / EN' ||
-          (el.textContent.trim().includes('EN') && el.textContent.trim().length < 10)) {
-        el.style.color = '#70744E'; // Sky Lagoon green color
-        
-        // Force inline style with !important equivalent
-        const originalColor = el.style.color;
-        el.setAttribute('style', el.getAttribute('style') + '; color: #70744E !important;');
-        
-        // Also process any child elements
-        el.querySelectorAll('*').forEach(child => {
-          child.style.color = '#70744E';
-          child.setAttribute('style', child.getAttribute('style') + '; color: #70744E !important;');
-        });
+    // Fix 5: VERY targeted language selector color fix - ONLY for side menu
+    // Only target the overlay/side menu context where "EN" was black
+    document.querySelectorAll('.overlay a, .side-menu a, [role="dialog"] a, .drawer a, .modal a').forEach(link => {
+      if ((link.textContent.trim() === 'EN' || 
+           link.textContent.trim() === 'IS / EN' ||
+           link.textContent.includes('EN')) && 
+          getComputedStyle(link).color === 'rgb(0, 0, 0)') {  // Only fix if it's black
+        link.style.color = '#70744E'; // Sky Lagoon green color
       }
     });
     
@@ -180,26 +170,6 @@
     [class*="step"] li {
       display: inline-block !important;
       list-style-type: none !important;
-    }
-    
-    /* Super aggressive fix for language selector color - target all possible instances */
-    a[href*="/en"], 
-    a[href*="en"],
-    span:contains("EN"),
-    [class*="language"] *,
-    [class*="lang"] *,
-    [class*="menu"] a,
-    nav a {
-      color: #70744E !important;
-    }
-
-    /* Additional rule for the specific side menu scenario */
-    .modal *, 
-    .overlay *, 
-    .side-menu *, 
-    .drawer *, 
-    [role="dialog"] * {
-      color: #70744E !important;
     }
     
     /* Fix margins */
