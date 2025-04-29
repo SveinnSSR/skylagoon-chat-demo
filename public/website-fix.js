@@ -40,19 +40,13 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Fix BOOKING PAGE LOGO alignment - with VERY specific targeting
-    document.querySelectorAll('.checkout-header').forEach(header => {
-      // Center the header container itself
-      header.style.textAlign = 'center';
-      header.style.display = 'flex';
-      header.style.justifyContent = 'center';
-      
-      // Find and center any logos inside it
-      const logos = header.querySelectorAll('img[src*="logo"], img[alt*="Sky Lagoon"]');
-      logos.forEach(logo => {
-        logo.style.margin = '0 auto';
-        logo.style.display = 'block';
-      });
+    // Fix 4: Fix booking logo alignment - REVERTING to previous working approach
+    document.querySelectorAll('img[src*="booking-logo"], img[src*="logo-skylagoon"], .header img').forEach(logo => {
+      if (logo.parentElement) {
+        logo.parentElement.style.textAlign = 'center';
+      }
+      logo.style.margin = '0 auto';
+      logo.style.display = 'inline-block';
     });
     
     // Fix 5: VERY targeted language selector color fix
@@ -242,21 +236,22 @@
       margin-bottom: 1rem !important;
     }
     
-    /* BOOKING PAGE Logo alignment - super specific fix */
-    .checkout-header, header[class*="checkout"], div[class*="booking-header"] {
-      text-align: center !important;
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: 100% !important;
+    /* BOOKING PAGE Logo alignment - REVERTING to previous working approach */
+    .checkout-header img, .checkout-header .logo,
+    header[class*="checkout"] img,
+    img[alt*="Sky Lagoon"] {
+      margin: 0 auto !important;
+      display: inline-block !important;
+      text-align: initial !important;
+      float: none !important;
     }
     
-    .checkout-header img[src*="logo"], 
-    header[class*="checkout"] img,
-    div[class*="booking-header"] img,
-    img[alt*="Sky Lagoon"][src*="logo"] {
-      margin: 0 auto !important;
-      display: block !important;
+    /* Fix loading graphic alignment */
+    .checkout-content img,
+    img[alt*="loading"] {
+      display: inline-block !important;
+      float: none !important;
+      text-align: initial !important;
     }
     
     /* Ensure headers on experience and ritual pages stay left-aligned */
@@ -285,20 +280,16 @@
     }
     
     /* Super specific fix for black EN text */
-    [class*="menu"] a:contains("EN"),
-    .overlay a:contains("EN"),
-    .modal a:contains("EN") {
+    [class*="menu"] span:only-child:contains("EN"),
+    .overlay span:only-child:contains("EN"),
+    .modal span:only-child:contains("EN") {
       color: #70744E !important;
     }
   `;
   document.head.appendChild(fixStyles);
   
-  // Add a special fix for :contains which doesn't exist in CSS
+  // Add a special fix for language selectors that dynamically load
   try {
-    // Create a stylesheet for JavaScript-based dynamic rules
-    const dynamicSheet = document.createElement('style');
-    document.head.appendChild(dynamicSheet);
-    
     // Use JavaScript to find and fix all black EN links
     function fixBlackENLinks() {
       document.querySelectorAll('a, span, div').forEach(el => {
