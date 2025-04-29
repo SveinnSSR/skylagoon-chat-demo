@@ -9,6 +9,7 @@
  * 3. Logo alignment issues in the booking flow
  * 
  * Created: April 2025
+ * Last updated: April 29, 2025
  */
 (function() {
   console.log('Sky Lagoon Website Fix Script Loaded');
@@ -38,8 +39,8 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Fix booking logo alignment
-    document.querySelectorAll('img[src*="booking-logo"], img[src*="logo-skylagoon"], .header img').forEach(logo => {
+    // Fix 4: Fix ONLY booking page logo alignment - with very specific selector
+    document.querySelectorAll('.checkout-header img[src*="logo"], img[alt*="Sky Lagoon"][src*="logo"]').forEach(logo => {
       if (logo.parentElement) {
         logo.parentElement.style.textAlign = 'center';
       }
@@ -47,15 +48,26 @@
       logo.style.display = 'inline-block';
     });
     
-    // Fix 5: VERY targeted language selector color fix - ONLY for side menu
-    // Only target the overlay/side menu context where "EN" was black
+    // Fix 5: VERY targeted language selector color fix - ONLY for side menu black EN text
     document.querySelectorAll('.overlay a, .side-menu a, [role="dialog"] a, .drawer a, .modal a').forEach(link => {
-      if ((link.textContent.trim() === 'EN' || 
-           link.textContent.trim() === 'IS / EN' ||
-           link.textContent.includes('EN')) && 
+      if ((link.textContent.trim() === 'EN' || link.textContent.includes('EN')) && 
           getComputedStyle(link).color === 'rgb(0, 0, 0)') {  // Only fix if it's black
         link.style.color = '#70744E'; // Sky Lagoon green color
       }
+    });
+    
+    // Fix 6: Restore original text alignment on main content headings
+    document.querySelectorAll('.hero-text-header, .experience-header, .ritual-header, h1.left-aligned, h1 + p').forEach(el => {
+      el.style.textAlign = 'left';
+    });
+    
+    // Fix 7: Ensure TripAdvisor logo stays centered
+    document.querySelectorAll('img[src*="tripadvisor"], img[alt*="tripadvisor"]').forEach(logo => {
+      if (logo.parentElement) {
+        logo.parentElement.style.textAlign = 'center';
+      }
+      logo.style.margin = '0 auto';
+      logo.style.display = 'block';
     });
     
     // Look for elements with bottom-margin-none and override if not in our widget
@@ -183,14 +195,34 @@
       margin-bottom: 1rem !important;
     }
     
-    /* Logo alignment */
-    .header img, [class*="header"] img[src*="logo"] {
+    /* BOOKING PAGE Logo alignment ONLY - much more specific selector */
+    .checkout-header img[src*="logo"], 
+    img[alt*="Sky Lagoon"][src*="logo"] {
       margin: 0 auto !important;
       display: inline-block !important;
     }
     
-    .header, [class*="header"] {
-      text-align: center !important;
+    /* Ensure headers on experience and ritual pages stay left-aligned */
+    .hero-text-header, 
+    .experience-header, 
+    .ritual-header,
+    h1.left-aligned,
+    h1 + p {
+      text-align: left !important;
+    }
+    
+    /* Keep TripAdvisor logo centered */
+    img[src*="tripadvisor"], 
+    img[alt*="tripadvisor"] {
+      margin: 0 auto !important;
+      display: block !important;
+    }
+    
+    /* Specific fix for sidebar menu EN language selector when it's black */
+    .overlay a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]),
+    .modal a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]),
+    .side-menu a[href*="/en"]:not([style*="color: rgb(255, 255, 255)"]) {
+      color: #70744E !important;
     }
   `;
   document.head.appendChild(fixStyles);
