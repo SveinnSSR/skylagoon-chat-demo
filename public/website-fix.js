@@ -40,19 +40,13 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Fix BOOKING PAGE LOGO alignment - with VERY specific targeting
-    document.querySelectorAll('.checkout-header').forEach(header => {
-      // Center the header container itself
-      header.style.textAlign = 'center';
-      header.style.display = 'flex';
-      header.style.justifyContent = 'center';
-      
-      // Find and center any logos inside it
-      const logos = header.querySelectorAll('img[src*="logo"], img[alt*="Sky Lagoon"]');
-      logos.forEach(logo => {
-        logo.style.margin = '0 auto';
-        logo.style.display = 'block';
-      });
+    // Fix 4: Ultra-targeted booking logo alignment fix
+    document.querySelectorAll('.checkout-header img[src*="logo-skylagoon"], .checkout-header img[src*="booking-logo"]').forEach(logo => {
+      // Use transform-based centering which won't affect layout flow
+      logo.style.position = 'relative';
+      logo.style.left = '50%';
+      logo.style.transform = 'translateX(-50%)';
+      logo.parentElement.style.textAlign = 'center';
     });
     
     // Fix 5: VERY targeted language selector color fix
@@ -242,21 +236,22 @@
       margin-bottom: 1rem !important;
     }
     
-    /* BOOKING PAGE Logo alignment - super specific fix */
-    .checkout-header, header[class*="checkout"], div[class*="booking-header"] {
-      text-align: center !important;
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: 100% !important;
+    /* BOOKING PAGE Logo alignment - ultra specific fix */
+    .checkout-header img[src*="logo-skylagoon"], 
+    .checkout-header img[src*="booking-logo"] {
+      position: relative !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
     }
     
-    .checkout-header img[src*="logo"], 
-    header[class*="checkout"] img,
-    div[class*="booking-header"] img,
-    img[alt*="Sky Lagoon"][src*="logo"] {
-      margin: 0 auto !important;
-      display: block !important;
+    /* Fix loading graphic alignment */
+    .checkout-content img,
+    img[alt*="loading"] {
+      display: inline-block !important;
+      float: none !important;
+      text-align: initial !important;
     }
     
     /* Ensure headers on experience and ritual pages stay left-aligned */
