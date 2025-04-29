@@ -48,6 +48,16 @@
       logo.style.display = 'inline-block';
     });
     
+    // Fix 5: Restore language selector colors
+    document.querySelectorAll('a[href*="/en"], a[href*="en"]').forEach(link => {
+      // Only affect links that are marked as language selectors
+      if (link.closest('[class*="language"]') || 
+          link.parentElement.querySelector('a[href*="/is"]') ||
+          link.textContent.trim() === 'EN') {
+        link.style.color = '#70744E'; // Sky Lagoon green color
+      }
+    });
+    
     // Look for elements with bottom-margin-none and override if not in our widget
     document.querySelectorAll('[class*="bottom-margin-none"]').forEach(el => {
       if (!el.closest('.sky-lagoon-chat-widget')) {
@@ -146,6 +156,25 @@
     body .social-links li {
       display: inline-block !important;
       list-style-type: none !important;
+    }
+    
+    /* Fix for pagination dots at bottom of booking page */
+    [role="tablist"] li,
+    .dots li,
+    .pagination-dots li,
+    [class*="slider"] li,
+    [class*="carousel"] li,
+    [class*="indicators"] li,
+    [class*="pagination"] li,
+    [class*="dots"] li,
+    [class*="step"] li {
+      display: inline-block !important;
+      list-style-type: none !important;
+    }
+    
+    /* Fix for language selector color */
+    a[href*="/en"], a[href*="en"] {
+      color: #70744E !important;
     }
     
     /* Fix margins */
