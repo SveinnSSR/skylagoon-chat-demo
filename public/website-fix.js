@@ -40,13 +40,26 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Ultra-targeted booking logo alignment fix
-    document.querySelectorAll('.checkout-header img[src*="logo-skylagoon"], .checkout-header img[src*="booking-logo"]').forEach(logo => {
-      // Use transform-based centering which won't affect layout flow
-      logo.style.position = 'relative';
-      logo.style.left = '50%';
-      logo.style.transform = 'translateX(-50%)';
-      logo.parentElement.style.textAlign = 'center';
+    // Fix 4: Super-targeted booking logo fix - directly targeting the exact element we see in dev tools
+    document.querySelectorAll('img[src*="booking-logo-mobile.svg"], .header img[src*="logo"]').forEach(logo => {
+      // Find the header container
+      const header = logo.closest('.header') || logo.closest('[class*="header"]');
+      if (header) {
+        // Make the header itself center-aligned
+        header.style.justifyContent = 'center';
+        header.style.textAlign = 'center';
+        
+        // Handle the anchor tag if present
+        const anchor = logo.parentElement && logo.parentElement.tagName === 'A' ? logo.parentElement : null;
+        if (anchor) {
+          anchor.style.display = 'inline-block';
+          anchor.style.margin = '0 auto';
+        }
+        
+        // Style the logo itself
+        logo.style.margin = '0 auto';
+        logo.style.display = 'inline-block';
+      }
     });
     
     // Fix 5: VERY targeted language selector color fix
@@ -236,14 +249,28 @@
       margin-bottom: 1rem !important;
     }
     
-    /* BOOKING PAGE Logo alignment - ultra specific fix */
-    .checkout-header img[src*="logo-skylagoon"], 
-    .checkout-header img[src*="booking-logo"] {
-      position: relative !important;
-      left: 50% !important;
-      transform: translateX(-50%) !important;
-      margin-left: auto !important;
-      margin-right: auto !important;
+    /* SUPER-TARGETED BOOKING PAGE Logo alignment */
+    .header img[src*="booking-logo-mobile.svg"],
+    .header img[src*="logo"],
+    [class*="header"] img[src*="logo"] {
+      display: block !important;
+      margin: 0 auto !important;
+    }
+    
+    /* Target the direct parent of the booking logo */
+    .header a[title="Home"],
+    [class*="header"] a[title="Home"] {
+      display: block !important;
+      margin: 0 auto !important;
+      text-align: center !important;
+    }
+    
+    /* Target the header itself */
+    .header, [class*="header"] {
+      justify-content: center !important;
+      text-align: center !important;
+      display: flex !important;
+      align-items: center !important;
     }
     
     /* Fix loading graphic alignment */
