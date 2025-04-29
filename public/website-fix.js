@@ -4,16 +4,12 @@
  * This script fixes styling issues caused by CSS interactions between
  * the Sky Lagoon chat widget and the main website. Specifically, it addresses:
  * 
- * 1. List bullets and numbers not displaying properly
+ * 1. List bullets and numbers not displaying properly in content areas
  * 2. Paragraph and heading margins being removed
  * 3. Logo alignment issues in the booking flow
  * 
- * The script uses direct DOM manipulation and targeted CSS to restore
- * proper styling without affecting the chat widget functionality.
- * 
  * Created: April 2025
  */
-
 (function() {
   console.log('Sky Lagoon Website Fix Script Loaded');
   
@@ -21,22 +17,13 @@
   function applyWebsiteFixes() {
     console.log('Applying website fixes');
     
-    // Fix 1: Restore list bullets and numbering
-    document.querySelectorAll('ul:not(.sky-lagoon-chat-widget ul)').forEach(ul => {
-      ul.style.listStyleType = 'disc';
-      ul.style.paddingLeft = '2em';
+    // Fix 1: Restore list bullets and numbering, but ONLY for content areas
+    // Content lists are usually inside .strip-content, article, main, or sections with text
+    document.querySelectorAll('.strip-content ul, article ul, main ul, .terms-content ul, .strip-content ol, article ol, main ol, .terms-content ol').forEach(list => {
+      list.style.listStyleType = list.tagName === 'UL' ? 'disc' : 'decimal';
+      list.style.paddingLeft = '2em';
       
-      ul.querySelectorAll('li').forEach(li => {
-        li.style.display = 'list-item';
-        li.style.position = 'relative';
-      });
-    });
-    
-    document.querySelectorAll('ol:not(.sky-lagoon-chat-widget ol)').forEach(ol => {
-      ol.style.listStyleType = 'decimal';
-      ol.style.paddingLeft = '2em';
-      
-      ol.querySelectorAll('li').forEach(li => {
+      list.querySelectorAll('li').forEach(li => {
         li.style.display = 'list-item';
         li.style.position = 'relative';
       });
@@ -103,28 +90,62 @@
   const fixStyles = document.createElement('style');
   fixStyles.id = 'sky-lagoon-fixes';
   fixStyles.textContent = `
-    /* High priority fixes */
-    body ul:not(.sky-lagoon-chat-widget ul) {
+    /* High priority fixes - now more targeted to content areas only */
+    body .strip-content ul:not(.sky-lagoon-chat-widget ul),
+    body article ul:not(.sky-lagoon-chat-widget ul),
+    body main ul:not(.sky-lagoon-chat-widget ul),
+    body .terms-content ul:not(.sky-lagoon-chat-widget ul) {
       list-style-type: disc !important;
       padding-left: 2em !important;
     }
     
-    body ol:not(.sky-lagoon-chat-widget ol) {
+    body .strip-content ol:not(.sky-lagoon-chat-widget ol),
+    body article ol:not(.sky-lagoon-chat-widget ol),
+    body main ol:not(.sky-lagoon-chat-widget ol),
+    body .terms-content ol:not(.sky-lagoon-chat-widget ol) {
       list-style-type: decimal !important;
       padding-left: 2em !important;
     }
     
-    body ul:not(.sky-lagoon-chat-widget ul) li,
-    body ol:not(.sky-lagoon-chat-widget ol) li {
+    body .strip-content ul:not(.sky-lagoon-chat-widget ul) li,
+    body article ul:not(.sky-lagoon-chat-widget ul) li,
+    body main ul:not(.sky-lagoon-chat-widget ul) li,
+    body .terms-content ul:not(.sky-lagoon-chat-widget ul) li,
+    body .strip-content ol:not(.sky-lagoon-chat-widget ol) li,
+    body article ol:not(.sky-lagoon-chat-widget ol) li,
+    body main ol:not(.sky-lagoon-chat-widget ol) li,
+    body .terms-content ol:not(.sky-lagoon-chat-widget ol) li {
       display: list-item !important;
       position: relative !important;
     }
     
-    /* Remove any ::before pseudo elements on list items that might be interfering */
-    body ul:not(.sky-lagoon-chat-widget ul) li::before,
-    body ol:not(.sky-lagoon-chat-widget ol) li::before {
-      display: none !important;
-      content: none !important;
+    /* Explicitly REMOVE bullets from navigation and UI elements */
+    body nav ul, 
+    body footer ul, 
+    body .pagination ul,
+    body header ul,
+    body .nav-bar ul,
+    body [class*="language"] ul,
+    body [class*="menu"] ul,
+    body [role="navigation"] ul,
+    body [class*="switcher"] ul,
+    body .social-links ul {
+      list-style-type: none !important;
+      padding-left: 0 !important;
+    }
+    
+    body nav li, 
+    body footer li, 
+    body .pagination li,
+    body header li,
+    body .nav-bar li,
+    body [class*="language"] li,
+    body [class*="menu"] li,
+    body [role="navigation"] li,
+    body [class*="switcher"] li,
+    body .social-links li {
+      display: inline-block !important;
+      list-style-type: none !important;
     }
     
     /* Fix margins */
