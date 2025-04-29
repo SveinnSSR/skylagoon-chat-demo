@@ -7,6 +7,7 @@
  * 1. List bullets and numbers not displaying properly in content areas
  * 2. Paragraph and heading margins being removed
  * 3. Logo alignment issues in the booking flow
+ * 4. Language selector color issues
  * 
  * Created: April 2025
  */
@@ -18,7 +19,6 @@
     console.log('Applying website fixes');
     
     // Fix 1: Restore list bullets and numbering, but ONLY for content areas
-    // Content lists are usually inside .strip-content, article, main, or sections with text
     document.querySelectorAll('.strip-content ul, article ul, main ul, .terms-content ul, .strip-content ol, article ol, main ol, .terms-content ol').forEach(list => {
       list.style.listStyleType = list.tagName === 'UL' ? 'disc' : 'decimal';
       list.style.paddingLeft = '2em';
@@ -48,13 +48,23 @@
       logo.style.display = 'inline-block';
     });
     
-    // Fix 5: Restore language selector colors
-    document.querySelectorAll('a[href*="/en"], a[href*="en"]').forEach(link => {
-      // Only affect links that are marked as language selectors
-      if (link.closest('[class*="language"]') || 
-          link.parentElement.querySelector('a[href*="/is"]') ||
-          link.textContent.trim() === 'EN') {
-        link.style.color = '#70744E'; // Sky Lagoon green color
+    // Fix 5: More aggressive language selector color fix
+    // Target ALL instances of "EN" text in links or spans, regardless of context
+    document.querySelectorAll('a, span, div').forEach(el => {
+      if (el.textContent.trim() === 'EN' || 
+          el.textContent.trim() === 'IS / EN' ||
+          (el.textContent.trim().includes('EN') && el.textContent.trim().length < 10)) {
+        el.style.color = '#70744E'; // Sky Lagoon green color
+        
+        // Force inline style with !important equivalent
+        const originalColor = el.style.color;
+        el.setAttribute('style', el.getAttribute('style') + '; color: #70744E !important;');
+        
+        // Also process any child elements
+        el.querySelectorAll('*').forEach(child => {
+          child.style.color = '#70744E';
+          child.setAttribute('style', child.getAttribute('style') + '; color: #70744E !important;');
+        });
       }
     });
     
@@ -172,8 +182,23 @@
       list-style-type: none !important;
     }
     
-    /* Fix for language selector color */
-    a[href*="/en"], a[href*="en"] {
+    /* Super aggressive fix for language selector color - target all possible instances */
+    a[href*="/en"], 
+    a[href*="en"],
+    span:contains("EN"),
+    [class*="language"] *,
+    [class*="lang"] *,
+    [class*="menu"] a,
+    nav a {
+      color: #70744E !important;
+    }
+
+    /* Additional rule for the specific side menu scenario */
+    .modal *, 
+    .overlay *, 
+    .side-menu *, 
+    .drawer *, 
+    [role="dialog"] * {
       color: #70744E !important;
     }
     
