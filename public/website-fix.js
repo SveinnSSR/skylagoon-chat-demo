@@ -126,6 +126,15 @@
       display: block !important;
     }
     
+    /* Fix 8: Black EN language selector color fix - more specific */
+    .side-menu a[href*="/en"],
+    .hamburger-menu a[href*="/en"],
+    .modal a[href*="/en"],
+    .overlay a[href*="/en"],
+    [role="dialog"] a[href*="/en"] {
+      color: #70744E !important; /* Sky Lagoon green color */
+    }
+    
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
     img.content-icon.mb-3, 
     img[src*="icon-sun.svg"],
@@ -142,92 +151,38 @@
     }
     
     /* Parent containers for sun icon */
+    div:has(> img.content-icon.mb-3),
+    div:has(> img[src*="icon-sun.svg"]),
     div.hero-image,
     .strip-container,
     .col-lg-12 {
       text-align: center !important;
     }
-    
-    /* SUPER AGGRESSIVE fix for EN text in the menu */
-    a[href*="/en"],
-    span:only-child:contains("EN"),
-    a:contains("EN"),
-    span:contains("EN") {
-      color: #70744E !important;
-    }
   `;
   document.head.appendChild(fixStyles);
   
-  // Handle the black EN text with a more targeted approach
-  function fixBlackENText() {
-    // Target elements that contain exactly "EN" or "IS / EN" text
-    const possibleElements = [
-      ...document.querySelectorAll('a'),
-      ...document.querySelectorAll('span')
-    ];
-    
-    possibleElements.forEach(el => {
-      // Very specific targeting for the menu language switcher
-      if (el.textContent.trim() === 'EN' || 
-          el.textContent.trim() === 'IS / EN' || 
-          el.textContent.includes('/ EN')) {
-        
-        const style = window.getComputedStyle(el);
-        // Check if it's black or dark (covers various black color formats)
-        if (style.color === 'rgb(0, 0, 0)' || 
-            style.color === '#000' || 
-            style.color === 'black' ||
-            style.color.startsWith('rgba(0, 0, 0')) {
-          
-          // Force green color
-          el.style.color = '#70744E !important';
-          el.setAttribute('style', el.getAttribute('style') + '; color: #70744E !important');
-          
-          // If it contains both IS and EN, try to wrap just the EN part
-          if (el.textContent.includes('IS / EN')) {
-            try {
-              el.innerHTML = el.innerHTML.replace(
-                /EN/g, 
-                '<span style="color: #70744E !important;">EN</span>'
-              );
-            } catch (e) {
-              // Fallback - color the whole thing
-              el.style.color = '#70744E';
-            }
-          }
+  // Targeted, lightweight JS for black EN text
+  function applyLightweightFixes() {
+    // More aggressive fix for black EN text
+    setTimeout(() => {
+      // Target all possible containers that might have the black EN text
+      document.querySelectorAll('a, span').forEach(el => {
+        // Only check visible elements with "EN" text that are black
+        if ((el.textContent.trim() === 'EN' || el.textContent.trim() === 'IS / EN') && 
+            window.getComputedStyle(el).color === 'rgb(0, 0, 0)') {
+          el.style.color = '#70744E'; // Sky Lagoon green color
         }
-      }
-    });
+      });
+    }, 500);
   }
   
-  // More aggressive approach - run multiple times with increasing delays
-  // This catches elements that might load dynamically
-  fixBlackENText();
-  setTimeout(fixBlackENText, 500);
-  setTimeout(fixBlackENText, 1000);
-  setTimeout(fixBlackENText, 2000);
+  // Apply fixes after page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyLightweightFixes);
+  } else {
+    applyLightweightFixes();
+  }
   
-  // Set up a very simple, lightweight mutation observer ONLY for the menu area
-  // This is much lighter than watching the whole document
-  setTimeout(() => {
-    try {
-      const menuElements = document.querySelectorAll('.overlay, .modal, .side-menu, [role="dialog"]');
-      if (menuElements.length > 0) {
-        const observer = new MutationObserver(() => {
-          fixBlackENText();
-        });
-        
-        menuElements.forEach(menu => {
-          observer.observe(menu, { 
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['style', 'class']
-          });
-        });
-      }
-    } catch (e) {
-      console.error('Menu observer setup failed, falling back to timed checks');
-    }
-  }, 1000);
+  // One additional delayed application to catch any late-loading elements
+  setTimeout(applyLightweightFixes, 1000);
 })();
