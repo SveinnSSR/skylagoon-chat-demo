@@ -155,6 +155,15 @@
       color: #70744E !important; /* Sky Lagoon green color */
     }
     
+    /* Fix 9: Keep "Required Field" text left-aligned */
+    .fs-xs.fw-bold.text-moss.px-3,
+    div[class*="fs-xs"][class*="fw-bold"][class*="text-moss"],
+    div:has(> span:contains("Required Field")),
+    div:contains("Required Field") {
+      text-align: left !important;
+      justify-content: flex-start !important;
+    }
+    
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
     img.content-icon.mb-3, 
     img[src*="icon-sun.svg"],
@@ -207,6 +216,21 @@
       // Get parent container and set its alignment too
       if (logoLink.parentElement) {
         logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
+      }
+    });
+    
+    // Fix 3: Required Field text alignment
+    document.querySelectorAll('.fs-xs, div[class*="fs-xs"]').forEach(el => {
+      if (el.textContent.includes('Required Field')) {
+        el.style.setProperty('text-align', 'left', 'important');
+        el.style.setProperty('justify-content', 'flex-start', 'important');
+        
+        // Also try to fix parent elements if needed
+        let parent = el.parentElement;
+        if (parent) {
+          parent.style.setProperty('text-align', 'left', 'important');
+          parent.style.setProperty('justify-content', 'flex-start', 'important');
+        }
       }
     });
   }
