@@ -126,7 +126,12 @@
       display: block !important;
     }
     
-    /* Fix 8: Black EN language selector color fix - more specific */
+    /* Fix 8: ULTRA-SPECIFIC Black EN language selector color fix based on dev tools */
+    .cultures-list a.active[href="/en"],
+    ul.cultures-list li a[href="/en"],
+    a[aria-label="EN"],
+    a[href="/en"],
+    .navbar a[href="/en"],
     .side-menu a[href*="/en"],
     .hamburger-menu a[href*="/en"],
     .modal a[href*="/en"],
@@ -164,16 +169,10 @@
   // Targeted, lightweight JS for black EN text
   function applyLightweightFixes() {
     // More aggressive fix for black EN text
-    setTimeout(() => {
-      // Target all possible containers that might have the black EN text
-      document.querySelectorAll('a, span').forEach(el => {
-        // Only check visible elements with "EN" text that are black
-        if ((el.textContent.trim() === 'EN' || el.textContent.trim() === 'IS / EN') && 
-            window.getComputedStyle(el).color === 'rgb(0, 0, 0)') {
-          el.style.color = '#70744E'; // Sky Lagoon green color
-        }
-      });
-    }, 500);
+    document.querySelectorAll('a[href="/en"], a[aria-label="EN"], ul.cultures-list a, ul.cultures-list li a').forEach(el => {
+      // Apply green color directly to the exact element we identified in developer tools
+      el.style.setProperty('color', '#70744E', 'important');
+    });
   }
   
   // Apply fixes after page load
