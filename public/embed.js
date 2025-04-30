@@ -232,108 +232,82 @@
   // Full absolute URL to widget bundle
   const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
   
-  // NEW CODE START - Load website fixes script before widget bundle
-  console.log('Loading website fixes script from:', baseUrl);
-  const fixScript = document.createElement('script');
-  fixScript.src = `${baseUrl}/website-fix.js`;
-  fixScript.crossOrigin = 'anonymous';
+  // Load the widget bundle
+  const script = document.createElement('script');
+  script.src = scriptUrl;
+  script.crossOrigin = 'anonymous'; // Add CORS attribute
   
-  // Add error handling
-  fixScript.onerror = function(error) {
-    console.error('Failed to load website fixes script:', error);
-    // Continue loading the widget even if fix script fails
-    loadWidgetBundle();
+  script.onerror = function(error) {
+    console.error('Failed to load widget bundle:', error);
+    container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
   };
   
-  // On successful load, proceed to load widget bundle
-  fixScript.onload = function() {
-    console.log('Website fixes script loaded successfully');
-    loadWidgetBundle();
-  };
-  
-  // Start loading the fixes script
-  document.head.appendChild(fixScript);
-  
-  // Function to load the widget bundle (extracted for reuse)
-  function loadWidgetBundle() {
-    // Load the widget bundle
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.crossOrigin = 'anonymous'; // Add CORS attribute
-    
-    script.onerror = function(error) {
-      console.error('Failed to load widget bundle:', error);
-      container.innerHTML = '<div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px;">Widget failed to load. Please try again later.</div>';
-    };
-    
-    script.onload = function() {
-      setTimeout(function() {
-        try {
-          if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
-            // Store a reference to the widget API
-            const widgetAPI = window.SkyLagoonChat.default.init(container, {
-              apiKey: 'sky-lagoon-secret-2024',
-              language: isIcelandic ? 'is' : 'en',
-              baseUrl: baseUrl
+  script.onload = function() {
+    setTimeout(function() {
+      try {
+        if (window.SkyLagoonChat && window.SkyLagoonChat.default) {
+          // Store a reference to the widget API
+          const widgetAPI = window.SkyLagoonChat.default.init(container, {
+            apiKey: 'sky-lagoon-secret-2024',
+            language: isIcelandic ? 'is' : 'en',
+            baseUrl: baseUrl
+          });
+          
+          // Position speech bubble relative to the chat icon (with a slight delay to ensure DOM is ready)
+          setTimeout(() => {
+            positionSpeechBubble();
+          }, 200);
+          
+          // Hide speech bubble when chat is opened
+          container.addEventListener('click', function() {
+            speechBubble.style.display = 'none';
+          });
+          
+          // Store API for potential use later
+          window.SkyLagoonChatAPI = widgetAPI;
+          
+          // Add window resize listener to update bubble position
+          window.addEventListener('resize', positionSpeechBubble);
+          
+          // Set up language listeners
+          const languageButtons = document.querySelectorAll('a[href*="/is"], a[href="/"], .language-selector a');
+          languageButtons.forEach(button => {
+            button.addEventListener('click', () => {
+              // Wait for page to update
+              setTimeout(updateWidgetLanguage, 300);
             });
-            
-            // Position speech bubble relative to the chat icon (with a slight delay to ensure DOM is ready)
-            setTimeout(() => {
-              positionSpeechBubble();
-            }, 200);
-            
-            // Hide speech bubble when chat is opened
-            container.addEventListener('click', function() {
-              speechBubble.style.display = 'none';
-            });
-            
-            // Store API for potential use later
-            window.SkyLagoonChatAPI = widgetAPI;
-            
-            // Add window resize listener to update bubble position
-            window.addEventListener('resize', positionSpeechBubble);
-            
-            // Set up language listeners
-            const languageButtons = document.querySelectorAll('a[href*="/is"], a[href="/"], .language-selector a');
-            languageButtons.forEach(button => {
-              button.addEventListener('click', () => {
-                // Wait for page to update
-                setTimeout(updateWidgetLanguage, 300);
-              });
-            });
-            
-            // Watch for URL changes
-            let lastPathname = window.location.pathname;
-            setInterval(() => {
-              if (window.location.pathname !== lastPathname) {
-                lastPathname = window.location.pathname;
+          });
+          
+          // Watch for URL changes
+          let lastPathname = window.location.pathname;
+          setInterval(() => {
+            if (window.location.pathname !== lastPathname) {
+              lastPathname = window.location.pathname;
+              updateWidgetLanguage();
+            }
+          }, 1000);
+          
+          // Watch for lang attribute changes on HTML element
+          const htmlObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.attributeName === 'lang') {
                 updateWidgetLanguage();
               }
-            }, 1000);
-            
-            // Watch for lang attribute changes on HTML element
-            const htmlObserver = new MutationObserver((mutations) => {
-              mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'lang') {
-                  updateWidgetLanguage();
-                }
-              });
             });
-            htmlObserver.observe(document.documentElement, { attributes: true });
-            
-            // Initial language detection
-            updateWidgetLanguage();
-            
-          } else {
-            console.error('SkyLagoonChat not found on window after loading');
-          }
-        } catch (e) {
-          console.error('Error initializing chat widget:', e);
+          });
+          htmlObserver.observe(document.documentElement, { attributes: true });
+          
+          // Initial language detection
+          updateWidgetLanguage();
+          
+        } else {
+          console.error('SkyLagoonChat not found on window after loading');
         }
-      }, 100); // Small delay to ensure everything is loaded
-    };
-    
-    document.head.appendChild(script);
-  }
-  // NEW CODE END
+      } catch (e) {
+        console.error('Error initializing chat widget:', e);
+      }
+    }, 100); // Small delay to ensure everything is loaded
+  };
+  
+  document.head.appendChild(script);
 })();
