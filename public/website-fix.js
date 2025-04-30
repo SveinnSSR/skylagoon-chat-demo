@@ -155,20 +155,13 @@
       color: #70744E !important; /* Sky Lagoon green color */
     }
     
-    /* Fix 9: ENHANCED Required Field text alignment with more specific selectors */
+    /* Fix 9: Keep "Required Field" text left-aligned */
     .fs-xs.fw-bold.text-moss.px-3,
     div[class*="fs-xs"][class*="fw-bold"][class*="text-moss"],
-    div[class*="fs-xs"][class*="text-moss"],
-    div[class*="required-field"],
     div:has(> span:contains("Required Field")),
-    .booking-info div[class*="fs-xs"],
-    .guest-info div[class*="fs-xs"],
-    .booking-cards div[class*="fs-xs"],
-    .fs-xs.text-moss,
-    .text-center.py-2.fs-xs {
+    div:contains("Required Field") {
       text-align: left !important;
       justify-content: flex-start !important;
-      align-items: flex-start !important;
     }
     
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
@@ -225,83 +218,30 @@
         logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
       }
     });
-  }
-  
-  // Dedicated function just for Required Field text
-  function fixRequiredFieldText() {
-    // Target various elements that might contain the Required Field text
-    const possibleSelectors = [
-      '.fs-xs.fw-bold.text-moss',
-      '.fs-xs.text-moss',
-      '.text-center.py-2',
-      'div[class*="fs-xs"]'
-    ];
     
-    // Try each selector
-    possibleSelectors.forEach(selector => {
-      document.querySelectorAll(selector).forEach(el => {
-        if (el.textContent && el.textContent.includes('Required Field')) {
-          // Fix this element
-          el.style.setProperty('text-align', 'left', 'important');
-          el.style.setProperty('justify-content', 'flex-start', 'important');
-          
-          // Also try parent elements
-          let parent = el.parentElement;
-          if (parent) {
-            parent.style.setProperty('text-align', 'left', 'important');
-            parent.style.setProperty('justify-content', 'flex-start', 'important');
-          }
+    // Fix 3: Required Field text alignment
+    document.querySelectorAll('.fs-xs, div[class*="fs-xs"]').forEach(el => {
+      if (el.textContent.includes('Required Field')) {
+        el.style.setProperty('text-align', 'left', 'important');
+        el.style.setProperty('justify-content', 'flex-start', 'important');
+        
+        // Also try to fix parent elements if needed
+        let parent = el.parentElement;
+        if (parent) {
+          parent.style.setProperty('text-align', 'left', 'important');
+          parent.style.setProperty('justify-content', 'flex-start', 'important');
         }
-      });
+      }
     });
   }
   
-  // Apply general fixes
+  // Apply fixes after page load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyLightweightFixes);
-    document.addEventListener('DOMContentLoaded', fixRequiredFieldText);
   } else {
     applyLightweightFixes();
-    fixRequiredFieldText();
   }
   
-  // Initial delayed applications
-  setTimeout(applyLightweightFixes, 500);
-  setTimeout(fixRequiredFieldText, 500);
-  setTimeout(fixRequiredFieldText, 1000);
-  setTimeout(fixRequiredFieldText, 1500);
-  
-  // Extra checks for booking pages
-  if (window.location.href.includes('/booking/')) {
-    // Apply fixes more frequently on booking pages
-    setTimeout(fixRequiredFieldText, 2000);
-    setTimeout(fixRequiredFieldText, 2500);
-    setTimeout(fixRequiredFieldText, 3000);
-    
-    // Watch for URL changes which occur during booking flow navigation
-    let lastUrl = location.href;
-    setInterval(() => {
-      const url = location.href;
-      if (url !== lastUrl) {
-        lastUrl = url;
-        // URL changed - apply fixes after delays to catch new page content
-        setTimeout(fixRequiredFieldText, 300);
-        setTimeout(fixRequiredFieldText, 800);
-        setTimeout(fixRequiredFieldText, 1500);
-      }
-    }, 500);
-    
-    // Set up a limited-time interval check (stops after 10 seconds)
-    let checkCount = 0;
-    const maxChecks = 20; // Check for 10 seconds max
-    
-    const intervalId = setInterval(() => {
-      fixRequiredFieldText();
-      checkCount++;
-      
-      if (checkCount >= maxChecks) {
-        clearInterval(intervalId); // Stop checking after max attempts
-      }
-    }, 500);
-  }
+  // One additional delayed application to catch any late-loading elements
+  setTimeout(applyLightweightFixes, 1000);
 })();
