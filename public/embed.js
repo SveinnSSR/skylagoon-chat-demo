@@ -1,5 +1,5 @@
 (function() {
-  // FAILSAFE: Set to true to disable the widget completely
+  // FAILSAFE: Set to true to disable the widget completely.
   const WIDGET_DISABLED = false;
   
   // If the widget is disabled, exit immediately
