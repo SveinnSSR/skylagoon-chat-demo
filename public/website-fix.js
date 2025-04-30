@@ -97,17 +97,32 @@
       margin-bottom: 1rem !important;
     }
     
-    /* Fix 5: Booking logo alignment using simpler selectors */
-    .checkout-header img[src*="logo-skylagoon"], 
-    .checkout-header img[src*="booking-logo"],
-    .checkout-header img[src*="booking-logo-mobile.svg"] {
+    /* Fix 5: ULTRA-SPECIFIC Booking logo alignment based on actual DOM structure */
+    .col.text-center a[title="Logo"],
+    .header a[title="Logo"],
+    .col.text-center a[href="/"],
+    div[class*="header"] a[title="Logo"] {
+      display: block !important;
+      text-align: center !important;
+      width: 100% !important;
+    }
+    
+    /* Super specific logo image selectors based on your screenshots */
+    img[src*="booking-logo-dark.svg"],
+    img[src*="logo-white.svg"],
+    img[src*="booking-logo-mobile.svg"],
+    .col.text-center img[alt*="Logo"],
+    .header img[alt*="Logo"] {
       display: block !important;
       margin-left: auto !important;
       margin-right: auto !important;
     }
     
-    /* Target the header itself with a simpler selector */
-    .checkout-header, header[class*="checkout"] {
+    /* Fix the parent containers of the logo */
+    .row.d-none.d-lg-flex,
+    .container-fluid,
+    .header.position-absolute,
+    div[class*="col"].text-center {
       text-align: center !important;
     }
     
@@ -126,7 +141,7 @@
       display: block !important;
     }
     
-    /* Fix 8: ULTRA-SPECIFIC Black EN language selector color fix based on dev tools */
+    /* Fix 8: Black EN language selector color fix - more specific */
     .cultures-list a.active[href="/en"],
     ul.cultures-list li a[href="/en"],
     a[aria-label="EN"],
@@ -166,12 +181,33 @@
   `;
   document.head.appendChild(fixStyles);
   
-  // Targeted, lightweight JS for black EN text
+  // Targeted, lightweight JS for specific fixes
   function applyLightweightFixes() {
-    // More aggressive fix for black EN text
-    document.querySelectorAll('a[href="/en"], a[aria-label="EN"], ul.cultures-list a, ul.cultures-list li a').forEach(el => {
-      // Apply green color directly to the exact element we identified in developer tools
-      el.style.setProperty('color', '#70744E', 'important');
+    // Fix 1: Black EN text fix
+    document.querySelectorAll('a[href="/en"], a[aria-label="EN"], ul.cultures-list a').forEach(el => {
+      if (window.getComputedStyle(el).color === 'rgb(0, 0, 0)') {
+        el.style.setProperty('color', '#70744E', 'important');
+      }
+    });
+    
+    // Fix 2: Booking logo centering (super specific)
+    document.querySelectorAll('a[title="Logo"]').forEach(logoLink => {
+      logoLink.style.setProperty('text-align', 'center', 'important');
+      logoLink.style.setProperty('display', 'block', 'important');
+      logoLink.style.setProperty('width', '100%', 'important');
+      
+      // Get the image inside
+      const logoImg = logoLink.querySelector('img');
+      if (logoImg) {
+        logoImg.style.setProperty('margin-left', 'auto', 'important');
+        logoImg.style.setProperty('margin-right', 'auto', 'important');
+        logoImg.style.setProperty('display', 'block', 'important');
+      }
+      
+      // Get parent container and set its alignment too
+      if (logoLink.parentElement) {
+        logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
+      }
     });
   }
   
