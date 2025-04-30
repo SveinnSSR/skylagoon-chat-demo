@@ -40,26 +40,19 @@
       p.style.marginBottom = '1rem';
     });
     
-    // Fix 4: Super-targeted booking logo fix - directly targeting the exact element we see in dev tools
-    document.querySelectorAll('img[src*="booking-logo-mobile.svg"], .header img[src*="logo"]').forEach(logo => {
-      // Find the header container
-      const header = logo.closest('.header') || logo.closest('[class*="header"]');
-      if (header) {
-        // Make the header itself center-aligned
-        header.style.justifyContent = 'center';
-        header.style.textAlign = 'center';
-        
-        // Handle the anchor tag if present
-        const anchor = logo.parentElement && logo.parentElement.tagName === 'A' ? logo.parentElement : null;
-        if (anchor) {
-          anchor.style.display = 'inline-block';
-          anchor.style.margin = '0 auto';
-        }
-        
-        // Style the logo itself
+    // Fix 4: Fix BOOKING PAGE LOGO alignment - with VERY specific targeting
+    document.querySelectorAll('.checkout-header').forEach(header => {
+      // Center the header container itself
+      header.style.textAlign = 'center';
+      header.style.display = 'flex';
+      header.style.justifyContent = 'center';
+      
+      // Find and center any logos inside it
+      const logos = header.querySelectorAll('img[src*="logo"], img[alt*="Sky Lagoon"]');
+      logos.forEach(logo => {
         logo.style.margin = '0 auto';
-        logo.style.display = 'inline-block';
-      }
+        logo.style.display = 'block';
+      });
     });
     
     // Fix 5: VERY targeted language selector color fix
@@ -249,36 +242,21 @@
       margin-bottom: 1rem !important;
     }
     
-    /* SUPER-TARGETED BOOKING PAGE Logo alignment */
-    .header img[src*="booking-logo-mobile.svg"],
-    .header img[src*="logo"],
-    [class*="header"] img[src*="logo"] {
-      display: block !important;
-      margin: 0 auto !important;
-    }
-    
-    /* Target the direct parent of the booking logo */
-    .header a[title="Home"],
-    [class*="header"] a[title="Home"] {
-      display: block !important;
-      margin: 0 auto !important;
-      text-align: center !important;
-    }
-    
-    /* Target the header itself */
-    .header, [class*="header"] {
-      justify-content: center !important;
+    /* BOOKING PAGE Logo alignment - super specific fix */
+    .checkout-header, header[class*="checkout"], div[class*="booking-header"] {
       text-align: center !important;
       display: flex !important;
+      justify-content: center !important;
       align-items: center !important;
+      width: 100% !important;
     }
     
-    /* Fix loading graphic alignment */
-    .checkout-content img,
-    img[alt*="loading"] {
-      display: inline-block !important;
-      float: none !important;
-      text-align: initial !important;
+    .checkout-header img[src*="logo"], 
+    header[class*="checkout"] img,
+    div[class*="booking-header"] img,
+    img[alt*="Sky Lagoon"][src*="logo"] {
+      margin: 0 auto !important;
+      display: block !important;
     }
     
     /* Ensure headers on experience and ritual pages stay left-aligned */
