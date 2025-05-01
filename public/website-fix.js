@@ -126,13 +126,11 @@
       text-align: center !important;
     }
     
-    /* Fix 6: SUPER TARGETED - Only fix specific pages */
-    body[class*="page-node-16"] h1.display-3,
-    body[class*="page-node-16"] h1 + p,
-    body[class*="ritual"] h1.display-3,
-    body[class*="ritual"] h1 + p,
-    body[class*="experience"] h1.display-3,
-    body[class*="experience"] h1 + p {
+    /* Fix 6: Keep headers on experience and ritual pages left-aligned */
+    .hero-text-header, 
+    .experience-header, 
+    .ritual-header,
+    h1.left-aligned {
       text-align: left !important;
     }
     
@@ -155,12 +153,6 @@
     .overlay a[href*="/en"],
     [role="dialog"] a[href*="/en"] {
       color: #70744E !important; /* Sky Lagoon green color */
-    }
-    
-    /* Fix 9: Required Field text alignment */
-    .fs-xs.fw-bold.text-moss.px-3:contains("Required Field"),
-    div.fs-xs:contains("Required Field") {
-      text-align: left !important;
     }
     
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
@@ -217,32 +209,6 @@
         logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
       }
     });
-    
-    // Fix 3: Required Field text - ONLY on booking pages, ONLY with exactly that text
-    if (window.location.href.includes('/booking/')) {
-      document.querySelectorAll('div.fs-xs').forEach(el => {
-        if (el.textContent && el.textContent.trim() === '* Required Field') {
-          el.style.setProperty('text-align', 'left', 'important');
-          
-          // Also fix parent if needed
-          if (el.parentElement) {
-            el.parentElement.style.setProperty('text-align', 'left', 'important');
-          }
-        }
-      });
-    }
-    
-    // Fix 4: ONLY on specific pages, identify and fix the headers
-    const isRitualOrExperiencePage = window.location.href.includes('/ritual') || 
-                                    window.location.href.includes('/experience') || 
-                                    window.location.href.includes('/skjol');
-    
-    if (isRitualOrExperiencePage) {
-      // Only try to fix the headers on these specific pages
-      document.querySelectorAll('h1.display-3, h1 + p').forEach(el => {
-        el.style.setProperty('text-align', 'left', 'important');
-      });
-    }
   }
   
   // Apply fixes after page load
@@ -252,7 +218,6 @@
     applyLightweightFixes();
   }
   
-  // Apply multiple times with increasing delays to catch dynamic changes
-  setTimeout(applyLightweightFixes, 500);
+  // One additional delayed application to catch any late-loading elements
   setTimeout(applyLightweightFixes, 1000);
 })();
