@@ -126,12 +126,23 @@
       text-align: center !important;
     }
     
-    /* Fix 6: Keep headers on experience and ritual pages left-aligned */
+    /* Fix 6: ENHANCED - Keep headers on experience and ritual pages left-aligned */
     .hero-text-header, 
     .experience-header, 
     .ritual-header,
-    h1.left-aligned {
+    h1.left-aligned,
+    h1.display-3,
+    .display-3,
+    h1 + p,
+    .strip-container h1,
+    .strip-container .h1,
+    .strip-skjol h1,
+    .strip h1,
+    [class*="hero-text"] h1,
+    [class*="hero-text"] .h1,
+    [class*="hero-text"] p {
       text-align: left !important;
+      justify-content: flex-start !important;
     }
     
     /* Fix 7: Keep TripAdvisor logo centered */
@@ -153,6 +164,15 @@
     .overlay a[href*="/en"],
     [role="dialog"] a[href*="/en"] {
       color: #70744E !important; /* Sky Lagoon green color */
+    }
+    
+    /* Fix 9: Required Field text alignment */
+    .fs-xs.fw-bold.text-moss.px-3,
+    div[class*="fs-xs"][class*="fw-bold"][class*="text-moss"],
+    div[class*="text-center"][class*="py-2"],
+    div[class*="fs-xs"] {
+      text-align: left !important;
+      justify-content: flex-start !important;
     }
     
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
@@ -209,6 +229,26 @@
         logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
       }
     });
+    
+    // Fix 3: Skjól Ritual and Experience page headers
+    document.querySelectorAll('h1.display-3, .display-3, [class*="hero-text"] h1, [class*="hero-text"] p').forEach(el => {
+      el.style.setProperty('text-align', 'left', 'important');
+      el.style.setProperty('justify-content', 'flex-start', 'important');
+    });
+    
+    // Fix 4: Required Field text
+    document.querySelectorAll('div').forEach(el => {
+      if (el.textContent && el.textContent.includes('Required Field')) {
+        el.style.setProperty('text-align', 'left', 'important');
+        el.style.setProperty('justify-content', 'flex-start', 'important');
+        
+        // Also fix parent container if needed
+        if (el.parentElement) {
+          el.parentElement.style.setProperty('text-align', 'left', 'important');
+          el.parentElement.style.setProperty('justify-content', 'flex-start', 'important');
+        }
+      }
+    });
   }
   
   // Apply fixes after page load
@@ -218,6 +258,15 @@
     applyLightweightFixes();
   }
   
-  // One additional delayed application to catch any late-loading elements
+  // Apply multiple times with increasing delays to catch dynamic changes
+  setTimeout(applyLightweightFixes, 500);
   setTimeout(applyLightweightFixes, 1000);
+  
+  // Only on booking and experience pages, add extra checks
+  if (window.location.href.includes('/booking/') || 
+      window.location.href.includes('/experience/') || 
+      window.location.href.includes('/ritual/')) {
+    setTimeout(applyLightweightFixes, 1500);
+    setTimeout(applyLightweightFixes, 2000);
+  }
 })();
