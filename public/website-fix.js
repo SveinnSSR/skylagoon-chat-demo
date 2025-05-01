@@ -126,11 +126,10 @@
       text-align: center !important;
     }
     
-    /* Fix 6: Keep headers on experience and ritual pages left-aligned */
-    .hero-text-header, 
-    .experience-header, 
-    .ritual-header,
-    h1.left-aligned {
+    /* Fix 6: HIGHLY TARGETED fix for Skjól Ritual and Experience pages ONLY */
+    /* Target exactly the display-3 headings on these specific pages */
+    .skylagoon-site div[class*="hero-text-inner"] h1.display-3,
+    .skylagoon-site div[class*="hero-text-inner"] p {
       text-align: left !important;
     }
     
@@ -209,6 +208,23 @@
         logoLink.parentElement.style.setProperty('text-align', 'center', 'important');
       }
     });
+    
+    // Fix 3: Highly targeted fix for Skjól Ritual and Experience page headers
+    // Only run this code on pages that have these specific headers
+    const ritualHeaders = document.querySelectorAll('.hero-text-inner h1.display-3');
+    if (ritualHeaders.length > 0) {
+      ritualHeaders.forEach(header => {
+        header.style.setProperty('text-align', 'left', 'important');
+        
+        // Also fix nearby paragraphs
+        const parentContainer = header.closest('.hero-text-inner');
+        if (parentContainer) {
+          parentContainer.querySelectorAll('p').forEach(p => {
+            p.style.setProperty('text-align', 'left', 'important');
+          });
+        }
+      });
+    }
   }
   
   // Apply fixes after page load
