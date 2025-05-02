@@ -5,7 +5,7 @@
  * the Sky Lagoon chat widget and the main website, optimized for mobile.
  * 
  * Created: April 2025
- * Last updated: April 30, 2025
+ * Last updated: May 2, 2025
  */
 (function() {
   console.log('Sky Lagoon Mobile-Friendly Website Fix Loaded');
@@ -154,6 +154,14 @@
       color: #70744E !important; /* Sky Lagoon green color */
     }
     
+    /* Fix 9: Required Field text alignment - HIGHLY TARGETED */
+    div.fs-xs.fw-bold.text-moss.px-3,
+    div.fs-xs.fw-bold.text-moss,
+    div[class*="fs-xs"][class*="fw-bold"][class*="text-moss"] {
+      text-align: left !important;
+      justify-content: flex-start !important;
+    }
+    
     /* Fix for the Sun icon (added back from WidgetStandalone.jsx) */
     img.content-icon.mb-3, 
     img[src*="icon-sun.svg"],
@@ -225,6 +233,21 @@
         }
       });
     }
+    
+    // Fix 4: Required Field text in booking flow - HIGHLY TARGETED
+    // This specifically finds elements with the exact class combination and text content
+    document.querySelectorAll('div.fs-xs.fw-bold.text-moss.px-3, div.fs-xs.fw-bold.text-moss, div[class*="fs-xs"][class*="fw-bold"][class*="text-moss"]').forEach(el => {
+      if (el.textContent && el.textContent.includes('Required Field')) {
+        el.style.setProperty('text-align', 'left', 'important');
+        el.style.setProperty('justify-content', 'flex-start', 'important');
+        
+        // Also fix parent container if needed
+        if (el.parentElement) {
+          el.parentElement.style.setProperty('text-align', 'left', 'important');
+          el.parentElement.style.setProperty('justify-content', 'flex-start', 'important');
+        }
+      }
+    });
   }
   
   // Apply fixes after page load
@@ -234,6 +257,15 @@
     applyLightweightFixes();
   }
   
-  // One additional delayed application to catch any late-loading elements
+  // Apply multiple times with increasing delays to catch dynamic changes
+  // This helps catch elements that might be modified by JavaScript after initial load
+  setTimeout(applyLightweightFixes, 500);
   setTimeout(applyLightweightFixes, 1000);
+  
+  // Additional checks specifically for booking pages to catch late-loading elements
+  if (window.location.href.includes('/booking/')) {
+    setTimeout(applyLightweightFixes, 1500);
+    setTimeout(applyLightweightFixes, 2000);
+    setTimeout(applyLightweightFixes, 2500);
+  }
 })();
