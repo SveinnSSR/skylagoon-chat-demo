@@ -1,128 +1,191 @@
 /**
- * Sky Lagoon Website Element Fixes
+ * Sky Lagoon Website Targeted Element Fix - Lightweight Version
  * 
- * This script directly fixes specific elements on the site without
- * using broad CSS selectors that might affect other elements.
- * 
- * Created: May 2025
- * Last updated: May 3, 2025
+ * This script uses scheduled checks rather than MutationObserver
+ * to avoid performance issues on mobile devices.
  */
 (function() {
-  console.log('Sky Lagoon Targeted Element Fix Loaded');
+  console.log('Sky Lagoon Website Targeted Fix Loaded - Lightweight Version');
   
-  // Widget isolation styles - contained to our widget only
-  const resetStyles = document.createElement('style');
-  resetStyles.id = 'sky-lagoon-widget-reset';
-  resetStyles.textContent = `
-    /* Reset ONLY applies to elements inside our widget */
-    .sky-lagoon-chat-widget {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      box-sizing: border-box;
+  // Add a class to the body to make site-wide selectors easier
+  document.body.classList.add('skylagoon-site');
+  
+  // Create a collection of CSS fixes that are element-specific
+  const cssPatches = document.createElement('style');
+  cssPatches.id = 'sky-lagoon-targeted-fixes';
+  cssPatches.textContent = `
+    /* Only affect specific elements by their exact path - NOT global selectors */
+    
+    /* 1. Booking logo fixes - using parent container paths */
+    .skylagoon-site a[title="Logo"] img {
+      margin-left: auto !important;
+      margin-right: auto !important;
+      display: block !important;
     }
     
-    /* Reset for elements inside our widget */
-    .sky-lagoon-chat-widget * {
-      box-sizing: border-box;
+    .skylagoon-site a[title="Logo"] {
+      text-align: center !important;
+      display: block !important;
+    }
+    
+    /* 2. Skjól ritual headings - using parent container paths */
+    .skylagoon-site .hero-text-inner h1.display-3 {
+      text-align: left !important;
+      margin-bottom: 1rem !important;
+    }
+    
+    .skylagoon-site .hero-text-inner p {
+      text-align: left !important;
+      margin-bottom: 1rem !important;
+    }
+    
+    /* 3. Icon centering for specific image paths */
+    .skylagoon-site img.content-icon.mb-3,
+    .skylagoon-site img[src*="icon-sun.svg"],
+    .skylagoon-site img[title*="Experience the Heart"],
+    .skylagoon-site img[src*="Turfhouse.svg"] {
+      display: block !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    
+    /* 4. Required Field text in booking flow */
+    .skylagoon-site div.fs-xs.fw-bold.text-moss {
+      text-align: left !important;
+      justify-content: flex-start !important;
+    }
+    
+    /* 5. List styling for content areas only */
+    .skylagoon-site .strip-content ul:not(.sky-lagoon-chat-widget ul),
+    .skylagoon-site article ul:not(.sky-lagoon-chat-widget ul),
+    .skylagoon-site .terms-content ul:not(.sky-lagoon-chat-widget ul) {
+      list-style-type: disc !important;
+      padding-left: 2em !important;
+    }
+    
+    .skylagoon-site .strip-content ol:not(.sky-lagoon-chat-widget ol),
+    .skylagoon-site article ol:not(.sky-lagoon-chat-widget ol),
+    .skylagoon-site .terms-content ol:not(.sky-lagoon-chat-widget ol) {
+      list-style-type: decimal !important;
+      padding-left: 2em !important;
+    }
+    
+    /* 6. List items in content areas */
+    .skylagoon-site .strip-content ul:not(.sky-lagoon-chat-widget ul) li,
+    .skylagoon-site article ul:not(.sky-lagoon-chat-widget ul) li,
+    .skylagoon-site .terms-content ul:not(.sky-lagoon-chat-widget ul) li,
+    .skylagoon-site .strip-content ol:not(.sky-lagoon-chat-widget ol) li,
+    .skylagoon-site article ol:not(.sky-lagoon-chat-widget ol) li,
+    .skylagoon-site .terms-content ol:not(.sky-lagoon-chat-widget ol) li {
+      display: list-item !important;
+      position: relative !important;
+    }
+    
+    /* 7. Fix for headings margin */
+    .skylagoon-site h1:not(.sky-lagoon-chat-widget h1),
+    .skylagoon-site h2:not(.sky-lagoon-chat-widget h2),
+    .skylagoon-site h3:not(.sky-lagoon-chat-widget h3) {
+      margin-bottom: 1rem !important;
+    }
+    
+    /* 8. Fix for paragraph margin */
+    .skylagoon-site p:not(.sky-lagoon-chat-widget p) {
+      margin-bottom: 1rem !important;
     }
   `;
-  document.head.appendChild(resetStyles);
+  document.head.appendChild(cssPatches);
   
-  // TARGETED ELEMENT FIXES
-  // This function directly modifies only the specific elements that need fixing
-  function fixSpecificElements() {
-    // 1. Fix Sun Icon Alignment
-    document.querySelectorAll('img.content-icon.mb-3, img[src*="icon-sun.svg"], img[title*="Experience the Heart"]').forEach(icon => {
-      if (icon && !icon.closest('.sky-lagoon-chat-widget')) { // Only if not in our widget
-        // Store original styles as data attributes
-        if (!icon.dataset.originalDisplay) {
-          icon.dataset.originalDisplay = icon.style.display || '';
-          icon.dataset.originalMargin = icon.style.margin || '';
-          icon.dataset.originalFloat = icon.style.float || '';
-        }
+  // Create a tailwind isolation module
+  const tailwindIsolation = document.createElement('style');
+  tailwindIsolation.id = 'sky-lagoon-tailwind-isolation';
+  tailwindIsolation.textContent = `
+    /* Reset Tailwind preflight effects on non-widget elements */
+    /* This counters Tailwind's global reset effects */
+    
+    /* Keep border-box for our widget only */
+    .sky-lagoon-chat-widget, 
+    .sky-lagoon-chat-widget *,
+    .sky-lagoon-chat-widget *::before,
+    .sky-lagoon-chat-widget *::after {
+      box-sizing: border-box !important;
+    }
+  `;
+  document.head.appendChild(tailwindIsolation);
+  
+  // Functions to check for specific elements - lightweight versions
+  function applyElementSpecificFixes() {
+    // Only run if we're not in the chat widget
+    if (document.querySelector('.sky-lagoon-chat-widget')) {
+      return;
+    }
+    
+    // 1. Fix booking logos
+    document.querySelectorAll('a[title="Logo"] img').forEach(img => {
+      if (!img.closest('.sky-lagoon-chat-widget')) {
+        img.style.setProperty('margin-left', 'auto', 'important');
+        img.style.setProperty('margin-right', 'auto', 'important');
+        img.style.setProperty('display', 'block', 'important');
         
-        // Apply direct element fixes
-        icon.style.display = 'block';
-        icon.style.margin = '0 auto';
-        icon.style.float = 'none';
-        
-        // Fix parent container if needed
-        if (icon.parentElement && !icon.parentElement.closest('.sky-lagoon-chat-widget')) {
-          icon.parentElement.style.textAlign = 'center';
+        // Fix parent link
+        const logoLink = img.closest('a[title="Logo"]');
+        if (logoLink) {
+          logoLink.style.setProperty('text-align', 'center', 'important');
+          logoLink.style.setProperty('display', 'block', 'important');
         }
       }
     });
     
-    // 2. Fix Skjól Ritual and Experience Page Text Alignment
-    document.querySelectorAll('.hero-text-inner h1.display-3').forEach(heading => {
-      if (heading && !heading.closest('.sky-lagoon-chat-widget')) {
-        heading.style.textAlign = 'left';
-        
-        // Fix nearby paragraphs
-        const container = heading.closest('.hero-text-inner');
-        if (container) {
-          container.querySelectorAll('p').forEach(p => {
-            p.style.textAlign = 'left';
-          });
+    // 2. Fix Turf House and content icons
+    const iconSelectors = [
+      'img.content-icon.mb-3', 
+      'img[src*="icon-sun.svg"]',
+      'img[title*="Experience the Heart"]',
+      'img[src*="Turfhouse.svg"]'
+    ];
+    
+    iconSelectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(icon => {
+        if (!icon.closest('.sky-lagoon-chat-widget')) {
+          icon.style.setProperty('display', 'block', 'important');
+          icon.style.setProperty('margin-left', 'auto', 'important');
+          icon.style.setProperty('margin-right', 'auto', 'important');
+          
+          // Fix parent as well
+          if (icon.parentElement) {
+            icon.parentElement.style.setProperty('text-align', 'center', 'important');
+          }
         }
-      }
+      });
     });
     
-    // 3. Fix Booking Flow Logo/Icons
-    document.querySelectorAll('a[title="Logo"]').forEach(logoLink => {
-      if (logoLink && !logoLink.closest('.sky-lagoon-chat-widget')) {
-        logoLink.style.textAlign = 'center';
-        logoLink.style.display = 'block';
-        
-        // Fix image inside
-        const img = logoLink.querySelector('img');
-        if (img) {
-          img.style.margin = '0 auto';
-          img.style.display = 'block';
-        }
-      }
-    });
-    
-    // 4. Fix "Required Field" text in booking flow
-    document.querySelectorAll('div.fs-xs.fw-bold.text-moss.px-3, div.fs-xs.fw-bold.text-moss').forEach(el => {
-      if (el && el.textContent && el.textContent.includes('Required Field') && 
+    // 3. Fix "Required Field" text
+    document.querySelectorAll('div.fs-xs.fw-bold.text-moss').forEach(el => {
+      if (el && el.textContent && el.textContent.includes('Required Field') &&
           !el.closest('.sky-lagoon-chat-widget')) {
-        el.style.textAlign = 'left';
-        el.style.justifyContent = 'flex-start';
-      }
-    });
-    
-    // 5. Fix list items (ordered and unordered)
-    document.querySelectorAll('.strip-content ul li, article ul li, main ul li, .terms-content ul li').forEach(item => {
-      if (item && !item.closest('.sky-lagoon-chat-widget')) {
-        item.style.display = 'list-item';
-        item.style.position = 'relative';
-      }
-    });
-    
-    document.querySelectorAll('.strip-content ol li, article ol li, main ol li, .terms-content ol li').forEach(item => {
-      if (item && !item.closest('.sky-lagoon-chat-widget')) {
-        item.style.display = 'list-item';
-        item.style.position = 'relative';
+        el.style.setProperty('text-align', 'left', 'important');
+        el.style.setProperty('justify-content', 'flex-start', 'important');
       }
     });
   }
   
-  // Apply fixes after page is fully loaded
+  // Run only a limited number of times
+  // First on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', fixSpecificElements);
+    document.addEventListener('DOMContentLoaded', applyElementSpecificFixes);
   } else {
-    fixSpecificElements();
+    applyElementSpecificFixes();
   }
   
-  // Reapply fixes after any dynamic content loads
-  // This helps with elements loaded by JavaScript
-  setTimeout(fixSpecificElements, 1000);
-  setTimeout(fixSpecificElements, 2000);
+  // Then for dynamic content, with increasing delays
+  const intervals = [500, 1000, 2000];
+  intervals.forEach(delay => {
+    setTimeout(applyElementSpecificFixes, delay);
+  });
   
-  // For booking flow pages, check more frequently
+  // Special handling for booking pages
   if (window.location.href.includes('/booking/')) {
-    setTimeout(fixSpecificElements, 500);
-    setTimeout(fixSpecificElements, 1500);
-    setTimeout(fixSpecificElements, 3000);
+    intervals.forEach(delay => {
+      setTimeout(applyElementSpecificFixes, delay + 1000);
+    });
   }
 })();

@@ -18,14 +18,21 @@ const init = (container, config = {}) => {
   // Only inject CSS that's related to our widget resources
   const style = document.createElement('style');
   style.textContent = `
-    /* Only targeting our own widget elements */
+    /* ONLY WIDGET SPECIFIC STYLES - nothing affecting the main site */
     .sky-lagoon-chat-widget img[src="/solrun.png"] {
       content: url("${baseUrl}/solrun.png") !important;
     }
-
-    /* Reset styles for widget container only */
+    
+    /* Tailwind isolation reset for widget only */
     .sky-lagoon-chat-widget {
+      all: initial;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      box-sizing: border-box;
+      line-height: normal;
+    }
+    
+    .sky-lagoon-chat-widget * {
+      box-sizing: border-box;
     }
   `;
   document.head.appendChild(style);
@@ -50,10 +57,8 @@ const init = (container, config = {}) => {
         style.parentNode.removeChild(style);
       }
     },
-    // Add language change method
     setLanguage: (newLanguage) => {
       console.log('Setting widget language to:', newLanguage);
-      // Create a custom event for language change
       const event = new CustomEvent('sky-lagoon-language-change', { 
         detail: { language: newLanguage } 
       });
