@@ -1,8 +1,8 @@
 /**
  * Sky Lagoon Website Targeted Element Fix - Lightweight Version
  * 
- * This script uses scheduled checks rather than MutationObserver
- * to avoid performance issues on mobile devices.
+ * Temporary fix while we work on tailwindcss-scoped-preflight and only scope widget CSS
+ * This file will be removed
  */
 (function() {
   console.log('Sky Lagoon Website Targeted Fix Loaded - Lightweight Version');
