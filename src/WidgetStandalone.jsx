@@ -15,24 +15,11 @@ const init = (container, config = {}) => {
   const baseUrl = config.baseUrl || '';
   console.log('Initializing widget with baseUrl:', baseUrl);
 
-  // Only inject CSS that's related to our widget resources
+  // Only add styles for our own assets, nothing that affects the main site
   const style = document.createElement('style');
   style.textContent = `
-    /* ONLY WIDGET SPECIFIC STYLES - nothing affecting the main site */
     .sky-lagoon-chat-widget img[src="/solrun.png"] {
       content: url("${baseUrl}/solrun.png") !important;
-    }
-    
-    /* Tailwind isolation reset for widget only */
-    .sky-lagoon-chat-widget {
-      all: initial;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      box-sizing: border-box;
-      line-height: normal;
-    }
-    
-    .sky-lagoon-chat-widget * {
-      box-sizing: border-box;
     }
   `;
   document.head.appendChild(style);
@@ -52,7 +39,6 @@ const init = (container, config = {}) => {
   return {
     destroy: () => {
       ReactDOM.unmountComponentAtNode(container);
-      // Also remove the style element we added
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
