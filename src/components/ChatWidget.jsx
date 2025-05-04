@@ -735,6 +735,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // NEW: Add streaming request handler
     const handleStreamingRequest = async (messageText) => {
         try {
+            // NEW: Debug log at the start
+            console.log('[STREAM DEBUG] Starting streaming request at', Date.now());
+            
             // FIXED: Log streaming request attempt
             console.log('[STREAMING] Initiating streaming request', {
                 streaming: true,
@@ -791,6 +794,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 body: JSON.stringify(requestBody)
             });
             
+            // NEW: Debug logging for response
+            console.log('[STREAM DEBUG] Response received at', Date.now());
+            console.log('[STREAM DEBUG] Response type:', response.headers.get('Content-Type'));
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -803,6 +810,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             while (true) {
                 const { done, value } = await reader.read();
+                
+                // NEW: Debug logging for chunks
+                console.log('[STREAM DEBUG] Chunk received at', Date.now(), 
+                           'done:', done, 
+                           'size:', value?.length || 0);
                 
                 if (done) {
                     console.log('[STREAMING] Stream complete');
@@ -825,6 +837,34 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             switch (data.type) {
                                 case 'start':
                                     console.log('[STREAMING] Stream started');
+                                    break;
+                                
+                                // NEW: Add cases for processing and init messages
+                                case 'processing':
+                                case 'init':
+                                    console.log('[STREAMING] Processing update:', data.message);
+                                    // Show a temporary processing message that will be replaced
+                                    setStreamFullText(data.message);
+                                    
+                                    // Update the message content for display
+                                    setMessages(messages => 
+                                        messages.map(m => 
+                                            m.id === botMessageId ? { ...m, content: data.message } : m
+                                        )
+                                    );
+                                    
+                                    // Update typing effect to show just part of the message
+                                    setTypingMessages(prevTyping => {
+                                        const currentState = prevTyping[botMessageId] || { visibleChars: 0, isComplete: false };
+                                        return {
+                                            ...prevTyping,
+                                            [botMessageId]: {
+                                                text: data.message,
+                                                visibleChars: Math.min(data.message.length, 30), // Show first part initially
+                                                isComplete: false
+                                            }
+                                        };
+                                    });
                                     break;
                                     
                                 case 'language':
