@@ -1539,28 +1539,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     {currentLanguage === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
                                 </div>
                             )}
-                            {/* FIXED: Made streaming indicator more visible and easier to click */}
-                            <div 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleStreamingMode();
-                                }}
-                                style={{
-                                    backgroundColor: useStreaming ? '#70744E' : '#999',
-                                    color: 'white',
-                                    padding: '4px 8px',
-                                    borderRadius: '4px',
-                                    fontSize: '12px',
-                                    marginTop: '4px',
-                                    cursor: 'pointer',
-                                    opacity: 1.0,
-                                    transition: 'background-color 0.2s ease',
-                                    border: '1px solid rgba(255,255,255,0.3)',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                                }}
-                            >
-                                {useStreaming ? '⚡ Streaming On' : '⚫ Streaming Off'}
-                            </div>
                         </div>
                     )}
                     {!isMinimized && (
