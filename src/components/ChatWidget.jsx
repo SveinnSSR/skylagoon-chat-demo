@@ -104,6 +104,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [messagePostgresqlIds, setMessagePostgresqlIds] = useState({});
     // Add Pusher state
     const [pusherChannel, setPusherChannel] = useState(null);
+    // Add state for customer token
+    const [customerToken, setCustomerToken] = useState(null);
     // Add state for booking change form
     const [showBookingForm, setShowBookingForm] = useState(false);
     const [bookingRequestSent, setBookingRequestSent] = useState(false);
