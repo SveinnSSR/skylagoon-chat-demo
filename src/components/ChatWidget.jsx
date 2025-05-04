@@ -130,15 +130,22 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamMessageId, setStreamMessageId] = useState(null);
     const [streamFullText, setStreamFullText] = useState('');
-    // NEW: Flag to enable/disable streaming
-    const [useStreaming, setUseStreaming] = useState(true); // Set to true to enable streaming by default. If you want streaming disabled by default, change useState(true) to useState(false)
+    // NEW: Flag to enable/disable streaming - FIXED: Now using a ref to ensure consistent value
+    const useStreamingRef = React.useRef(true);
+    const [useStreaming, setUseStreaming] = useState(true);
+
+    // Update the ref when state changes
+    useEffect(() => {
+        useStreamingRef.current = useStreaming;
+        console.log('[STREAMING] State updated:', useStreaming);
+    }, [useStreaming]);
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
         // Component mounting diagnostic
         console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
         console.log('[ConnectionRef] Initial value:', connectionMessageShownRef.current);
-        console.log('[STREAMING] Feature enabled:', useStreaming);
+        console.log('[STREAMING] Feature enabled:', useStreaming, 'Ref value:', useStreamingRef.current);
         
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
@@ -728,6 +735,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // NEW: Add streaming request handler
     const handleStreamingRequest = async (messageText) => {
         try {
+            // FIXED: Log streaming request attempt
+            console.log('[STREAMING] Initiating streaming request', {
+                streaming: true,
+                message: messageText
+            });
+            
             // Create unique message ID for this response
             const botMessageId = 'bot-msg-' + Date.now();
             setStreamMessageId(botMessageId);
@@ -753,6 +766,21 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }
             }));
             
+            // FIXED: Create request body with explicit stream parameter
+            const requestBody = { 
+                message: messageText,
+                language: currentLanguage,
+                chatId: chatId,
+                bot_token: botToken,
+                agent_credentials: agentCredentials || storedCredentials,
+                isAgentMode: chatMode === 'agent',
+                sessionId: sessionId,
+                stream: true // CRITICAL: Always set to true in this function
+            };
+            
+            // FIXED: Log the actual request body
+            console.log('[STREAMING] Request body:', JSON.stringify(requestBody));
+            
             // Send the streaming request
             const response = await fetch(webhookUrl, {
                 method: 'POST',
@@ -760,21 +788,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     'Content-Type': 'application/json',
                     'x-api-key': apiKey
                 },
-                body: JSON.stringify({ 
-                    message: messageText,
-                    language: currentLanguage,
-                    chatId: chatId,
-                    bot_token: botToken,
-                    agent_credentials: agentCredentials || storedCredentials,
-                    isAgentMode: chatMode === 'agent',
-                    sessionId: sessionId,
-                    stream: true // Enable streaming mode
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
+            console.log('[STREAMING] Response received, processing stream');
             
             // Process the stream
             const reader = response.body.getReader();
@@ -784,12 +805,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 const { done, value } = await reader.read();
                 
                 if (done) {
-                    console.log('Stream complete');
+                    console.log('[STREAMING] Stream complete');
                     break;
                 }
                 
                 // Decode the chunk
                 const chunk = decoder.decode(value);
+                console.log('[STREAMING] Received chunk:', chunk.substring(0, 50) + '...');
                 
                 // Process each event in the chunk (may contain multiple events)
                 const events = chunk.split('\n\n');
@@ -797,26 +819,28 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     if (event.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(event.slice(6));
+                            console.log('[STREAMING] Event type:', data.type);
                             
                             // Handle different message types
                             switch (data.type) {
                                 case 'start':
-                                    console.log('Stream started');
+                                    console.log('[STREAMING] Stream started');
                                     break;
                                     
                                 case 'language':
-                                    console.log('Language detected:', data.language);
+                                    console.log('[STREAMING] Language detected:', data.language);
                                     break;
                                     
                                 case 'knowledge':
-                                    console.log('Knowledge base results:', data.count, 'items');
+                                    console.log('[STREAMING] Knowledge base results:', data.count, 'items');
                                     break;
                                     
                                 case 'gpt_start':
-                                    console.log('GPT processing started');
+                                    console.log('[STREAMING] GPT processing started');
                                     break;
                                     
                                 case 'chunk':
+                                    console.log('[STREAMING] Content chunk received:', data.content.substring(0, 20) + '...');
                                     // Add new content to our running text
                                     setStreamFullText(prev => {
                                         const newText = prev + data.content;
@@ -846,6 +870,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'complete':
+                                    console.log('[STREAMING] Complete message received');
                                     // Final processed response with terminology enforcement
                                     setStreamFullText(data.fullText);
                                     
@@ -871,7 +896,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'error':
-                                    console.error('Stream error:', data.message);
+                                    console.error('[STREAMING] Stream error:', data.message);
                                     
                                     // Update message with error
                                     setMessages(messages => 
@@ -892,6 +917,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'metadata':
+                                    console.log('[STREAMING] Metadata received');
                                     // Store PostgreSQL ID if provided
                                     if (data.postgresqlId) {
                                         setMessagePostgresqlIds(prev => ({
@@ -902,6 +928,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'transfer':
+                                    console.log('[STREAMING] Transfer event received');
                                     // Handle agent transfer
                                     if (data.chatId) setChatId(data.chatId);
                                     if (data.customer_token) setCustomerToken(data.customer_token);
@@ -942,6 +969,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'transfer_reminder':
+                                    console.log('[STREAMING] Transfer reminder received');
                                     // Update message with transfer reminder
                                     setMessages(messages => 
                                         messages.map(m => 
@@ -961,6 +989,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'booking_form':
+                                    console.log('[STREAMING] Booking form event received');
                                     // Handle booking form
                                     if (data.chatId) setChatId(data.chatId);
                                     if (data.agent_credentials) {
@@ -990,11 +1019,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
                                     
                                 case 'metrics':
-                                    console.log('Stream metrics:', data.metrics);
+                                    console.log('[STREAMING] Metrics received:', data.metrics);
                                     break;
                             }
                         } catch (error) {
-                            console.error('Error parsing stream data:', error);
+                            console.error('[STREAMING] Error parsing stream data:', error);
                         }
                     }
                 }
@@ -1002,9 +1031,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             // Streaming complete
             setIsStreaming(false);
+            console.log('[STREAMING] Processing complete');
             
         } catch (error) {
-            console.error('Streaming error:', error);
+            console.error('[STREAMING] Error:', error);
             setIsStreaming(false);
             
             // Show error message
@@ -1346,9 +1376,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         // Check for session timeout before sending
         checkSessionTimeout();
         
+        // FIXED: Use ref value to ensure consistency
+        const shouldStream = useStreamingRef.current;
+        console.log('[STREAMING] Should stream?', shouldStream, 'State value:', useStreaming);
+        
         // Use streaming if enabled
-        if (useStreaming) {
-            await handleStreamingRequest(messageText);
+        if (shouldStream) {
+            // FIXED: Direct call instead of await to avoid state issues
+            handleStreamingRequest(messageText);
         } else {
             // Original non-streaming implementation
             setIsTyping(true);
@@ -1542,8 +1577,30 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // NEW: Add toggle for streaming mode (for testing or accessibility purposes)
     const toggleStreamingMode = () => {
         setUseStreaming(prev => !prev);
-        console.log('Streaming mode toggled to:', !useStreaming);
+        // FIXED: Update ref as well
+        const newValue = !useStreaming;
+        useStreamingRef.current = newValue;
+        console.log('[STREAMING] Mode toggled to:', newValue);
     };
+
+    // FIXED: Add visible streaming indicator component
+    const StreamingIndicator = () => (
+        <div style={{
+            position: 'fixed',
+            top: '10px',
+            right: '10px',
+            backgroundColor: '#70744E',
+            color: 'white',
+            padding: '5px 10px',
+            borderRadius: '5px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            zIndex: 9999
+        }}>
+            Streaming Active
+        </div>
+    );
 
     return (
         <ErrorBoundary>
@@ -1566,6 +1623,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 zIndex: 9999,
                 maxWidth: isMinimized ? 'auto' : '90vw'
             }}>
+                {/* FIXED: Add visible streaming indicator */}
+                {isStreaming && <StreamingIndicator />}
+                
                 {/* Header */}
                 <div 
                     onClick={() => setIsMinimized(!isMinimized)}
@@ -1641,7 +1701,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     {currentLanguage === 'en' ? 'Booking Change Requested' : 'Bókunarbreyting umbeðin'}
                                 </div>
                             )}
-                            {/* NEW: Add streaming mode indicator */}
+                            {/* FIXED: Made streaming indicator more visible and easier to click */}
                             <div 
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -1650,18 +1710,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 style={{
                                     backgroundColor: useStreaming ? '#70744E' : '#999',
                                     color: 'white',
-                                    padding: '2px 6px',
+                                    padding: '4px 8px',
                                     borderRadius: '4px',
-                                    fontSize: '10px',
+                                    fontSize: '12px',
                                     marginTop: '4px',
                                     cursor: 'pointer',
-                                    opacity: 0.7,
-                                    transition: 'opacity 0.2s ease'
+                                    opacity: 1.0,
+                                    transition: 'background-color 0.2s ease',
+                                    border: '1px solid rgba(255,255,255,0.3)',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                                 }}
-                                onMouseOver={(e) => e.currentTarget.style.opacity = '1'}
-                                onMouseOut={(e) => e.currentTarget.style.opacity = '0.7'}
                             >
-                                {useStreaming ? 'Streaming On' : 'Streaming Off'}
+                                {useStreaming ? '⚡ Streaming On' : '⚫ Streaming Off'}
                             </div>
                         </div>
                     )}
