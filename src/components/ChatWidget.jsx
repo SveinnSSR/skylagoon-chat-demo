@@ -83,10 +83,7 @@ class MessageErrorBoundary extends Component {
 const SESSION_ID_KEY = 'skyLagoonChatSessionId';
 const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
-
-// New constants for word-by-word rendering
-const THROTTLE_TIME = 75; // 75ms between word chunks
-const SCROLL_INTERVAL = 300; // 300ms maximum between scrolls
+const TYPING_SPEED = 20; // Speed in milliseconds per character
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false, baseUrl }) => {
     const messagesEndRef = React.useRef(null);
@@ -116,7 +113,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [sessionId, setSessionId] = useState('');
     // Add current language state to track language changes
     const [currentLanguage, setCurrentLanguage] = useState(language);
-    // Add state for word-by-word typing effect
+    // Add state for character-by-character typing effect
     const [typingMessages, setTypingMessages] = useState({});
     // Track newly added messages for animation
     const [newMessageIds, setNewMessageIds] = useState([]);
@@ -126,16 +123,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const connectionMessageShownRef = React.useRef(false);
     // NEW: Add a state variable for tracking transfer completion
     const [isTransferComplete, setIsTransferComplete] = useState(false);
-    
-    // NEW: Add streaming-specific state variables
-    const [isStreaming, setIsStreaming] = useState(false);
-    const [streamMessageId, setStreamMessageId] = useState(null);
-    const [streamFullText, setStreamFullText] = useState('');
-    const [processingSteps, setProcessingSteps] = useState([]);
-    const [sseConnection, setSseConnection] = useState(null);
-    
-    // Add ref for tracking last scroll time
-    const lastScrollTimeRef = React.useRef(Date.now());
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
@@ -146,12 +133,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
             console.log('[ConnectionRef] Final value on unmount:', connectionMessageShownRef.current);
-            
-            // Clean up SSE connection if active
-            if (sseConnection) {
-                console.log("[STREAMING] Closing SSE connection on unmount");
-                sseConnection.close();
-            }
         };
     }, []);
 
@@ -212,23 +193,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const scrollToBottom = (forceScroll = false) => {
-        // Only scroll if we're forcing a scroll or if enough time has passed
-        const currentTime = Date.now();
-        if (forceScroll || (currentTime - lastScrollTimeRef.current > SCROLL_INTERVAL)) {
-            if (messagesEndRef.current) {
-                const chatContainer = messagesEndRef.current.parentElement;
-                if (chatContainer) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                    lastScrollTimeRef.current = currentTime;
-                }
+    const scrollToBottom = (isDuringTyping = false) => {
+        if (messagesEndRef.current) {
+            // Simply scroll to the bottom, no special handling that might cause jitter
+            const chatContainer = messagesEndRef.current.parentElement;
+            if (chatContainer) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
             }
         }
     };
 
     useEffect(() => {
-        scrollToBottom(true); // Force scroll when messages change
-    }, [messages, showBookingForm, processingSteps]);
+        scrollToBottom();
+    }, [messages, showBookingForm, typingMessages]);
 
     // Functions for session management
     const generateSessionId = useCallback(() => {
@@ -454,7 +431,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         ...prev,
                         [id]: { 
                             text: content,
-                            visibleWords: 999999, // Show all words
+                            visibleChars: content.length,
                             isComplete: true
                         }
                     }));
@@ -491,7 +468,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         );
     }, [messages]);
 
-    // UPDATED: Word-by-word typing effect with improved scrolling
+    // Character-by-character typing effect function with enhanced error handling
     const startTypingEffect = (messageId, fullText) => {
         try {
             // Safety check for undefined text
@@ -500,7 +477,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 return null;
             }
             
-            // Normalize fullText to ensure it's a string
+            // NEW: Normalize fullText to ensure it's a string
             const safeText = typeof fullText === 'string' ? fullText : 
                             (fullText ? String(fullText) : '');
             
@@ -508,60 +485,37 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 console.warn('Typing effect received non-string content, converted to:', safeText);
             }
             
-            // Split the text into words while preserving whitespace
-            const words = safeText.split(/(\s+)/);
-            
-            // Initialize with full text but no words visible
+            // Initialize with full text but visibility hidden
             setTypingMessages(prev => ({
                 ...prev,
                 [messageId]: { 
-                    text: safeText,
-                    visibleWords: 0,
+                    text: safeText, // Use normalized text
+                    visibleChars: 0, // Track how many characters are visible
                     isComplete: false
                 }
             }));
             
             // Scroll to bottom initially just once to handle the full text height
             setTimeout(() => {
-                scrollToBottom(true);
+                scrollToBottom();
             }, 50);
             
-            let wordIndex = 0;
-            let lastSentenceEnd = 0;
+            let charIndex = 0;
             
             const typingInterval = setInterval(() => {
-                // Determine how many words to reveal in this update (chunk size)
-                const chunkSize = 1 + Math.floor(Math.random() * 2); // 1-2 words at a time for natural feel
-                
-                const newWordIndex = Math.min(wordIndex + chunkSize, words.length);
-                
-                if (newWordIndex <= words.length) {
-                    // Update visible words
+                if (charIndex <= safeText.length) { // Use safeText instead of fullText
                     setTypingMessages(prev => ({
                         ...prev,
                         [messageId]: {
                             ...prev[messageId],
-                            visibleWords: newWordIndex,
-                            isComplete: newWordIndex === words.length
+                            visibleChars: charIndex,
+                            isComplete: charIndex === safeText.length // Use safeText
                         }
                     }));
-                    
-                    // Create the partially visible text
-                    const visibleText = words.slice(0, newWordIndex).join('');
-                    
-                    // Check if we should scroll (after sentence completion)
-                    const lastChar = visibleText.slice(-1);
-                    if (lastChar === '.' || lastChar === '?' || lastChar === '!') {
-                        if (visibleText.length > lastSentenceEnd + 20) { // Only scroll for substantial sentences
-                            scrollToBottom(true);
-                            lastSentenceEnd = visibleText.length;
-                        }
-                    }
-                    
-                    wordIndex = newWordIndex;
+                    charIndex++;
+                    // No scrolling during typing to prevent jitter
                 } else {
                     clearInterval(typingInterval);
-                    
                     // When typing is complete
                     setTimeout(() => {
                         // Mark as complete
@@ -572,15 +526,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 isComplete: true
                             }
                         }));
-                        scrollToBottom(true);
                     }, 100);
                 }
-            }, THROTTLE_TIME);
+            }, TYPING_SPEED);
             
             // Store the interval ID to clear it if needed
             return typingInterval;
         } catch (error) {
-            // Enhanced error recovery for typing effect
+            // NEW: Enhanced error recovery for typing effect
             console.error('Error in typing effect:', error);
             // Recovery: set the message as complete immediately
             try {
@@ -588,7 +541,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     ...prev,
                     [messageId]: { 
                         text: typeof fullText === 'string' ? fullText : String(fullText || ''),
-                        visibleWords: 999999, // Set to a large number to ensure all words are visible
+                        visibleChars: typeof fullText === 'string' ? fullText.length : 0,
                         isComplete: true
                     }
                 }));
@@ -762,626 +715,134 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         startTypingEffect(cancelMessageId, cancelMessage);
     };
 
-    // New function to process stream events
-    const processStreamEvent = (data, botMessageId) => {
-        console.log('[STREAMING] Event received:', data.type);
-        
-        switch (data.type) {
-            case 'start':
-            case 'connected':
-                console.log('[STREAMING] Connection confirmed by server');
-                break;
-                
-                            case 'processingStep':
-                // Use a more stable approach for processing steps
-                // Instead of forcing an immediate scroll, we'll use the throttled scroll
-                setProcessingSteps(prev => {
-                    // Don't add duplicate steps
-                    if (prev.length > 0 && prev[prev.length - 1] === data.step) {
-                        return prev;
-                    }
-                    
-                    // Keep only the last 3 steps to prevent excessive array growth
-                    const newSteps = [...prev, data.step];
-                    return newSteps.slice(-3);
-                });
-                
-                // Use throttled scrolling to prevent jitter
-                scrollToBottom();
-                break;
-                
-            case 'language':
-                console.log('[STREAMING] Language detected:', data.language);
-                break;
-                
-            case 'knowledge':
-                console.log('[STREAMING] Knowledge base results:', data.count);
-                break;
-                
-            case 'gpt_start':
-                console.log('[STREAMING] GPT processing started');
-                break;
-                
-                            case 'chunk':
-                // Add new content to our running text
-                setStreamFullText(prev => {
-                    const newText = prev + data.content;
-                    
-                    // Update both the message content and typing messages
-                    setMessages(messages => 
-                        messages.map(m => 
-                            m.id === botMessageId ? { ...m, content: newText } : m
-                        )
-                    );
-                    
-                    // Throttled scrolling for streaming
-                    // Check if this chunk completes a sentence
-                    const lastChar = data.content.slice(-1);
-                    if (lastChar === '.' || lastChar === '?' || lastChar === '!') {
-                        // If we have a sentence completion, consider scrolling but still use throttle
-                        scrollToBottom();
-                    }
-                    
-                    // Use a batched update approach for typing messages
-                    // This reduces render frequency for a smoother experience
-                    requestAnimationFrame(() => {
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [botMessageId]: { 
-                                text: newText,
-                                visibleWords: 999999, // Show all words immediately for streaming
-                                isComplete: false // Not complete until we get 'complete' event
-                            }
-                        }));
-                    });
-                    
-                    return newText;
-                });
-                break;
-                
-            case 'complete':
-                // Final response received
-                setIsTyping(false);
-                setIsStreaming(false);
-                
-                // Update the message with complete text
-                const finalText = data.fullText || data.message || streamFullText;
-                setMessages(messages => 
-                    messages.map(m => 
-                        m.id === botMessageId ? { ...m, content: finalText } : m
-                    )
-                );
-                
-                // Mark typing as complete in the typing system
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [botMessageId]: { 
-                        text: finalText,
-                        visibleWords: 999999, // Show all words
-                        isComplete: true
-                    }
-                }));
-                
-                // Store PostgreSQL ID if provided
-                if (data.postgresqlMessageId) {
-                    setMessagePostgresqlIds(prev => ({
-                        ...prev,
-                        [botMessageId]: data.postgresqlMessageId
-                    }));
-                }
-                
-                // Always scroll to bottom when complete
-                scrollToBottom(true);
-                
-                // Clean up
-                if (sseConnection) {
-                    sseConnection.close();
-                    setSseConnection(null);
-                }
-                break;
-                
-            case 'error':
-                // Handle error
-                console.error('[STREAMING] Error:', data.message);
-                setIsTyping(false);
-                setIsStreaming(false);
-                
-                const errorMessage = data.message || (currentLanguage === 'en' ? 
-                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.");
-                
-                setMessages(messages => 
-                    messages.map(m => 
-                        m.id === botMessageId ? { ...m, content: errorMessage } : m
-                    )
-                );
-                
-                // Update typing messages
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [botMessageId]: { 
-                        text: errorMessage,
-                        visibleWords: 999999, // Show all words
-                        isComplete: true
-                    }
-                }));
-                
-                // Clean up
-                if (sseConnection) {
-                    sseConnection.close();
-                    setSseConnection(null);
-                }
-                break;
-                
-            case 'ping':
-                // Keep-alive ping
-                console.log('[STREAMING] Ping received');
-                break;
-                
-            default:
-                console.log('[STREAMING] Unknown event type:', data.type);
-        }
-    };
+    const TypingIndicator = () => (
+        <div style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            marginBottom: '16px',
+            alignItems: 'flex-start',
+            gap: '8px'
+        }}>
+            <img 
+                src="/solrun.png" 
+                alt="Sólrún"
+                style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    marginTop: '4px',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+            />
+            <div style={{
+                padding: '12px 16px',
+                borderRadius: '16px',
+                backgroundColor: '#f0f0f0',
+                display: 'flex',
+                gap: '4px',
+                alignItems: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                border: '1px solid rgba(0, 0, 0, 0.05)'
+            }}>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'sky-lagoon-chat-typing 1s infinite'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
+                    animationDelay: '0.2s'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#93918f',
+                    borderRadius: '50%',
+                    opacity: 0.4,
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
+                    animationDelay: '0.4s'
+                }}/>
+            </div>
+        </div>
+    );
 
-    // New streaming request handler for Sky Lagoon
-    const handleStreamingRequest = async (messageText) => {
-        try {
-            console.log('[STREAMING] Starting streaming request');
-            
-            // Create unique message ID for this response
-            const botMessageId = 'bot-msg-' + Date.now();
-            setStreamMessageId(botMessageId);
-            
-            // Reset streaming states
-            setIsStreaming(true);
-            setStreamFullText('');
-            setProcessingSteps([]);
-            
-            // Add empty bot message that will be filled as we stream
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: '',
-                id: botMessageId
-            }]);
-            
-            // Initialize typing message entry
-            setTypingMessages(prev => ({
-                ...prev,
-                [botMessageId]: { 
-                    text: '',
-                    visibleWords: 0,
-                    isComplete: false 
-                }
-            }));
-            
-            // Try first with POST endpoint and stream parameter
-            try {
-                console.log('[STREAMING] Trying POST request with stream parameter');
-                
-                // Prepare request body with credentials
-                const requestBody = { 
-                    message: messageText,
-                    language: currentLanguage,
-                    chatId: chatId,
-                    bot_token: botToken,
-                    agent_credentials: agentCredentials || storedCredentials,
-                    isAgentMode: chatMode === 'agent',
-                    sessionId: sessionId,
-                    stream: true // Add streaming parameter
-                };
-                
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                // Check if response is event-stream
-                const contentType = response.headers.get('Content-Type');
-                if (!contentType || !contentType.includes('text/event-stream')) {
-                    console.log('[STREAMING] Response is not event-stream, falling back to GET endpoint');
-                    throw new Error('Not an event stream');
-                }
-                
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                
-                let buffer = '';
-                
-                while (true) {
-                    const { value, done } = await reader.read();
-                    
-                    if (done) {
-                        console.log('[STREAMING] Stream complete');
-                        break;
-                    }
-                    
-                    buffer += decoder.decode(value, { stream: true });
-                    
-                    // Process complete events in buffer
-                    const lines = buffer.split('\n\n');
-                    buffer = lines.pop() || ''; // Keep the last incomplete chunk in buffer
-                    
-                    for (const line of lines) {
-                        if (line.trim() === '') continue;
-                        
-                        // Extract the data part
-                        const dataMatch = line.match(/^data: (.+)$/m);
-                        if (!dataMatch) continue;
-                        
-                        try {
-                            const event = JSON.parse(dataMatch[1]);
-                            processStreamEvent(event, botMessageId);
-                        } catch (error) {
-                            console.error('[STREAMING] Error parsing event:', error);
-                        }
-                    }
-                }
-            } catch (postError) {
-                console.log('[STREAMING] POST streaming failed, trying GET endpoint:', postError);
-                
-                // Fall back to GET endpoint with query parameters
-                const baseUrl = webhookUrl.replace('/chat', '/chat-stream');
-                const url = `${baseUrl}?sessionId=${encodeURIComponent(sessionId)}&message=${encodeURIComponent(messageText)}&apiKey=${encodeURIComponent(apiKey)}&language=${encodeURIComponent(currentLanguage)}`;
-                
-                console.log('[STREAMING] Connecting to:', url);
-                
-                // Create EventSource for SSE connection
-                const eventSource = new EventSource(url);
-                setSseConnection(eventSource);
-                
-                // Handle connection open
-                eventSource.onopen = () => {
-                    console.log('[STREAMING] Connection established');
-                };
-                
-                // Handle incoming messages
-                eventSource.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        processStreamEvent(data, botMessageId);
-                    } catch (error) {
-                        console.error('[STREAMING] Error processing SSE message:', error);
-                    }
-                };
-                
-                // Handle errors
-                eventSource.onerror = (error) => {
-                    console.error('[STREAMING] Connection error:', error);
-                    
-                    // If SSE fails, fall back to regular request
-                    if (error.target.readyState === EventSource.CLOSED) {
-                        console.log('[STREAMING] Connection failed or closed, falling back to regular request');
-                        eventSource.close();
-                        setSseConnection(null);
-                        setIsStreaming(false);
-                        handleSendClassic(messageText, botMessageId);
-                    } else {
-                        // For other errors, just show an error message
-                        setIsTyping(false);
-                        setIsStreaming(false);
-                        
-                        const errorMessage = currentLanguage === 'en' ? 
-                            "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                            "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
-                        
-                        setMessages(prev => 
-                            prev.map(m => 
-                                m.id === botMessageId ? 
-                                    { ...m, content: errorMessage } : 
-                                    m
-                            )
-                        );
-                        
-                        // Update typing messages
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [botMessageId]: { 
-                                text: errorMessage,
-                                visibleWords: 999999,
-                                isComplete: true
-                            }
-                        }));
-                        
-                        // Clean up
-                        eventSource.close();
-                        setSseConnection(null);
-                    }
-                };
-            }
-        } catch (error) {
-            console.error('[STREAMING] Error:', error);
-            setIsTyping(false);
-            setIsStreaming(false);
-            
-            // Fall back to classic request
-            handleSendClassic(messageText);
-        }
-    };
+    // Agent typing indicator with branded styling
+    const AgentTypingIndicator = () => (
+        <div style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            marginBottom: '16px',
+            alignItems: 'flex-start',
+            gap: '8px'
+        }}>
+            <div className="agent-avatar-container">
+                <img 
+                    src="/agent-avatar.png" 
+                    alt="Agent"
+                    style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        marginTop: '4px',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                    }}
+                    onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        e.target.parentElement.classList.add('agent-avatar-fallback');
+                    }}
+                />
+                <div className="agent-avatar-fallback-content">A</div>
+            </div>
+            <div style={{
+                padding: '12px 16px',
+                borderRadius: '16px',
+                backgroundColor: 'rgba(112, 116, 78, 0.15)',
+                display: 'flex',
+                gap: '4px',
+                alignItems: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                border: '1px solid rgba(112, 116, 78, 0.2)'
+            }}>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#70744E',
+                    borderRadius: '50%',
+                    opacity: 0.6,
+                    animation: 'sky-lagoon-chat-typing 1s infinite'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#70744E',
+                    borderRadius: '50%',
+                    opacity: 0.6,
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
+                    animationDelay: '0.2s'
+                }}/>
+                <span style={{
+                    height: '8px',
+                    width: '8px',
+                    backgroundColor: '#70744E',
+                    borderRadius: '50%',
+                    opacity: 0.6,
+                    animation: 'sky-lagoon-chat-typing 1s infinite',
+                    animationDelay: '0.4s'
+                }}/>
+            </div>
+        </div>
+    );
 
-    // Classical non-streaming request as fallback
-    const handleSendClassic = async (messageText, existingBotMessageId = null) => {
-        try {
-            // Prepare the request body with credential fallbacks
-            const requestBody = { 
-                message: messageText,
-                language: currentLanguage,
-                chatId: chatId,
-                bot_token: botToken,
-                agent_credentials: agentCredentials || storedCredentials,
-                isAgentMode: chatMode === 'agent',
-                sessionId: sessionId
-            };
-            
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey
-                },
-                body: JSON.stringify(requestBody)
-            });   
-    
-            const data = await response.json();
-            setIsTyping(false);
-            
-            // Handle booking change request form
-            if (data.showBookingChangeForm) {
-                console.log('Booking change request detected, showing form');
-                
-                // Save the chat ID and tokens if provided
-                if (data.chatId) setChatId(data.chatId);
-                if (data.bot_token) setBotToken(data.bot_token);
-                if (data.agent_credentials) {
-                    setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials);
-                    console.log('Stored agent credentials from booking form response');
-                }
-                
-                // Either update existing message or create new one
-                if (existingBotMessageId) {
-                    // Update existing message
-                    setMessages(prev => 
-                        prev.map(m => 
-                            m.id === existingBotMessageId ? { ...m, content: data.message } : m
-                        )
-                    );
-                    
-                    // Update typing message
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [existingBotMessageId]: { 
-                            text: data.message,
-                            visibleWords: 999999,
-                            isComplete: true
-                        }
-                    }));
-                } else {
-                    // Add new message
-                    const botMsgId = 'bot-msg-' + Date.now();
-                    setMessages(prev => [...prev, {
-                        type: 'bot',
-                        content: data.message,
-                        id: botMsgId
-                    }]);
-                    
-                    // Start typing effect
-                    startTypingEffect(botMsgId, data.message);
-                }
-                
-                // Show the booking form
-                setShowBookingForm(true);
-                return;
-            }
-    
-            // Handle transfer state
-            if (data.transferred && data.chatId) {
-                console.log('Transfer initiated with chat ID:', data.chatId);
-                
-                // Save the bot token if provided
-                if (data.bot_token) {
-                    console.log('Bot token received');
-                    setBotToken(data.bot_token);
-                }
-                
-                // Save agent credentials if provided
-                if (data.agent_credentials) {
-                    console.log('Agent credentials received and stored');
-                    setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials);
-                }
-    
-                // Set chat state to agent mode
-                setChatMode('agent');
-                setChatId(data.chatId);
-                
-                // Either update existing message or create new one
-                if (existingBotMessageId) {
-                    // Update existing message
-                    setMessages(prev => 
-                        prev.map(m => 
-                            m.id === existingBotMessageId ? { ...m, content: data.message } : m
-                        )
-                    );
-                    
-                    // Update typing message
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [existingBotMessageId]: { 
-                            text: data.message,
-                            visibleWords: 999999,
-                            isComplete: true
-                        }
-                    }));
-                    
-                    // Add second transfer message
-                    const transferMsgId = 'bot-transfer-' + Date.now();
-                    setTimeout(() => {
-                        if (!isTransferComplete && !connectionMessageShownRef.current) {
-                            const transferMessage = currentLanguage === 'en' ? 
-                                CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
-                            
-                            setMessages(prev => [...prev, {
-                                type: 'bot',
-                                content: transferMessage,
-                                id: transferMsgId
-                            }]);
-                            
-                            // Start typing effect
-                            startTypingEffect(transferMsgId, transferMessage);
-                            
-                            // Mark transfer as complete
-                            connectionMessageShownRef.current = true;
-                            setIsTransferComplete(true);
-                        }
-                    }, 1000);
-                } else {
-                    // Add the transfer messages
-                    const botMsgId = 'bot-msg-' + Date.now();
-                    const transferMsgId = 'bot-transfer-' + Date.now();
-                    
-                    // First message
-                    setMessages(prev => [...prev, {
-                        type: 'bot',
-                        content: data.message,
-                        id: botMsgId
-                    }]);
-                    
-                    // Start typing effect
-                    startTypingEffect(botMsgId, data.message);
-                    
-                    // Second message
-                    setTimeout(() => {
-                        if (!isTransferComplete && !connectionMessageShownRef.current) {
-                            const transferMessage = currentLanguage === 'en' ? 
-                                CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
-                            
-                            setMessages(prev => [...prev, {
-                                type: 'bot',
-                                content: transferMessage,
-                                id: transferMsgId
-                            }]);
-                            
-                            // Start typing effect
-                            startTypingEffect(transferMsgId, transferMessage);
-                            
-                            // Mark transfer as complete
-                            connectionMessageShownRef.current = true;
-                            setIsTransferComplete(true);
-                        }
-                    }, 1000);
-                }
-                
-                return;
-            }
-    
-            // Update credentials if provided
-            if (data.bot_token) {
-                setBotToken(data.bot_token);
-            }
-            
-            if (data.agent_credentials) {
-                console.log('New agent credentials received and stored');
-                setAgentCredentials(data.agent_credentials);
-                setStoredCredentials(data.agent_credentials);
-            }
-    
-            // If message was suppressed (in agent mode), don't show any response
-            if (data.suppressMessage) {
-                return;
-            }
-    
-            // Either update existing message or create new one
-            if (existingBotMessageId) {
-                // Update existing message
-                setMessages(prev => 
-                    prev.map(m => 
-                        m.id === existingBotMessageId ? { ...m, content: data.message } : m
-                    )
-                );
-                
-                // Update typing message
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [existingBotMessageId]: { 
-                        text: data.message,
-                        visibleWords: 999999,
-                        isComplete: true
-                    }
-                }));
-                
-                // Store PostgreSQL ID if provided
-                if (data.postgresqlMessageId) {
-                    setMessagePostgresqlIds(prev => ({
-                        ...prev,
-                        [existingBotMessageId]: data.postgresqlMessageId
-                    }));
-                }
-            } else {
-                // Normal bot response handling with unique ID
-                const botMessageId = 'bot-msg-' + Date.now();
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.message,
-                    id: botMessageId
-                }]);
-                
-                // Start typing effect
-                startTypingEffect(botMessageId, data.message);
-                
-                // Store PostgreSQL ID if provided
-                if (data.postgresqlMessageId) {
-                    setMessagePostgresqlIds(prev => ({
-                        ...prev,
-                        [botMessageId]: data.postgresqlMessageId
-                    }));
-                }
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            setIsTyping(false);
-            
-            // Error handling with existing or new message
-            const errorMessage = currentLanguage === 'en' ? 
-                "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
-            
-            if (existingBotMessageId) {
-                // Update existing message
-                setMessages(prev => 
-                    prev.map(m => 
-                        m.id === existingBotMessageId ? { ...m, content: errorMessage } : m
-                    )
-                );
-                
-                // Update typing message
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [existingBotMessageId]: { 
-                        text: errorMessage,
-                        visibleWords: 999999,
-                        isComplete: true
-                    }
-                }));
-            } else {
-                // Create new error message
-                const errorMsgId = 'bot-error-' + Date.now();
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: errorMessage,
-                    id: errorMsgId
-                }]);
-                
-                // Start typing effect
-                startTypingEffect(errorMsgId, errorMessage);
-            }
-        }
-    };
-
-    // Updated message feedback handler
+    // Updated function to handle message feedback
     const handleMessageFeedback = async (messageId, isPositive) => {
         // Prevent multiple submissions for the same message
         if (messageFeedback[messageId]) return;
@@ -1553,9 +1014,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return 'general';
     };
 
-    // Updated handleSend to use streaming
     const handleSend = async () => {
-        if (!inputValue.trim() || isTyping || isStreaming) return;
+        if (!inputValue.trim() || isTyping) return;
     
         const messageText = inputValue.trim();
         setInputValue('');
@@ -1571,35 +1031,184 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         
         // Check for session timeout before sending
         checkSessionTimeout();
-
-        // Close any existing SSE connection
-        if (sseConnection) {
-            sseConnection.close();
-            setSseConnection(null);
-        }
     
         try {
-            // Log sending message
+            // Use props instead of environment variables
             console.log('Sending message to:', webhookUrl);
             console.log('Using session ID:', sessionId);
-            console.log('Credential status:', {
+            
+            // Log credential status
+            console.log('CREDENTIALS CHECK:', {
                 chatId: chatId,
                 isAgentMode: chatMode === 'agent',
-                hasAgentCredentials: !!agentCredentials
+                hasAgentCredentials: !!agentCredentials,
+                hasStoredCredentials: !!storedCredentials
             });
+            
+            // Add this new debug log
+            console.log('\n🔍 SENDING MESSAGE STATE:', {
+                chatMode,
+                isAgentMode: chatMode === 'agent',
+                hasChatId: !!chatId,
+                chatId,
+                messageText: messageText.substring(0, 30) // Show first 30 chars of message
+            });
+            
+            // Prepare the request body with credential fallbacks
+            const requestBody = { 
+                message: messageText,
+                language: currentLanguage,
+                chatId: chatId,
+                bot_token: botToken,
+                agent_credentials: agentCredentials || storedCredentials, // Use stored credentials as fallback
+                isAgentMode: chatMode === 'agent',
+                sessionId: sessionId
+            };
+            
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify(requestBody)
+            });   
+    
+            const data = await response.json();
+            setIsTyping(false);
+            
+            // Handle booking change request form
+            if (data.showBookingChangeForm) {
+                console.log('Booking change request detected, showing form');
+                
+                // Save the chat ID and tokens if provided
+                if (data.chatId) setChatId(data.chatId);
+                if (data.bot_token) setBotToken(data.bot_token);
+                if (data.agent_credentials) {
+                    setAgentCredentials(data.agent_credentials);
+                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                    console.log('Stored agent credentials from booking form response');
+                }
+                
+                // Add the bot message with typing effect
+                const botMsgId = 'bot-msg-' + Date.now();
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message,
+                    id: botMsgId
+                }]);
+                
+                // Start typing effect for this message
+                startTypingEffect(botMsgId, data.message);
+                
+                // Show the booking form
+                setShowBookingForm(true);
+                return;
+            }
+    
+            // Handle transfer state
+            if (data.transferred && data.chatId) {
+                console.log('Transfer initiated with chat ID:', data.chatId);
+                
+                // Save the bot token if provided
+                if (data.bot_token) {
+                    console.log('Bot token received');
+                    setBotToken(data.bot_token);
+                }
+                
+                // Save agent credentials if provided
+                if (data.agent_credentials) {
+                    console.log('Agent credentials received and stored');
+                    setAgentCredentials(data.agent_credentials);
+                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                }
+    
+                // Set chat state to agent mode
+                setChatMode('agent');
+                setChatId(data.chatId);
+                
+                // Add the transfer messages to the chat with typing effect
+                const botMsgId = 'bot-msg-' + Date.now();
+                const transferMsgId = 'bot-transfer-' + Date.now();
+                
+                // First message
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message,
+                    id: botMsgId
+                }]);
+                
+                // Start typing effect for first message
+                startTypingEffect(botMsgId, data.message);
+                
+                // UPDATED: Second message - check if already shown using ref and state
+                setTimeout(() => {
+                    console.log('[TRANSFER] Checking connection message state:', isTransferComplete, 'ref:', connectionMessageShownRef.current);
+                    
+                    // Only show this message if we haven't completed a transfer yet
+                    if (!isTransferComplete && !connectionMessageShownRef.current) {
+                        console.log('[TRANSFER] First time showing connection message, marking transfer as complete');
+                        const transferMessage = currentLanguage === 'en' ? 
+                            CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
+                        
+                        setMessages(prev => [...prev, {
+                            type: 'bot',
+                            content: transferMessage,
+                            id: transferMsgId
+                        }]);
+                        
+                        // Start typing effect for second message
+                        startTypingEffect(transferMsgId, transferMessage);
+                        
+                        // Mark transfer as complete in both ref and state
+                        connectionMessageShownRef.current = true;
+                        setIsTransferComplete(true);
+                    } else {
+                        console.log('[TRANSFER] Transfer already completed, skipping connection message');
+                    }
+                }, 1000); // Delay before showing the second message
+                
+                return;
+            }
+    
+            // Update credentials if provided
+            if (data.bot_token) {
+                setBotToken(data.bot_token);
+            }
+            
+            if (data.agent_credentials) {
+                console.log('New agent credentials received and stored');
+                setAgentCredentials(data.agent_credentials);
+                setStoredCredentials(data.agent_credentials); // Store for reuse
+            }
+    
+            // If message was suppressed (in agent mode), don't show any response
+            if (data.suppressMessage) {
+                return;
+            }
+    
+            // Normal bot response handling with unique ID for feedback tracking
+            const botMessageId = 'bot-msg-' + Date.now();
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: data.message,
+                id: botMessageId
+            }]);
+            
+            // Start typing effect for this message
+            startTypingEffect(botMessageId, data.message);
 
-            // If in agent mode, always use classic method
-            if (chatMode === 'agent') {
-                // In agent mode, skip streaming
-                handleSendClassic(messageText);
-            } else {
-                // In bot mode, use streaming
-                handleStreamingRequest(messageText);
+            // Store PostgreSQL ID if provided in response
+            if (data.postgresqlMessageId) {
+                setMessagePostgresqlIds(prev => ({
+                    ...prev,
+                    [botMessageId]: data.postgresqlMessageId
+                }));
+                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
             }
         } catch (error) {
             console.error('Error:', error);
             setIsTyping(false);
-            setIsStreaming(false);
             
             // Error message with typing effect
             const errorMsgId = 'bot-error-' + Date.now();
@@ -1617,194 +1226,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             startTypingEffect(errorMsgId, errorMessage);
         }
     };
-
-    const TypingIndicator = () => (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '16px',
-            alignItems: 'flex-start',
-            gap: '8px'
-        }}>
-            <img 
-                src="/solrun.png" 
-                alt="Sólrún"
-                style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    marginTop: '4px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                }}
-            />
-            <div style={{
-                padding: '12px 16px',
-                borderRadius: '16px',
-                backgroundColor: '#f0f0f0',
-                display: 'flex',
-                gap: '4px',
-                alignItems: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                border: '1px solid rgba(0, 0, 0, 0.05)'
-            }}>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#93918f',
-                    borderRadius: '50%',
-                    opacity: 0.4,
-                    animation: 'sky-lagoon-chat-typing 1s infinite'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#93918f',
-                    borderRadius: '50%',
-                    opacity: 0.4,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.2s'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#93918f',
-                    borderRadius: '50%',
-                    opacity: 0.4,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.4s'
-                }}/>
-            </div>
-        </div>
-    );
-
-    // Improved Processing Steps component with stable animation
-    const ProcessingSteps = () => {
-        // Use the most recent step for display, with a default message
-        const currentStep = processingSteps.length > 0 
-            ? processingSteps[processingSteps.length - 1] 
-            : (currentLanguage === 'en' ? "Processing your request..." : "Vinn úr beiðninni þinni...");
-        
-        // Use a unique key for proper animation when step changes
-        const stepKey = processingSteps.length > 0 ? processingSteps.length : 'default';
-        
-        return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                marginBottom: '16px',
-                alignItems: 'flex-start',
-                gap: '8px'
-            }}>
-                <img 
-                    src="/solrun.png" 
-                    alt="Sólrún"
-                    style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '50%',
-                        marginTop: '4px',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}
-                />
-                <div 
-                    key={stepKey}
-                    style={{
-                        padding: '12px 16px',
-                        borderRadius: '16px',
-                        backgroundColor: '#f0f0f0',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                        border: '1px solid rgba(0, 0, 0, 0.05)',
-                        animation: 'fadeInOut 0.5s forwards',
-                        opacity: 1
-                    }}
-                >
-                    <div style={{
-                        fontSize: '14px',
-                        lineHeight: '1.5',
-                        color: '#333'
-                    }}>
-                        {currentStep}
-                        <span style={{ 
-                            display: 'inline-block', 
-                            marginLeft: '4px',
-                            animation: 'sky-lagoon-chat-typing 1.4s infinite'
-                        }}>...</span>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Agent typing indicator with branded styling
-    const AgentTypingIndicator = () => (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '16px',
-            alignItems: 'flex-start',
-            gap: '8px'
-        }}>
-            <div className="agent-avatar-container">
-                <img 
-                    src="/agent-avatar.png" 
-                    alt="Agent"
-                    style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '50%',
-                        marginTop: '4px',
-                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                    }}
-                    onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.style.display = 'none';
-                        e.target.parentElement.classList.add('agent-avatar-fallback');
-                    }}
-                />
-                <div className="agent-avatar-fallback-content">A</div>
-            </div>
-            <div style={{
-                padding: '12px 16px',
-                borderRadius: '16px',
-                backgroundColor: 'rgba(112, 116, 78, 0.15)',
-                display: 'flex',
-                gap: '4px',
-                alignItems: 'center',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                border: '1px solid rgba(112, 116, 78, 0.2)'
-            }}>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
-                    animation: 'sky-lagoon-chat-typing 1s infinite'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.2s'
-                }}/>
-                <span style={{
-                    height: '8px',
-                    width: '8px',
-                    backgroundColor: '#70744E',
-                    borderRadius: '50%',
-                    opacity: 0.6,
-                    animation: 'sky-lagoon-chat-typing 1s infinite',
-                    animationDelay: '0.4s'
-                }}/>
-            </div>
-        </div>
-    );
 
     return (
         <ErrorBoundary>
@@ -2028,7 +1449,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             )}
                                             
                                             {msg.type === 'bot' || msg.type === 'agent' ? (
-                                                // Apply word-by-word typing effect for bot and agent messages
+                                                // Apply typing effect only for bot and agent messages
                                                 typingMessages[msg.id] ? (
                                                     <div style={{ position: 'relative' }}>
                                                         {/* Invisible full text to maintain container size */}
@@ -2044,15 +1465,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                             <MessageFormatter message={typingMessages[msg.id].text} />
                                                         </div>
                                                         
-                                                        {/* Visible partial text based on words or streaming */}
+                                                        {/* Visible partial text */}
                                                         <MessageFormatter 
-                                                            message={
-                                                                // If visibleWords is defined, use word-based rendering
-                                                                typingMessages[msg.id].visibleWords !== undefined
-                                                                    ? typingMessages[msg.id].text.split(/(\s+)/).slice(0, typingMessages[msg.id].visibleWords).join('')
-                                                                    // Fallback to character-based for backward compatibility
-                                                                    : typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars || 0)
-                                                            } 
+                                                            message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
                                                         />
                                                     </div>
                                                 ) : (
@@ -2209,16 +1624,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {/* Show processing steps if streaming and we have steps */}
-                        {isStreaming && processingSteps.length > 0 && (
-                            <ProcessingSteps />
-                        )}
-
-                        {/* Show traditional typing indicator if typing but not streaming with steps */}
-                        {isTyping && (!isStreaming || processingSteps.length === 0) && (
-                            <TypingIndicator />
-                        )}
-
+                        {isTyping && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -2236,9 +1642,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && !isStreaming && handleSend()}
+                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
                             placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
-                            disabled={isTyping || isStreaming}
                             style={{
                                 flex: 1,
                                 padding: '8px 16px',
@@ -2247,23 +1652,22 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 outline: 'none',
                                 fontSize: '14px',
                                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                                opacity: (isTyping || isStreaming) ? 0.7 : 1
                             }}
                         />
                         <button
                             onClick={handleSend}
-                            disabled={isTyping || isStreaming || !inputValue.trim()}
+                            disabled={isTyping}
                             style={{
-                                backgroundColor: (isTyping || isStreaming || !inputValue.trim()) ? '#a0a0a0' : '#70744E',
+                                backgroundColor: isTyping ? '#a0a0a0' : '#70744E',
                                 color: 'white',
                                 border: 'none',
                                 padding: '8px 20px',
                                 borderRadius: '20px',
-                                cursor: (isTyping || isStreaming || !inputValue.trim()) ? 'default' : 'pointer',
+                                cursor: isTyping ? 'default' : 'pointer',
                                 fontSize: '14px',
                                 fontWeight: '500',
                                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                opacity: (isTyping || isStreaming || !inputValue.trim()) ? 0.7 : 1,
+                                opacity: isTyping ? 0.7 : 1,
                                 transition: 'all 0.3s ease'
                             }}
                         >
@@ -2339,17 +1743,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             transform: translateY(10px);
                         }
                         100% {
-                            opacity: 1;
-                            transform: translateY(0);
-                        }
-                    }
-                    
-                    @keyframes fadeIn {
-                        from {
-                            opacity: 0;
-                            transform: translateY(5px);
-                        }
-                        to {
                             opacity: 1;
                             transform: translateY(0);
                         }
