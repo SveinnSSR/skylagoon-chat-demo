@@ -739,7 +739,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 break;
                 
             case 'processingStep':
-                // Add new processing step
+                // Add new processing step - we'll still track these but not show them
                 setProcessingSteps(prev => [...prev, data.step]);
                 scrollToBottom();
                 break;
@@ -757,11 +757,32 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 break;
                 
             case 'chunk':
-                // Add new content to our running text
-                setStreamFullText(prev => {
-                    const newText = prev + data.content;
+                // Get the new text by adding this chunk to previous content
+                const newText = streamFullText + data.content;
+                setStreamFullText(newText);
+                
+                // Check if this is the first chunk (no existing message)
+                const messageExists = messages.some(m => m.id === botMessageId);
+                
+                if (!messageExists) {
+                    // First chunk - create new message
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: newText,
+                        id: botMessageId
+                    }]);
                     
-                    // Update both the message content and typing messages
+                    // Initialize typing message
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: { 
+                            text: newText,
+                            visibleChars: newText.length,
+                            isComplete: false
+                        }
+                    }));
+                } else {
+                    // Update existing message
                     setMessages(messages => 
                         messages.map(m => 
                             m.id === botMessageId ? { ...m, content: newText } : m
@@ -777,9 +798,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             isComplete: false // Not complete until we get 'complete' event
                         }
                     }));
-                    
-                    return newText;
-                });
+                }
+                
                 scrollToBottom();
                 break;
                 
@@ -790,21 +810,45 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 
                 // Update the message with complete text
                 const finalText = data.fullText || data.message || streamFullText;
-                setMessages(messages => 
-                    messages.map(m => 
-                        m.id === botMessageId ? { ...m, content: finalText } : m
-                    )
-                );
                 
-                // Mark typing as complete in the typing system
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [botMessageId]: { 
-                        text: finalText,
-                        visibleChars: finalText.length,
-                        isComplete: true
-                    }
-                }));
+                // Check if we have a message to update
+                const msgExists = messages.some(m => m.id === botMessageId);
+                
+                if (msgExists) {
+                    // Update existing message
+                    setMessages(messages => 
+                        messages.map(m => 
+                            m.id === botMessageId ? { ...m, content: finalText } : m
+                        )
+                    );
+                    
+                    // Mark typing as complete in the typing system
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: { 
+                            text: finalText,
+                            visibleChars: finalText.length,
+                            isComplete: true
+                        }
+                    }));
+                } else {
+                    // Create a new message if somehow we don't have one
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: finalText,
+                        id: botMessageId
+                    }]);
+                    
+                    // Set typing as complete
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: { 
+                            text: finalText,
+                            visibleChars: finalText.length,
+                            isComplete: true
+                        }
+                    }));
+                }
                 
                 // Store PostgreSQL ID if provided
                 if (data.postgresqlMessageId) {
@@ -831,21 +875,44 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
                     "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.");
                 
-                setMessages(messages => 
-                    messages.map(m => 
-                        m.id === botMessageId ? { ...m, content: errorMessage } : m
-                    )
-                );
+                // Check if we need to create a new message or update an existing one
+                const errorMsgExists = messages.some(m => m.id === botMessageId);
                 
-                // Update typing messages
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [botMessageId]: { 
-                        text: errorMessage,
-                        visibleChars: errorMessage.length,
-                        isComplete: true
-                    }
-                }));
+                if (errorMsgExists) {
+                    // Update existing message
+                    setMessages(messages => 
+                        messages.map(m => 
+                            m.id === botMessageId ? { ...m, content: errorMessage } : m
+                        )
+                    );
+                    
+                    // Update typing messages
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: { 
+                            text: errorMessage,
+                            visibleChars: errorMessage.length,
+                            isComplete: true
+                        }
+                    }));
+                } else {
+                    // Create a new error message
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: errorMessage,
+                        id: botMessageId
+                    }]);
+                    
+                    // Set typing as complete
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: { 
+                            text: errorMessage,
+                            visibleChars: errorMessage.length,
+                            isComplete: true
+                        }
+                    }));
+                }
                 
                 // Clean up
                 if (sseConnection) {
@@ -878,22 +945,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             setStreamFullText('');
             setProcessingSteps([]);
             
-            // Add empty bot message that will be filled as we stream
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: '',
-                id: botMessageId
-            }]);
-            
-            // Initialize typing message entry
-            setTypingMessages(prev => ({
-                ...prev,
-                [botMessageId]: { 
-                    text: '',
-                    visibleChars: 0,
-                    isComplete: false 
-                }
-            }));
+            // NO LONGER creating an empty message here
+            // Will create it only when we receive content
             
             // Try first with POST endpoint and stream parameter
             try {
@@ -1009,23 +1062,44 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
                             "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
                         
-                        setMessages(prev => 
-                            prev.map(m => 
-                                m.id === botMessageId ? 
-                                    { ...m, content: errorMessage } : 
-                                    m
-                            )
-                        );
-                        
-                        // Update typing messages
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [botMessageId]: { 
-                                text: errorMessage,
-                                visibleChars: errorMessage.length,
-                                isComplete: true
-                            }
-                        }));
+                        // Only add error message if we don't already have a message
+                        const msgExists = messages.some(m => m.id === botMessageId);
+                        if (!msgExists) {
+                            setMessages(prev => [...prev, {
+                                type: 'bot',
+                                content: errorMessage,
+                                id: botMessageId
+                            }]);
+                            
+                            // Initialize typing message
+                            setTypingMessages(prev => ({
+                                ...prev,
+                                [botMessageId]: { 
+                                    text: errorMessage,
+                                    visibleChars: errorMessage.length,
+                                    isComplete: true
+                                }
+                            }));
+                        } else {
+                            // Update existing message
+                            setMessages(prev => 
+                                prev.map(m => 
+                                    m.id === botMessageId ? 
+                                        { ...m, content: errorMessage } : 
+                                        m
+                                )
+                            );
+                            
+                            // Update typing messages
+                            setTypingMessages(prev => ({
+                                ...prev,
+                                [botMessageId]: { 
+                                    text: errorMessage,
+                                    visibleChars: errorMessage.length,
+                                    isComplete: true
+                                }
+                            }));
+                        }
                         
                         // Clean up
                         eventSource.close();
@@ -1618,55 +1692,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         </div>
     );
 
-    // NEW: Processing Steps component
-    const ProcessingSteps = () => (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'flex-start',
-            marginBottom: '16px',
-            alignItems: 'flex-start',
-            gap: '8px'
-        }}>
-            <img 
-                src="/solrun.png" 
-                alt="Sólrún"
-                style={{
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
-                    marginTop: '4px',
-                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                }}
-            />
-            <div style={{
-                padding: '12px 16px',
-                borderRadius: '16px',
-                backgroundColor: '#f0f0f0',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                border: '1px solid rgba(0, 0, 0, 0.05)',
-                animation: 'fadeIn 0.3s forwards'
-            }}>
-                <div style={{
-                    fontSize: '14px',
-                    lineHeight: '1.5',
-                    color: '#333'
-                }}>
-                    {processingSteps.length > 0 ? 
-                        processingSteps[processingSteps.length - 1] : 
-                        currentLanguage === 'en' ? "Processing your request..." : "Vinn úr beiðninni þinni..."}
-                    <span style={{ 
-                        display: 'inline-block', 
-                        marginLeft: '4px',
-                        animation: 'sky-lagoon-chat-typing 1.4s infinite'
-                    }}>...</span>
-                </div>
-            </div>
-        </div>
-    );
-
     // Agent typing indicator with branded styling
     const AgentTypingIndicator = () => (
         <div style={{
@@ -2132,13 +2157,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {/* Show processing steps if streaming and we have steps */}
-                        {isStreaming && processingSteps.length > 0 && (
-                            <ProcessingSteps />
-                        )}
-
-                        {/* Show traditional typing indicator if typing but not streaming with steps */}
-                        {isTyping && (!isStreaming || processingSteps.length === 0) && (
+                        {/* Show typing indicator while streaming or typing */}
+                        {(isTyping || isStreaming) && (
                             <TypingIndicator />
                         )}
 
