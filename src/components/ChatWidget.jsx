@@ -761,44 +761,22 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 const newText = streamFullText + data.content;
                 setStreamFullText(newText);
                 
-                // Check if this is the first chunk (no existing message)
-                const messageExists = messages.some(m => m.id === botMessageId);
+                // IMPORTANT: ALWAYS update the existing message, never create a new one
+                setMessages(messages => 
+                    messages.map(m => 
+                        m.id === botMessageId ? { ...m, content: newText } : m
+                    )
+                );
                 
-                if (!messageExists) {
-                    // First chunk - create new message
-                    setMessages(prev => [...prev, {
-                        type: 'bot',
-                        content: newText,
-                        id: botMessageId
-                    }]);
-                    
-                    // Initialize typing message
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [botMessageId]: { 
-                            text: newText,
-                            visibleChars: newText.length,
-                            isComplete: false
-                        }
-                    }));
-                } else {
-                    // Update existing message
-                    setMessages(messages => 
-                        messages.map(m => 
-                            m.id === botMessageId ? { ...m, content: newText } : m
-                        )
-                    );
-                    
-                    // Update typing messages to match
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [botMessageId]: { 
-                            text: newText,
-                            visibleChars: newText.length,
-                            isComplete: false // Not complete until we get 'complete' event
-                        }
-                    }));
-                }
+                // Update typing messages to match
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [botMessageId]: { 
+                        text: newText,
+                        visibleChars: newText.length,
+                        isComplete: false
+                    }
+                }));
                 
                 scrollToBottom();
                 break;
@@ -943,10 +921,24 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Reset streaming states
             setIsStreaming(true);
             setStreamFullText('');
-            setProcessingSteps([]);
             
-            // NO LONGER creating an empty message here
-            // Will create it only when we receive content
+            // IMPORTANT: Create a single empty message right away
+            // This ensures we always have exactly one message to update
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: '',
+                id: botMessageId
+            }]);
+            
+            // Initialize typing message entry
+            setTypingMessages(prev => ({
+                ...prev,
+                [botMessageId]: { 
+                    text: '',
+                    visibleChars: 0,
+                    isComplete: false 
+                }
+            }));
             
             // Try first with POST endpoint and stream parameter
             try {
