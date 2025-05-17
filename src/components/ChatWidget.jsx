@@ -83,7 +83,12 @@ class MessageErrorBoundary extends Component {
 const SESSION_ID_KEY = 'skyLagoonChatSessionId';
 const SESSION_LAST_ACTIVITY_KEY = 'skyLagoonChatLastActivity';
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
-const TYPING_SPEED = 20; // Speed in milliseconds per character
+
+// NEW: Configuration for response effects
+const TYPING_SPEED = 20; // Speed in milliseconds per character for character-by-character typing
+const CHUNK_REVEAL_DELAY = 250; // Time between chunk reveals in milliseconds
+const FADE_IN_DURATION = 300; // Duration of the fade-in animation in milliseconds
+const MOBILE_BREAKPOINT = 768; // Pixel width below which we'll use the simple approach
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false, baseUrl }) => {
     const messagesEndRef = React.useRef(null);
@@ -113,7 +118,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [sessionId, setSessionId] = useState('');
     // Add current language state to track language changes
     const [currentLanguage, setCurrentLanguage] = useState(language);
-    // Add state for character-by-character typing effect
+    // Modified state for tracking typing/chunking effects
     const [typingMessages, setTypingMessages] = useState({});
     // Track newly added messages for animation
     const [newMessageIds, setNewMessageIds] = useState([]);
@@ -123,12 +128,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const connectionMessageShownRef = React.useRef(false);
     // NEW: Add a state variable for tracking transfer completion
     const [isTransferComplete, setIsTransferComplete] = useState(false);
+    // NEW: Track if we're on a mobile device for rendering approach
+    const isMobile = windowWidth <= MOBILE_BREAKPOINT;
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
         // Component mounting diagnostic
         console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
         console.log('[ConnectionRef] Initial value:', connectionMessageShownRef.current);
+        console.log('[DEVICE] Using ' + (isMobile ? 'mobile' : 'desktop') + ' rendering approach');
         
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
@@ -171,8 +179,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             id: newMessageId
                         }]);
                         
-                        // Start typing effect for this message
-                        startTypingEffect(newMessageId, message);
+                        // Start appropriate rendering effect for this message
+                        renderMessage(newMessageId, message);
                     }
                 }
             };
@@ -426,15 +434,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         return newMessages;
                     });
                     
-                    // Skip typing effect for agent messages, mark as completed immediately
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [id]: { 
-                            text: content,
-                            visibleChars: content.length,
-                            isComplete: true
-                        }
-                    }));
+                    // Initialize rendering for agent messages
+                    renderMessage(id, content);
                     
                     console.log('[AgentHandler] State update triggered');
                 } catch (error) {
@@ -468,7 +469,191 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         );
     }, [messages]);
 
-    // Character-by-character typing effect function with enhanced error handling
+    // NEW: Device-adaptive message rendering function
+    // This is a wrapper that chooses the right rendering approach based on device
+    const renderMessage = (messageId, fullText) => {
+        // Safety check for undefined text
+        if (!fullText) {
+            console.warn('Attempted to start rendering effect with empty text');
+            return null;
+        }
+        
+        // Normalize fullText to ensure it's a string
+        const safeText = typeof fullText === 'string' ? fullText : 
+                        (fullText ? String(fullText) : '');
+        
+        // Choose rendering approach based on device
+        if (isMobile) {
+            // For mobile: Use simpler approach to ensure stability
+            return startSimpleRender(messageId, safeText);
+        } else {
+            // For desktop: Use premium chunked approach
+            return startChunkedReveal(messageId, safeText);
+        }
+    };
+
+    // APPROACH 1: Simple immediate reveal with a fade-in effect
+    // Optimized for mobile where we prioritize reliability over effects
+    const startSimpleRender = (messageId, fullText) => {
+        try {
+            // Initialize with full text, fade-in effect
+            setTypingMessages(prev => ({
+                ...prev,
+                [messageId]: { 
+                    text: fullText,
+                    visibleChars: fullText.length, // Show all text immediately
+                    isComplete: true,              // Mark as complete right away
+                    fadeIn: true,                  // But still use fade-in effect
+                    renderType: 'simple'           // Track the render type
+                }
+            }));
+            
+            // Scroll to bottom to ensure it's visible
+            setTimeout(() => {
+                scrollToBottom();
+            }, 50);
+            
+            return messageId;
+        } catch (error) {
+            console.error('Error in simple render effect:', error);
+            
+            // Recovery: set the message as complete immediately without effects
+            try {
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: { 
+                        text: fullText,
+                        visibleChars: fullText.length,
+                        isComplete: true,
+                        fadeIn: false,
+                        renderType: 'simple-fallback'
+                    }
+                }));
+            } catch (recoveryError) {
+                console.error('Failed to recover from simple render error:', recoveryError);
+            }
+            return null;
+        }
+    };
+
+    // APPROACH 2: Premium chunked reveal with transitions
+    // Used on desktop for a premium feel
+    const startChunkedReveal = (messageId, fullText) => {
+        try {
+            // Calculate chunk size based on message length
+            let numberOfChunks = 1;
+            
+            if (fullText.length < 100) {
+                // For short messages, show all at once with a fade-in
+                numberOfChunks = 1;
+            } else if (fullText.length < 300) {
+                // For medium messages, use 2 chunks
+                numberOfChunks = 2;
+            } else {
+                // For longer messages, use 3 chunks
+                numberOfChunks = 3;
+            }
+            
+            const chunkSize = Math.ceil(fullText.length / numberOfChunks);
+            
+            // Initialize with empty text but visibility visible (for fade-in effect)
+            setTypingMessages(prev => ({
+                ...prev,
+                [messageId]: { 
+                    text: fullText, // Store the full text
+                    visibleChars: 0, // Initial visible characters (none)
+                    currentChunk: 0, // Track the current chunk
+                    totalChunks: numberOfChunks,
+                    isComplete: false,
+                    fadeIn: true, // Enable fade-in effect
+                    renderType: 'chunked' // Track the render type
+                }
+            }));
+            
+            // Immediately scroll to bottom to handle container properly
+            setTimeout(() => {
+                scrollToBottom();
+            }, 50);
+            
+            // Reveal chunks sequentially with smooth transition
+            let currentChunk = 0;
+            
+            const revealNextChunk = () => {
+                if (currentChunk < numberOfChunks) {
+                    const charsToReveal = Math.min(
+                        (currentChunk + 1) * chunkSize,
+                        fullText.length
+                    );
+                    
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [messageId]: {
+                            ...prev[messageId],
+                            visibleChars: charsToReveal,
+                            currentChunk: currentChunk + 1,
+                            isComplete: charsToReveal === fullText.length
+                        }
+                    }));
+                    
+                    currentChunk++;
+                    
+                    // Only scroll when adding new content
+                    setTimeout(() => {
+                        scrollToBottom();
+                    }, 50);
+                    
+                    // Schedule next chunk if needed
+                    if (currentChunk < numberOfChunks) {
+                        setTimeout(revealNextChunk, CHUNK_REVEAL_DELAY);
+                    } else {
+                        // Final scroll and mark as complete
+                        setTimeout(() => {
+                            scrollToBottom();
+                            
+                            // Ensure isComplete is set to true
+                            setTypingMessages(prev => ({
+                                ...prev,
+                                [messageId]: {
+                                    ...prev[messageId],
+                                    isComplete: true
+                                }
+                            }));
+                        }, 100);
+                    }
+                }
+            };
+            
+            // Start revealing after a small initial delay (feels more natural)
+            setTimeout(revealNextChunk, 100);
+            
+            return messageId; // Return ID for potential cleanup
+        } catch (error) {
+            // Enhanced error recovery
+            console.error('Error in chunked reveal effect:', error);
+            
+            // Recovery: set the message as complete immediately
+            try {
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: { 
+                        text: fullText,
+                        visibleChars: fullText.length,
+                        currentChunk: 1,
+                        totalChunks: 1,
+                        isComplete: true,
+                        fadeIn: false, // Disable fade-in for error recovery
+                        renderType: 'chunked-fallback'
+                    }
+                }));
+            } catch (recoveryError) {
+                console.error('Failed to recover from chunked reveal effect error:', recoveryError);
+            }
+            return null;
+        }
+    };
+    
+    // LEGACY: Character-by-character typing effect function
+    // Kept for reference but not used in the new implementation
     const startTypingEffect = (messageId, fullText) => {
         try {
             // Safety check for undefined text
@@ -491,7 +676,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 [messageId]: { 
                     text: safeText, // Use normalized text
                     visibleChars: 0, // Track how many characters are visible
-                    isComplete: false
+                    isComplete: false,
+                    renderType: 'character-by-character'
                 }
             }));
             
@@ -542,7 +728,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     [messageId]: { 
                         text: typeof fullText === 'string' ? fullText : String(fullText || ''),
                         visibleChars: typeof fullText === 'string' ? fullText.length : 0,
-                        isComplete: true
+                        isComplete: true,
+                        renderType: 'character-fallback'
                     }
                 }));
             } catch (recoveryError) {
@@ -565,8 +752,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             id: welcomeMessageId
         }]);
         
-        // Start typing effect for welcome message
-        startTypingEffect(welcomeMessageId, welcomeMessage);
+        // Render welcome message with the device-appropriate approach
+        renderMessage(welcomeMessageId, welcomeMessage);
 
         // Initialize connection message ref and state
         connectionMessageShownRef.current = false;
@@ -657,7 +844,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: 'user-booking-' + Date.now()
             }]);
 
-            // Add confirmation message with typing effect
+            // Add confirmation message with device-appropriate rendering
             const confirmMessageId = 'bot-booking-confirm-' + Date.now();
             const confirmMessage = data.message || (currentLanguage === 'en' ? 
                 "Thank you for your booking change request. Our team will review it and respond to your email within 24 hours." :
@@ -669,8 +856,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: confirmMessageId
             }]);
             
-            // Start typing effect for the confirmation message
-            startTypingEffect(confirmMessageId, confirmMessage);
+            // Render confirmation message with the appropriate approach
+            renderMessage(confirmMessageId, confirmMessage);
 
             // Update state
             setBookingRequestSent(true);
@@ -679,7 +866,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.error('Error submitting booking request:', error);
             setIsTyping(false);
             
-            // Show error message with typing effect
+            // Show error message with device-appropriate rendering
             const errorMessageId = 'bot-booking-error-' + Date.now();
             const errorMessage = currentLanguage === 'en' ? 
                 "I'm sorry, we're having trouble submitting your booking change request. Please try again or call us at +354 527 6800." :
@@ -691,8 +878,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: errorMessageId
             }]);
             
-            // Start typing effect for the error message
-            startTypingEffect(errorMessageId, errorMessage);
+            // Render error message with the appropriate approach
+            renderMessage(errorMessageId, errorMessage);
         }
     };
 
@@ -711,8 +898,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             id: cancelMessageId
         }]);
         
-        // Start typing effect for the cancellation message
-        startTypingEffect(cancelMessageId, cancelMessage);
+        // Render cancellation message with the appropriate approach
+        renderMessage(cancelMessageId, cancelMessage);
     };
 
     const TypingIndicator = () => (
@@ -1090,7 +1277,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     console.log('Stored agent credentials from booking form response');
                 }
                 
-                // Add the bot message with typing effect
+                // Add the bot message with device-appropriate rendering
                 const botMsgId = 'bot-msg-' + Date.now();
                 setMessages(prev => [...prev, {
                     type: 'bot',
@@ -1098,8 +1285,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     id: botMsgId
                 }]);
                 
-                // Start typing effect for this message
-                startTypingEffect(botMsgId, data.message);
+                // Render message with the appropriate approach
+                renderMessage(botMsgId, data.message);
                 
                 // Show the booking form
                 setShowBookingForm(true);
@@ -1127,7 +1314,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 setChatMode('agent');
                 setChatId(data.chatId);
                 
-                // Add the transfer messages to the chat with typing effect
+                // Add the transfer messages to the chat with device-appropriate rendering
                 const botMsgId = 'bot-msg-' + Date.now();
                 const transferMsgId = 'bot-transfer-' + Date.now();
                 
@@ -1138,8 +1325,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     id: botMsgId
                 }]);
                 
-                // Start typing effect for first message
-                startTypingEffect(botMsgId, data.message);
+                // Render first message with the appropriate approach
+                renderMessage(botMsgId, data.message);
                 
                 // UPDATED: Second message - check if already shown using ref and state
                 setTimeout(() => {
@@ -1157,8 +1344,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             id: transferMsgId
                         }]);
                         
-                        // Start typing effect for second message
-                        startTypingEffect(transferMsgId, transferMessage);
+                        // Render second message with the appropriate approach
+                        renderMessage(transferMsgId, transferMessage);
                         
                         // Mark transfer as complete in both ref and state
                         connectionMessageShownRef.current = true;
@@ -1195,8 +1382,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: botMessageId
             }]);
             
-            // Start typing effect for this message
-            startTypingEffect(botMessageId, data.message);
+            // Render response with the device-appropriate approach
+            renderMessage(botMessageId, data.message);
 
             // Store PostgreSQL ID if provided in response
             if (data.postgresqlMessageId) {
@@ -1210,7 +1397,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.error('Error:', error);
             setIsTyping(false);
             
-            // Error message with typing effect
+            // Error message with device-appropriate rendering
             const errorMsgId = 'bot-error-' + Date.now();
             const errorMessage = currentLanguage === 'en' ? 
                 "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
@@ -1222,8 +1409,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 id: errorMsgId
             }]);
             
-            // Start typing effect for error message
-            startTypingEffect(errorMsgId, errorMessage);
+            // Render error message with the appropriate approach
+            renderMessage(errorMsgId, errorMessage);
         }
     };
 
@@ -1449,10 +1636,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             )}
                                             
                                             {msg.type === 'bot' || msg.type === 'agent' ? (
-                                                // Apply typing effect only for bot and agent messages
+                                                // MODIFIED: Apply different rendering approaches based on device
                                                 typingMessages[msg.id] ? (
-                                                    <div style={{ position: 'relative' }}>
-                                                        {/* Invisible full text to maintain container size */}
+                                                    <div 
+                                                        className="sky-lagoon-message-content"
+                                                        style={{ 
+                                                            position: 'relative',
+                                                            opacity: typingMessages[msg.id].fadeIn && !typingMessages[msg.id].isComplete ? 
+                                                                  '0.99' : '1', // Very slight opacity to trigger animation
+                                                            transition: `opacity ${FADE_IN_DURATION}ms ease-in-out`
+                                                        }}
+                                                    >
+                                                        {/* Invisible full text to properly size the container */}
                                                         <div style={{ 
                                                             visibility: 'hidden', 
                                                             position: 'absolute', 
@@ -1465,10 +1660,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                                             <MessageFormatter message={typingMessages[msg.id].text} />
                                                         </div>
                                                         
-                                                        {/* Visible partial text */}
-                                                        <MessageFormatter 
-                                                            message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
-                                                        />
+                                                        {/* Visible partial/full text with fade-in effect */}
+                                                        <div className={`sky-lagoon-message-reveal ${typingMessages[msg.id].fadeIn ? 'sky-lagoon-fade-in' : ''}`}>
+                                                            <MessageFormatter 
+                                                                message={typingMessages[msg.id].text.substring(0, typingMessages[msg.id].visibleChars)} 
+                                                            />
+                                                        </div>
                                                     </div>
                                                 ) : (
                                                     <MessageFormatter message={msg.content} />
@@ -1676,7 +1873,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     </div>
                 )}
 
-                {/* Add keyframes for typing animation and new message animation */}
+                {/* Add keyframes for typing animation, new message animation, and fade-in */}
                 <style jsx>{`
                     .message-bubble {
                         max-width: 70%;
@@ -1725,6 +1922,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         display: flex;
                     }
                     
+                    /* MODIFIED: Tweaked animations for new approach */
                     @keyframes sky-lagoon-chat-typing {
                         0% {
                             opacity: 0.4;
@@ -1746,6 +1944,24 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             opacity: 1;
                             transform: translateY(0);
                         }
+                    }
+                    
+                    @keyframes sky-lagoon-chat-fade-in {
+                        0% {
+                            opacity: 0;
+                        }
+                        100% {
+                            opacity: 1;
+                        }
+                    }
+                    
+                    .sky-lagoon-message-reveal {
+                        opacity: 1;
+                        transition: opacity ${FADE_IN_DURATION}ms ease-in-out;
+                    }
+                    
+                    .sky-lagoon-fade-in {
+                        animation: sky-lagoon-chat-fade-in ${FADE_IN_DURATION}ms ease-in-out;
                     }
                     
                     @media (max-width: 768px) {
