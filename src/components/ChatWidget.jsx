@@ -130,10 +130,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [isTransferComplete, setIsTransferComplete] = useState(false);
     // NEW: Track if we're on a mobile device for rendering approach
     const isMobile = windowWidth <= MOBILE_BREAKPOINT;
-    // NEW: Add state for active streams
-    const [activeStreams, setActiveStreams] = useState({});
-    // NEW: Add state for accumulated stream content
-    const [streamContent, setStreamContent] = useState({});
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
@@ -297,188 +293,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             pusher.disconnect();
         };
     }, []);
-
-    // NEW: Add WebSocket event handlers for streaming
-    useEffect(() => {
-        if (pusherChannel && sessionId) {
-            console.log('[STREAM] Setting up stream handlers for session:', sessionId);
-            
-            // Clear existing handlers to prevent duplicates
-            pusherChannel.unbind('stream-connected');
-            pusherChannel.unbind('stream-chunk');
-            pusherChannel.unbind('stream-complete');
-            pusherChannel.unbind('stream-error');
-            
-            // Handler for stream connection
-            const handleStreamConnected = (data) => {
-                console.log('[STREAM] Connected event received:', data);
-                
-                // Skip if not for our session
-                if (data.sessionId !== sessionId) {
-                    console.log('[STREAM] Ignoring stream for different session');
-                    return;
-                }
-                
-                // Show typing indicator when streaming starts
-                setIsTyping(true);
-            };
-            
-            // Handler for stream chunks
-            const handleStreamChunk = (data) => {
-                // Skip if not for our session
-                if (data.sessionId !== sessionId) return;
-                
-                console.log('[STREAM] Chunk received:', data);
-                
-                const streamId = data.streamId;
-                const content = data.content || '';
-                
-                // Create or update message with this content
-                setMessages(prev => {
-                    // Find message with this stream ID
-                    const existingMsg = prev.find(m => 
-                        m.streamId === streamId || m.id === 'stream-' + streamId
-                    );
-                    
-                    if (existingMsg) {
-                        // Update existing message
-                        return prev.map(m => 
-                            (m.streamId === streamId || m.id === 'stream-' + streamId) 
-                                ? {...m, content: m.content + content}
-                                : m
-                        );
-                    } else {
-                        // Create new message
-                        return [...prev, {
-                            type: 'bot',
-                            content: content,
-                            id: 'stream-' + streamId,
-                            streamId: streamId
-                        }];
-                    }
-                });
-                
-                // Update typing message state for smooth rendering
-                const messageId = 'stream-' + streamId;
-                setTypingMessages(prev => {
-                    const currentMsg = prev[messageId] || {
-                        text: '',
-                        visibleChars: 0,
-                        isComplete: false,
-                        fadeIn: true,
-                        renderType: isMobile ? 'simple' : 'chunked'
-                    };
-                    
-                    const updatedText = currentMsg.text + content;
-                    
-                    return {
-                        ...prev,
-                        [messageId]: {
-                            ...currentMsg,
-                            text: updatedText,
-                            visibleChars: updatedText.length,
-                        }
-                    };
-                });
-                
-                // Scroll occasionally to show new content
-                if (data.chunkNumber % 3 === 0) {
-                    setTimeout(scrollToBottom, 50);
-                }
-            };
-            
-            // Handler for stream completion
-            const handleStreamComplete = (data) => {
-                // Skip if not for our session
-                if (data.sessionId !== sessionId) return;
-                
-                console.log('[STREAM] Complete event received for stream:', data.streamId);
-                
-                const streamId = data.streamId;
-                const messageId = 'stream-' + streamId;
-                const finalContent = data.completeContent || '';
-                
-                // Turn off typing indicator
-                setIsTyping(false);
-                
-                // Update message with final content
-                setMessages(prev => {
-                    const existingMsg = prev.find(m => 
-                        m.streamId === streamId || m.id === messageId
-                    );
-                    
-                    if (existingMsg) {
-                        // Update existing message
-                        return prev.map(m => 
-                            (m.streamId === streamId || m.id === messageId) 
-                                ? {...m, content: finalContent}
-                                : m
-                        );
-                    } else if (finalContent) {
-                        // Create message if it doesn't exist but we have content
-                        return [...prev, {
-                            type: 'bot',
-                            content: finalContent,
-                            id: messageId,
-                            streamId: streamId
-                        }];
-                    }
-                    
-                    return prev;
-                });
-                
-                // Mark as complete in typing system
-                setTypingMessages(prev => {
-                    return {
-                        ...prev,
-                        [messageId]: {
-                            text: finalContent,
-                            visibleChars: finalContent.length,
-                            isComplete: true,
-                            fadeIn: true,
-                            renderType: isMobile ? 'simple' : 'chunked'
-                        }
-                    };
-                });
-                
-                // Store PostgreSQL ID if provided
-                if (data.postgresqlMessageId) {
-                    setMessagePostgresqlIds(prev => ({
-                        ...prev,
-                        [messageId]: data.postgresqlMessageId
-                    }));
-                }
-                
-                // Final scroll to bottom
-                setTimeout(scrollToBottom, 100);
-            };
-            
-            // Handler for stream errors
-            const handleStreamError = (data) => {
-                // Skip if not for our session
-                if (data.sessionId !== sessionId) return;
-                
-                console.error('[STREAM] Error event received:', data);
-                
-                // Turn off typing indicator
-                setIsTyping(false);
-            };
-            
-            // Bind all handlers
-            pusherChannel.bind('stream-connected', handleStreamConnected);
-            pusherChannel.bind('stream-chunk', handleStreamChunk);
-            pusherChannel.bind('stream-complete', handleStreamComplete);
-            pusherChannel.bind('stream-error', handleStreamError);
-            
-            return () => {
-                // Clean up handlers
-                pusherChannel.unbind('stream-connected', handleStreamConnected);
-                pusherChannel.unbind('stream-chunk', handleStreamChunk);
-                pusherChannel.unbind('stream-complete', handleStreamComplete);
-                pusherChannel.unbind('stream-error', handleStreamError);
-            };
-        }
-    }, [pusherChannel, sessionId, messages, isMobile]);
 
     // Listen for agent messages from LiveChat - format-normalized implementation
     // FIXED: Removed 'messages' from dependency array to prevent loops
@@ -1387,7 +1201,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return 'general';
     };
 
-    // MODIFIED: Update handleSend to work with streaming responses
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
     
@@ -1398,8 +1211,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         setMessages(prev => [...prev, {
             type: 'user',
             content: messageText,
-            id: 'user-msg-' + Date.now(),
-            timestamp: Date.now()
+            id: 'user-msg-' + Date.now()
         }]);
         
         setIsTyping(true);
@@ -1448,16 +1260,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 },
                 body: JSON.stringify(requestBody)
             });   
-
+    
             const data = await response.json();
-            
-            // NEW: Check if this is a streaming response
-            if (data.streaming) {
-                console.log('[STREAM] Received streaming response, streamId:', data.streamId);
-                // Don't turn off typing indicator yet - streaming will handle this
-                return;
-            }
-            
             setIsTyping(false);
             
             // Handle booking change request form
@@ -1571,25 +1375,23 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             }
     
             // Normal bot response handling with unique ID for feedback tracking
-            if (data.message) {
-                const botMessageId = 'bot-msg-' + Date.now();
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.message,
-                    id: botMessageId
-                }]);
-                
-                // Render response with the device-appropriate approach
-                renderMessage(botMessageId, data.message);
-    
-                // Store PostgreSQL ID if provided in response
-                if (data.postgresqlMessageId) {
-                    setMessagePostgresqlIds(prev => ({
-                        ...prev,
-                        [botMessageId]: data.postgresqlMessageId
-                    }));
-                    console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
-                }
+            const botMessageId = 'bot-msg-' + Date.now();
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: data.message,
+                id: botMessageId
+            }]);
+            
+            // Render response with the device-appropriate approach
+            renderMessage(botMessageId, data.message);
+
+            // Store PostgreSQL ID if provided in response
+            if (data.postgresqlMessageId) {
+                setMessagePostgresqlIds(prev => ({
+                    ...prev,
+                    [botMessageId]: data.postgresqlMessageId
+                }));
+                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
             }
         } catch (error) {
             console.error('Error:', error);
@@ -2020,7 +1822,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         )}
 
                         {isTyping && <TypingIndicator />}
-
                         <div ref={messagesEndRef} />
                     </div>
                 )}
