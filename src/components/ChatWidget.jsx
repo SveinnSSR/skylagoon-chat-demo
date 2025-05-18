@@ -130,6 +130,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [isTransferComplete, setIsTransferComplete] = useState(false);
     // NEW: Track if we're on a mobile device for rendering approach
     const isMobile = windowWidth <= MOBILE_BREAKPOINT;
+    // NEW: Reference to store active EventSource connections
+    const streamSourceRef = React.useRef(null);
+    // NEW: State to track if we're currently streaming
+    const [isStreaming, setIsStreaming] = useState(false);
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
@@ -141,7 +145,24 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
             console.log('[ConnectionRef] Final value on unmount:', connectionMessageShownRef.current);
+            
+            // Clean up any active stream connections
+            if (streamSourceRef.current) {
+                console.log('[STREAM] Closing connection on unmount');
+                streamSourceRef.current.close();
+                streamSourceRef.current = null;
+            }
         };
+    }, []);
+
+    // NEW: Function to close streaming connection
+    const closeStreamConnection = useCallback(() => {
+        if (streamSourceRef.current) {
+            console.log('[STREAM] Closing EventSource connection');
+            streamSourceRef.current.close();
+            streamSourceRef.current = null;
+            setIsStreaming(false);
+        }
     }, []);
 
     // Add this near your other useEffect hooks
@@ -652,90 +673,280 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }
     };
     
-    // LEGACY: Character-by-character typing effect function
-    // Kept for reference but not used in the new implementation
-    const startTypingEffect = (messageId, fullText) => {
-        try {
-            // Safety check for undefined text
-            if (!fullText) {
-                console.warn('Attempted to start typing effect with empty text');
-                return null;
-            }
+    // NEW: Function to update streaming content with new chunks
+    const updateStreamingContent = (messageId, chunk, isDone = false) => {
+        // Find the message first to confirm it exists
+        const message = messages.find(m => m.id === messageId);
+        
+        // If message doesn't exist, it's likely the first chunk, so create it
+        if (!message) {
+            // Create the message with the first chunk
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: chunk,
+                id: messageId,
+                isStreaming: true
+            }]);
             
-            // NEW: Normalize fullText to ensure it's a string
-            const safeText = typeof fullText === 'string' ? fullText : 
-                            (fullText ? String(fullText) : '');
-            
-            if (safeText !== fullText) {
-                console.warn('Typing effect received non-string content, converted to:', safeText);
-            }
-            
-            // Initialize with full text but visibility hidden
+            // Initialize the typing message with chunked reveal
             setTypingMessages(prev => ({
                 ...prev,
-                [messageId]: { 
-                    text: safeText, // Use normalized text
-                    visibleChars: 0, // Track how many characters are visible
-                    isComplete: false,
-                    renderType: 'character-by-character'
+                [messageId]: {
+                    text: chunk,
+                    visibleChars: chunk.length,
+                    isComplete: isDone,
+                    fadeIn: true,
+                    renderType: 'streaming'
                 }
             }));
-            
-            // Scroll to bottom initially just once to handle the full text height
-            setTimeout(() => {
-                scrollToBottom();
-            }, 50);
-            
-            let charIndex = 0;
-            
-            const typingInterval = setInterval(() => {
-                if (charIndex <= safeText.length) { // Use safeText instead of fullText
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [messageId]: {
-                            ...prev[messageId],
-                            visibleChars: charIndex,
-                            isComplete: charIndex === safeText.length // Use safeText
-                        }
-                    }));
-                    charIndex++;
-                    // No scrolling during typing to prevent jitter
-                } else {
-                    clearInterval(typingInterval);
-                    // When typing is complete
-                    setTimeout(() => {
-                        // Mark as complete
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [messageId]: { 
-                                ...prev[messageId],
-                                isComplete: true
-                            }
-                        }));
-                    }, 100);
+        } else {
+            // Update existing message with new chunk
+            setMessages(prev => prev.map(m => {
+                if (m.id === messageId) {
+                    return {
+                        ...m,
+                        content: m.content + chunk
+                    };
                 }
-            }, TYPING_SPEED);
+                return m;
+            }));
             
-            // Store the interval ID to clear it if needed
-            return typingInterval;
-        } catch (error) {
-            // NEW: Enhanced error recovery for typing effect
-            console.error('Error in typing effect:', error);
-            // Recovery: set the message as complete immediately
-            try {
-                setTypingMessages(prev => ({
+            // Update typing message with new content
+            setTypingMessages(prev => {
+                const current = prev[messageId];
+                if (!current) return prev; // Safety check
+                
+                const newText = current.text + chunk;
+                
+                return {
                     ...prev,
-                    [messageId]: { 
-                        text: typeof fullText === 'string' ? fullText : String(fullText || ''),
-                        visibleChars: typeof fullText === 'string' ? fullText.length : 0,
-                        isComplete: true,
-                        renderType: 'character-fallback'
+                    [messageId]: {
+                        ...current,
+                        text: newText,
+                        visibleChars: newText.length,
+                        isComplete: isDone
                     }
-                }));
-            } catch (recoveryError) {
-                console.error('Failed to recover from typing effect error:', recoveryError);
+                };
+            });
+        }
+        
+        // Scroll to bottom to ensure latest content is visible
+        setTimeout(() => {
+            scrollToBottom();
+        }, 50);
+    };
+    
+    // NEW: Streaming request handler
+    const handleStreamingRequest = async (messageText) => {
+        if (!messageText.trim() || isTyping) return;
+        
+        // Close any existing connections
+        closeStreamConnection();
+        
+        // Reset state for new message
+        setIsTyping(true);
+        setIsStreaming(true);
+        
+        // Add user message to chat
+        setMessages(prev => [...prev, {
+            type: 'user',
+            content: messageText,
+            id: 'user-msg-' + Date.now()
+        }]);
+        
+        // Check for session timeout before sending
+        checkSessionTimeout();
+        
+        // Generate unique ID for this bot message
+        const botMessageId = 'bot-msg-' + Date.now();
+        
+        try {
+            // Create the EventSource connection for streaming
+            const streamUrl = new URL(webhookUrl);
+            
+            // Add parameters
+            streamUrl.searchParams.append('streaming', 'true');
+            streamUrl.searchParams.append('sessionId', sessionId);
+            streamUrl.searchParams.append('language', currentLanguage);
+            
+            console.log('[STREAM] Creating EventSource connection');
+            
+            // Create new EventSource
+            const eventSource = new EventSource(streamUrl.toString());
+            streamSourceRef.current = eventSource;
+            
+            // Set up event listeners
+            eventSource.onopen = () => {
+                console.log('[STREAM] Connection opened');
+            };
+            
+            // Listen for connected event
+            eventSource.addEventListener('connected', (event) => {
+                console.log('[STREAM] Connected event received');
+            });
+            
+            // Listen for chunk events
+            eventSource.addEventListener('chunk', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('[STREAM] Chunk received', data.content?.length || 0);
+                    
+                    // Make sure we have content
+                    if (data.content) {
+                        // Update the streaming content
+                        updateStreamingContent(botMessageId, data.content, data.done || false);
+                    }
+                } catch (error) {
+                    console.error('[STREAM] Error processing chunk:', error);
+                }
+            });
+            
+            // Listen for complete event
+            eventSource.addEventListener('complete', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('[STREAM] Complete event received');
+                    
+                    // If content is provided in the complete event, use it
+                    if (data.content) {
+                        // Check if we already have this message
+                        const existingMsg = messages.find(m => m.id === botMessageId);
+                        
+                        if (!existingMsg) {
+                            // Create the message if it doesn't exist yet
+                            setMessages(prev => [...prev, {
+                                type: 'bot',
+                                content: data.content,
+                                id: botMessageId
+                            }]);
+                            
+                            setTypingMessages(prev => ({
+                                ...prev,
+                                [botMessageId]: {
+                                    text: data.content,
+                                    visibleChars: data.content.length,
+                                    isComplete: true,
+                                    fadeIn: true,
+                                    renderType: 'streaming-complete'
+                                }
+                            }));
+                        } else {
+                            // Just mark as complete
+                            setTypingMessages(prev => {
+                                const current = prev[botMessageId];
+                                if (!current) return prev;
+                                
+                                return {
+                                    ...prev,
+                                    [botMessageId]: {
+                                        ...current,
+                                        isComplete: true
+                                    }
+                                };
+                            });
+                        }
+                    }
+                    
+                    // Store PostgreSQL ID if provided
+                    if (data.postgresqlMessageId) {
+                        setMessagePostgresqlIds(prev => ({
+                            ...prev,
+                            [botMessageId]: data.postgresqlMessageId
+                        }));
+                    }
+                    
+                    // Clean up
+                    closeStreamConnection();
+                    setIsTyping(false);
+                    setIsStreaming(false);
+                    
+                    // Final scroll to bottom
+                    setTimeout(() => {
+                        scrollToBottom();
+                    }, 100);
+                    
+                } catch (error) {
+                    console.error('[STREAM] Error processing complete event:', error);
+                    closeStreamConnection();
+                    setIsTyping(false);
+                    setIsStreaming(false);
+                }
+            });
+            
+            // Listen for error events
+            eventSource.addEventListener('error', (event) => {
+                console.error('[STREAM] Error event:', event);
+                
+                // Create error message
+                const errorMessage = currentLanguage === 'en' 
+                    ? "I apologize, but I'm having trouble connecting right now. Please try again shortly."
+                    : "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                
+                // Display error message if we haven't already created a bot message
+                const existingMsg = messages.find(m => m.id === botMessageId);
+                
+                if (!existingMsg) {
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: errorMessage,
+                        id: botMessageId
+                    }]);
+                    
+                    renderMessage(botMessageId, errorMessage);
+                }
+                
+                // Clean up
+                closeStreamConnection();
+                setIsTyping(false);
+                setIsStreaming(false);
+            });
+            
+            // Send the POST request to trigger the streaming response
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    message: messageText,
+                    language: currentLanguage,
+                    streaming: true,
+                    sessionId: sessionId,
+                    chatId: chatId,
+                    bot_token: botToken,
+                    agent_credentials: agentCredentials || storedCredentials
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to send message: ${response.status}`);
             }
-            return null;
+            
+        } catch (error) {
+            console.error('[STREAM] Request error:', error);
+            
+            // Close any open connection
+            closeStreamConnection();
+            
+            // Reset state
+            setIsTyping(false);
+            setIsStreaming(false);
+            
+            // Show error message
+            const errorMessage = currentLanguage === 'en' 
+                ? "I apologize, but I'm having trouble connecting right now. Please try again shortly."
+                : "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+            
+            const errorMessageId = 'bot-error-' + Date.now();
+            
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: errorMessage,
+                id: errorMessageId
+            }]);
+            
+            renderMessage(errorMessageId, errorMessage);
         }
     };
 
@@ -1201,217 +1412,15 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return 'general';
     };
 
+    // MODIFIED: Use streaming request handler
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
     
         const messageText = inputValue.trim();
         setInputValue('');
-    
-        // Always show user message in chat
-        setMessages(prev => [...prev, {
-            type: 'user',
-            content: messageText,
-            id: 'user-msg-' + Date.now()
-        }]);
         
-        setIsTyping(true);
-        
-        // Check for session timeout before sending
-        checkSessionTimeout();
-    
-        try {
-            // Use props instead of environment variables
-            console.log('Sending message to:', webhookUrl);
-            console.log('Using session ID:', sessionId);
-            
-            // Log credential status
-            console.log('CREDENTIALS CHECK:', {
-                chatId: chatId,
-                isAgentMode: chatMode === 'agent',
-                hasAgentCredentials: !!agentCredentials,
-                hasStoredCredentials: !!storedCredentials
-            });
-            
-            // Add this new debug log
-            console.log('\n🔍 SENDING MESSAGE STATE:', {
-                chatMode,
-                isAgentMode: chatMode === 'agent',
-                hasChatId: !!chatId,
-                chatId,
-                messageText: messageText.substring(0, 30) // Show first 30 chars of message
-            });
-            
-            // Prepare the request body with credential fallbacks
-            const requestBody = { 
-                message: messageText,
-                language: currentLanguage,
-                chatId: chatId,
-                bot_token: botToken,
-                agent_credentials: agentCredentials || storedCredentials, // Use stored credentials as fallback
-                isAgentMode: chatMode === 'agent',
-                sessionId: sessionId
-            };
-            
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey
-                },
-                body: JSON.stringify(requestBody)
-            });   
-    
-            const data = await response.json();
-            setIsTyping(false);
-            
-            // Handle booking change request form
-            if (data.showBookingChangeForm) {
-                console.log('Booking change request detected, showing form');
-                
-                // Save the chat ID and tokens if provided
-                if (data.chatId) setChatId(data.chatId);
-                if (data.bot_token) setBotToken(data.bot_token);
-                if (data.agent_credentials) {
-                    setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
-                    console.log('Stored agent credentials from booking form response');
-                }
-                
-                // Add the bot message with device-appropriate rendering
-                const botMsgId = 'bot-msg-' + Date.now();
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.message,
-                    id: botMsgId
-                }]);
-                
-                // Render message with the appropriate approach
-                renderMessage(botMsgId, data.message);
-                
-                // Show the booking form
-                setShowBookingForm(true);
-                return;
-            }
-    
-            // Handle transfer state
-            if (data.transferred && data.chatId) {
-                console.log('Transfer initiated with chat ID:', data.chatId);
-                
-                // Save the bot token if provided
-                if (data.bot_token) {
-                    console.log('Bot token received');
-                    setBotToken(data.bot_token);
-                }
-                
-                // Save agent credentials if provided
-                if (data.agent_credentials) {
-                    console.log('Agent credentials received and stored');
-                    setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
-                }
-    
-                // Set chat state to agent mode
-                setChatMode('agent');
-                setChatId(data.chatId);
-                
-                // Add the transfer messages to the chat with device-appropriate rendering
-                const botMsgId = 'bot-msg-' + Date.now();
-                const transferMsgId = 'bot-transfer-' + Date.now();
-                
-                // First message
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.message,
-                    id: botMsgId
-                }]);
-                
-                // Render first message with the appropriate approach
-                renderMessage(botMsgId, data.message);
-                
-                // UPDATED: Second message - check if already shown using ref and state
-                setTimeout(() => {
-                    console.log('[TRANSFER] Checking connection message state:', isTransferComplete, 'ref:', connectionMessageShownRef.current);
-                    
-                    // Only show this message if we haven't completed a transfer yet
-                    if (!isTransferComplete && !connectionMessageShownRef.current) {
-                        console.log('[TRANSFER] First time showing connection message, marking transfer as complete');
-                        const transferMessage = currentLanguage === 'en' ? 
-                            CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
-                        
-                        setMessages(prev => [...prev, {
-                            type: 'bot',
-                            content: transferMessage,
-                            id: transferMsgId
-                        }]);
-                        
-                        // Render second message with the appropriate approach
-                        renderMessage(transferMsgId, transferMessage);
-                        
-                        // Mark transfer as complete in both ref and state
-                        connectionMessageShownRef.current = true;
-                        setIsTransferComplete(true);
-                    } else {
-                        console.log('[TRANSFER] Transfer already completed, skipping connection message');
-                    }
-                }, 1000); // Delay before showing the second message
-                
-                return;
-            }
-    
-            // Update credentials if provided
-            if (data.bot_token) {
-                setBotToken(data.bot_token);
-            }
-            
-            if (data.agent_credentials) {
-                console.log('New agent credentials received and stored');
-                setAgentCredentials(data.agent_credentials);
-                setStoredCredentials(data.agent_credentials); // Store for reuse
-            }
-    
-            // If message was suppressed (in agent mode), don't show any response
-            if (data.suppressMessage) {
-                return;
-            }
-    
-            // Normal bot response handling with unique ID for feedback tracking
-            const botMessageId = 'bot-msg-' + Date.now();
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: data.message,
-                id: botMessageId
-            }]);
-            
-            // Render response with the device-appropriate approach
-            renderMessage(botMessageId, data.message);
-
-            // Store PostgreSQL ID if provided in response
-            if (data.postgresqlMessageId) {
-                setMessagePostgresqlIds(prev => ({
-                    ...prev,
-                    [botMessageId]: data.postgresqlMessageId
-                }));
-                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            setIsTyping(false);
-            
-            // Error message with device-appropriate rendering
-            const errorMsgId = 'bot-error-' + Date.now();
-            const errorMessage = currentLanguage === 'en' ? 
-                "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
-            
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: errorMessage,
-                id: errorMsgId
-            }]);
-            
-            // Render error message with the appropriate approach
-            renderMessage(errorMsgId, errorMessage);
-        }
+        // Always use streaming for all requests
+        handleStreamingRequest(messageText);
     };
 
     return (
