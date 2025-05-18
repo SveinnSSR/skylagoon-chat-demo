@@ -319,17 +319,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     return;
                 }
                 
-                // Create only ONE message container
+                // Show typing indicator when streaming starts
+                setIsTyping(true);
+                
+                // Create message container with the streamId
                 const messageId = 'stream-' + data.streamId;
                 console.log('[STREAM] Creating message container with ID:', messageId);
-                
-                // Add empty message to state
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: '', // Empty content that will be filled
-                    id: messageId,
-                    streamId: data.streamId
-                }]);
                 
                 // Track active stream
                 setActiveStreams(prev => ({
@@ -346,21 +341,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     ...prev,
                     [data.streamId]: ''
                 }));
-                
-                // Initialize typing message state
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [messageId]: {
-                        text: '',
-                        visibleChars: 0,
-                        isComplete: false,
-                        fadeIn: true,
-                        renderType: isMobile ? 'simple' : 'chunked'
-                    }
-                }));
-                
-                // Scroll to bottom to ensure container is visible
-                setTimeout(scrollToBottom, 50);
             };
             
             // Handler for stream chunks
@@ -368,7 +348,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Skip if not for our session
                 if (data.sessionId !== sessionId) return;
                 
-                console.log('[STREAM] Chunk received:', data.chunkNumber);
+                console.log('[STREAM] Chunk received:', data.chunkNumber, data.content);
                 
                 const streamId = data.streamId;
                 const content = data.content || '';
@@ -385,43 +365,63 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Accumulate content
                 setStreamContent(prev => {
                     const updatedContent = (prev[streamId] || '') + content;
+                    
+                    // Update messages with accumulated content
+                    // Only create/update message if we have content
+                    if (updatedContent.trim()) {
+                        setMessages(prev => {
+                            // Check if message exists
+                            const existingMsg = prev.find(m => m.id === messageId);
+                            
+                            if (existingMsg) {
+                                // Update existing message
+                                return prev.map(m => 
+                                    m.id === messageId ? {...m, content: updatedContent} : m
+                                );
+                            } else {
+                                // Create new message
+                                return [...prev, {
+                                    type: 'bot',
+                                    content: updatedContent,
+                                    id: messageId,
+                                    streamId: streamId
+                                }];
+                            }
+                        });
+                        
+                        // Initialize typing message state if needed
+                        setTypingMessages(prevState => {
+                            // If we don't have this message in typingMessages yet, initialize it
+                            if (!prevState[messageId]) {
+                                return {
+                                    ...prevState,
+                                    [messageId]: { 
+                                        text: updatedContent,
+                                        visibleChars: isMobile ? updatedContent.length : updatedContent.length / 2,
+                                        isComplete: false,
+                                        fadeIn: true,
+                                        renderType: isMobile ? 'simple' : 'chunked'
+                                    }
+                                };
+                            }
+                            
+                            // Otherwise update existing typing message
+                            return {
+                                ...prevState,
+                                [messageId]: {
+                                    ...prevState[messageId],
+                                    text: updatedContent,
+                                    visibleChars: isMobile ? 
+                                        updatedContent.length : 
+                                        Math.min(prevState[messageId].visibleChars + content.length * 1.5, updatedContent.length)
+                                }
+                            };
+                        });
+                    }
+                    
                     return {
                         ...prev,
                         [streamId]: updatedContent
-                    };
-                });
-                
-                // Update message with accumulated content
-                setMessages(prev => 
-                    prev.map(msg => 
-                        msg.id === messageId 
-                            ? {...msg, content: (msg.content || '') + content}
-                            : msg
-                    )
-                );
-                
-                // Update typing message state for rendering
-                setTypingMessages(prev => {
-                    const current = prev[messageId] || { 
-                        text: '', 
-                        visibleChars: 0, 
-                        isComplete: false,
-                        fadeIn: true,
-                        renderType: isMobile ? 'simple' : 'chunked'
-                    };
-                    
-                    // Calculate new content
-                    const updatedText = current.text + content;
-                    
-                    return {
-                        ...prev,
-                        [messageId]: {
-                            ...current,
-                            text: updatedText,
-                            visibleChars: isMobile ? 
-                                updatedText.length : // Show all on mobile
-                                Math.min(current.visibleChars + content.length * 1.2, updatedText.length)
-                        }
                     };
                 });
                 
@@ -449,26 +449,46 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 const messageId = activeStream.messageId;
                 const finalContent = data.completeContent || streamContent[streamId] || '';
                 
-                // Update message with final content
-                setMessages(prev => 
-                    prev.map(msg => 
-                        msg.id === messageId ? {...msg, content: finalContent} : msg
-                    )
-                );
+                // Turn off typing indicator
+                setIsTyping(false);
                 
-                // Mark message as complete in typing system
-                setTypingMessages(prev => {
-                    const current = prev[messageId] || {};
-                    return {
-                        ...prev,
-                        [messageId]: {
-                            ...current,
-                            text: finalContent,
-                            visibleChars: finalContent.length,
-                            isComplete: true
+                // Only create/update message if we have content
+                if (finalContent.trim()) {
+                    // Update message with final content
+                    setMessages(prev => {
+                        // Check if message exists
+                        const existingMsg = prev.find(m => m.id === messageId);
+                        
+                        if (existingMsg) {
+                            // Update existing message
+                            return prev.map(m => 
+                                m.id === messageId ? {...m, content: finalContent} : m
+                            );
+                        } else {
+                            // Create new message if it doesn't exist yet
+                            return [...prev, {
+                                type: 'bot',
+                                content: finalContent,
+                                id: messageId,
+                                streamId: streamId
+                            }];
                         }
-                    };
-                });
+                    });
+                    
+                    // Mark message as complete in typing system
+                    setTypingMessages(prev => {
+                        const current = prev[messageId] || {};
+                        return {
+                            ...prev,
+                            [messageId]: {
+                                ...current,
+                                text: finalContent,
+                                visibleChars: finalContent.length,
+                                isComplete: true
+                            }
+                        };
+                    });
+                }
                 
                 // Store PostgreSQL ID if provided
                 if (data.postgresqlMessageId) {
@@ -476,7 +496,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         ...prev,
                         [messageId]: data.postgresqlMessageId
                     }));
-                    console.log(`Stored PostgreSQL ID mapping: ${messageId} -> ${data.postgresqlMessageId}`);
+                    console.log(`[STREAM] Stored PostgreSQL ID mapping: ${messageId} -> ${data.postgresqlMessageId}`);
                 }
                 
                 // Mark stream as inactive
@@ -489,9 +509,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         completedAt: Date.now()
                     }
                 }));
-                
-                // Turn off typing indicator
-                setIsTyping(false);
                 
                 // Final scroll to bottom
                 setTimeout(scrollToBottom, 100);
@@ -507,66 +524,94 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 const streamId = data.streamId;
                 const activeStream = activeStreams[streamId];
                 
-                if (!activeStream) {
-                    console.log('[STREAM] No active stream found for error handling:', streamId);
-                    return;
-                }
+                // Turn off typing indicator
+                setIsTyping(false);
                 
-                const messageId = activeStream.messageId;
-                
-                // Update message with error info
-                setMessages(prev => {
-                    // Find the message
-                    const message = prev.find(m => m.id === messageId);
+                // Create error message if we don't have content yet
+                if (activeStream) {
+                    const messageId = activeStream.messageId;
+                    // Check if stream has content
+                    const hasContent = streamContent[streamId] && streamContent[streamId].trim().length > 0;
                     
-                    // If message exists and is empty, show error message
-                    if (message && (!message.content || message.content.length === 0)) {
+                    if (!hasContent) {
+                        // No content yet, show error message
                         const errorMessage = currentLanguage === 'en' ? 
                             "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
                             "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                        
+                        // Add error message
+                        setMessages(prev => {
+                            // Check if this message already exists
+                            const existingMsg = prev.find(m => m.id === messageId);
                             
-                        return prev.map(m => 
-                            m.id === messageId ? {...m, content: errorMessage} : m
-                        );
+                            if (existingMsg) {
+                                // Update existing message with error
+                                return prev.map(m => 
+                                    m.id === messageId ? {...m, content: errorMessage} : m
+                                );
+                            } else {
+                                // Create new error message
+                                return [...prev, {
+                                    type: 'bot',
+                                    content: errorMessage,
+                                    id: 'error-' + Date.now(),
+                                    isError: true
+                                }];
+                            }
+                        });
                     }
                     
-                    // If message already has content, leave it as is
-                    return prev;
-                });
-                
-                // Mark stream as error
-                setActiveStreams(prev => ({
-                    ...prev,
-                    [streamId]: {
-                        ...prev[streamId],
-                        active: false,
-                        error: true,
-                        errorMessage: data.error,
-                        errorAt: Date.now()
-                    }
-                }));
-                
-                // Turn off typing indicator
-                setIsTyping(false);
+                    // Mark stream as error
+                    setActiveStreams(prev => ({
+                        ...prev,
+                        [streamId]: {
+                            ...prev[streamId],
+                            active: false,
+                            error: true,
+                            errorMessage: data.error,
+                            errorAt: Date.now()
+                        }
+                    }));
+                } else {
+                    // No active stream found, create a new error message
+                    const errorMessage = currentLanguage === 'en' ? 
+                        "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                        "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                    
+                    // Add error message
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: errorMessage,
+                        id: 'error-' + Date.now(),
+                        isError: true
+                    }]);
+                }
             };
             
-            // Bind all handlers
+            // Bind handlers with extensive logging
+            console.log('[STREAM] Binding stream-connected handler');
             pusherChannel.bind('stream-connected', handleStreamConnected);
+            
+            console.log('[STREAM] Binding stream-chunk handler');
             pusherChannel.bind('stream-chunk', handleStreamChunk);
+            
+            console.log('[STREAM] Binding stream-complete handler');
             pusherChannel.bind('stream-complete', handleStreamComplete);
+            
+            console.log('[STREAM] Binding stream-error handler');
             pusherChannel.bind('stream-error', handleStreamError);
             
-            console.log('[STREAM] Stream handlers set up successfully');
+            console.log('[STREAM] All stream handlers bound successfully');
             
             return () => {
-                // Clean up handlers
+                console.log('[STREAM] Cleaning up stream handlers');
                 pusherChannel.unbind('stream-connected', handleStreamConnected);
                 pusherChannel.unbind('stream-chunk', handleStreamChunk);
                 pusherChannel.unbind('stream-complete', handleStreamComplete);
                 pusherChannel.unbind('stream-error', handleStreamError);
             };
         }
-    }, [pusherChannel, sessionId, isMobile, activeStreams, streamContent]);
+    }, [pusherChannel, sessionId, activeStreams, streamContent, isMobile]);
 
     // Listen for agent messages from LiveChat - format-normalized implementation
     // FIXED: Removed 'messages' from dependency array to prevent loops
@@ -2109,7 +2154,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {/* REMOVED: No typing indicator for streaming */}
+                        {isTyping && <TypingIndicator />}
 
                         <div ref={messagesEndRef} />
                     </div>
