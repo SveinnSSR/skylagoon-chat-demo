@@ -1553,20 +1553,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             });   
     
             const data = await response.json();
-            
-            // Initial message container was already created by stream-connected event
-            // No need to manually create one here
-            
-            // If we are in streaming mode, we don't immediately update isTyping
-            // because we'll be continuously receiving chunks
-            if (!data.streaming) {
-                setIsTyping(false);
-            }
+            setIsTyping(false);
             
             // Handle booking change request form
             if (data.showBookingChangeForm) {
                 console.log('Booking change request detected, showing form');
-                setIsTyping(false);
                 
                 // Save the chat ID and tokens if provided
                 if (data.chatId) setChatId(data.chatId);
@@ -1596,7 +1587,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Handle transfer state
             if (data.transferred && data.chatId) {
                 console.log('Transfer initiated with chat ID:', data.chatId);
-                setIsTyping(false);
                 
                 // Save the bot token if provided
                 if (data.bot_token) {
@@ -1672,37 +1662,29 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     
             // If message was suppressed (in agent mode), don't show any response
             if (data.suppressMessage) {
-                setIsTyping(false);
-                return;
-            }
-            
-            // If we get a streaming response, the message container is handled by stream listeners
-            // and the typing state will be updated when streaming completes
-            if (data.streaming) {
-                console.log('Streaming mode enabled, stream ID:', data.streamId);
-                // The rest will be handled by the Pusher event handlers
                 return;
             }
     
-            // For non-streaming responses, handle normally
-            const botMessageId = 'bot-msg-' + Date.now();
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: data.message,
-                id: botMessageId
-            }]);
-            
-            // Render response with the device-appropriate approach
-            renderMessage(botMessageId, data.message);
-            setIsTyping(false);
-
-            // Store PostgreSQL ID if provided in response
-            if (data.postgresqlMessageId) {
-                setMessagePostgresqlIds(prev => ({
-                    ...prev,
-                    [botMessageId]: data.postgresqlMessageId
-                }));
-                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
+            // Normal bot response handling with unique ID for feedback tracking
+            if (data.message) {
+                const botMessageId = 'bot-msg-' + Date.now();
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message,
+                    id: botMessageId
+                }]);
+                
+                // Render response with the device-appropriate approach
+                renderMessage(botMessageId, data.message);
+    
+                // Store PostgreSQL ID if provided in response
+                if (data.postgresqlMessageId) {
+                    setMessagePostgresqlIds(prev => ({
+                        ...prev,
+                        [botMessageId]: data.postgresqlMessageId
+                    }));
+                    console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
+                }
             }
         } catch (error) {
             console.error('Error:', error);
