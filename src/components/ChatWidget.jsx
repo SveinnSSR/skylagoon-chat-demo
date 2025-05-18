@@ -678,6 +678,13 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         try {
             console.log(`[STREAM] Received chunk: "${chunk.substring(0, 30)}${chunk.length > 30 ? '...' : ''}" (${chunk.length} chars)`);
             
+            // If no messages with this ID exist yet, do nothing
+            // (The first chunk handler already creates the message)
+            if (!messages.some(m => m.id === messageId) && !isThinking) {
+                console.log('[STREAM] Message container not found, skipping update');
+                return false;
+            }
+            
             // Update the buffer first
             setStreamBuffer(prev => {
                 const currentText = prev[messageId] || '';
@@ -690,17 +697,33 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 // Get the current aggregated text
                 const fullText = prev[messageId] || '';
                 
-                // Update the typing message state
-                setTypingMessages(typingPrev => ({
-                    ...typingPrev,
-                    [messageId]: {
-                        text: fullText,
-                        visibleChars: fullText.length,
-                        isComplete: isDone,
-                        fadeIn: true,
-                        renderType: 'streaming'
-                    }
-                }));
+                // Only update if there's a message with this ID
+                if (messages.some(m => m.id === messageId)) {
+                    // Update the typing message state
+                    setTypingMessages(typingPrev => ({
+                        ...typingPrev,
+                        [messageId]: {
+                            text: fullText,
+                            visibleChars: fullText.length,
+                            isComplete: isDone,
+                            fadeIn: true,
+                            renderType: 'streaming'
+                        }
+                    }));
+                    
+                    // Also update the content in the messages array
+                    setMessages(msgPrev => {
+                        return msgPrev.map(msg => {
+                            if (msg.id === messageId) {
+                                return {
+                                    ...msg,
+                                    content: fullText
+                                };
+                            }
+                            return msg;
+                        });
+                    });
+                }
                 
                 return prev;
             });
@@ -1268,13 +1291,33 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     const data = JSON.parse(event.data);
                     console.log('[STREAM] Received chunk event:', typeof data.content);
                     
-                    // First chunk - hide thinking indicator
+                    // First chunk - hide thinking indicator and create message container
                     if (isThinking) {
                         setIsThinking(false);
-                    }
+                        
+                        // Now create the message container with this first chunk
+                        setMessages(prev => [...prev, {
+                            type: 'bot',
+                            content: data.content, // Start with this chunk
+                            id: botMessageId
+                        }]);
+                        
+                        // Initialize typing message entry
+                        setTypingMessages(prev => ({
+                            ...prev,
+                            [botMessageId]: {
+                                text: data.content,
+                                visibleChars: data.content.length,
+                                isComplete: false,
+                                fadeIn: true,
+                                renderType: 'streaming'
+                            }
+                        }));
+                    } else {
                     
                     // Update content with this chunk
                     updateStreamingContent(botMessageId, data.content, data.done);
+                }
                 } catch (error) {
                     console.error('[STREAM] Error processing chunk:', error);
                 }
@@ -1288,21 +1331,29 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     // Hide thinking indicator
                     setIsThinking(false);
                     
-                    // Update with complete content and mark as done
-                    updateStreamingContent(botMessageId, '', true);
-                    
-                    // Update message content with the final version
-                    setMessages(prev => {
-                        return prev.map(msg => {
-                            if (msg.id === botMessageId) {
-                                return {
-                                    ...msg,
-                                    content: data.content
-                                };
+                    // If no message container was created yet, create it now with full content
+                    if (!messages.some(m => m.id === botMessageId)) {
+                        setMessages(prev => [...prev, {
+                            type: 'bot',
+                            content: data.content,
+                            id: botMessageId
+                        }]);
+                        
+                        // Initialize typing message entry
+                        setTypingMessages(prev => ({
+                            ...prev,
+                            [botMessageId]: {
+                                text: data.content,
+                                visibleChars: data.content.length,
+                                isComplete: true,
+                                fadeIn: true,
+                                renderType: 'streaming'
                             }
-                            return msg;
-                        });
-                    });
+                        }));
+                    } else {
+                        // Update with complete content and mark as done
+                        updateStreamingContent(botMessageId, '', true);
+                    }
                     
                     // Clean up
                     closeStreamConnection();
@@ -1325,30 +1376,51 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
                     "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
                 
-                // Update the existing message with an error
-                setMessages(prev => {
-                    return prev.map(msg => {
-                        if (msg.id === botMessageId) {
-                            return {
-                                ...msg,
-                                content: errorMessage
-                            };
+                // If no message exists yet, create one with the error
+                if (!messages.some(m => m.id === botMessageId)) {
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: errorMessage,
+                        id: botMessageId
+                    }]);
+                    
+                    // Initialize typing state with error message
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: {
+                            text: errorMessage,
+                            visibleChars: errorMessage.length,
+                            isComplete: true,
+                            fadeIn: true,
+                            renderType: 'error'
                         }
-                        return msg;
+                    }));
+                } else {
+                    // Update the existing message with an error
+                    setMessages(prev => {
+                        return prev.map(msg => {
+                            if (msg.id === botMessageId) {
+                                return {
+                                    ...msg,
+                                    content: errorMessage
+                                };
+                            }
+                            return msg;
+                        });
                     });
-                });
-                
-                // Update typing state to show the error message
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [botMessageId]: {
-                        text: errorMessage,
-                        visibleChars: errorMessage.length,
-                        isComplete: true,
-                        fadeIn: false,
-                        renderType: 'error'
-                    }
-                }));
+                    
+                    // Update typing state to show the error message
+                    setTypingMessages(prev => ({
+                        ...prev,
+                        [botMessageId]: {
+                            text: errorMessage,
+                            visibleChars: errorMessage.length,
+                            isComplete: true,
+                            fadeIn: false,
+                            renderType: 'error'
+                        }
+                    }));
+                }
                 
                 // Clean up
                 closeStreamConnection();
