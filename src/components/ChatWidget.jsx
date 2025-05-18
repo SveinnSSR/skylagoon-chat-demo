@@ -130,6 +130,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [isTransferComplete, setIsTransferComplete] = useState(false);
     // NEW: Track if we're on a mobile device for rendering approach
     const isMobile = windowWidth <= MOBILE_BREAKPOINT;
+    // NEW: State to track active streaming sessions
+    const [activeStreams, setActiveStreams] = useState({});
+    // NEW: Track accumulated streaming content 
+    const [streamContent, setStreamContent] = useState({});
 
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
@@ -293,6 +297,291 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             pusher.disconnect();
         };
     }, []);
+
+    // NEW: Listen for WebSocket streaming events from the chat endpoint
+    useEffect(() => {
+        if (pusherChannel && sessionId) {
+            console.log('[StreamHandler] Setting up stream event listeners for session:', sessionId);
+            
+            // Clean up any existing handlers to prevent duplicates
+            pusherChannel.unbind('stream-connected');
+            pusherChannel.unbind('stream-chunk');
+            pusherChannel.unbind('stream-complete');
+            pusherChannel.unbind('stream-error');
+            
+            // Handler for stream connection established
+            const handleStreamConnected = (data) => {
+                console.log('[StreamHandler] Stream connected:', data);
+                
+                // Validate this stream is for our session
+                if (data.sessionId !== sessionId) {
+                    console.log('[StreamHandler] Ignoring stream for different session');
+                    return;
+                }
+                
+                // Update active streams state
+                setActiveStreams(prev => ({
+                    ...prev,
+                    [data.streamId]: {
+                        status: 'connected',
+                        startTime: Date.now(),
+                        messageId: 'stream-' + data.streamId
+                    }
+                }));
+                
+                // Initialize empty content for this stream
+                setStreamContent(prev => ({
+                    ...prev,
+                    [data.streamId]: ''
+                }));
+                
+                // Create empty message container that will be filled with streamed content
+                const messageId = 'stream-' + data.streamId;
+                
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: '', // Start with empty content that will be filled by stream
+                    id: messageId,
+                    streamId: data.streamId // Track which stream this message belongs to
+                }]);
+                
+                // Initialize rendering system for this message
+                renderMessage(messageId, '');
+                
+                console.log('[StreamHandler] Created message container with ID:', messageId);
+            };
+            
+            // Handler for stream chunks 
+            const handleStreamChunk = (data) => {
+                // Validate this stream is for our session and is active
+                if (data.sessionId !== sessionId || !activeStreams[data.streamId]) {
+                    return;
+                }
+                
+                console.log('[StreamHandler] Received chunk:', { 
+                    streamId: data.streamId,
+                    chunkLength: data.content ? data.content.length : 0,
+                    chunkNumber: data.chunkNumber
+                });
+                
+                // Get the message ID for this stream
+                const messageId = activeStreams[data.streamId].messageId;
+                
+                // Update the accumulated content
+                setStreamContent(prev => {
+                    const updatedContent = (prev[data.streamId] || '') + (data.content || '');
+                    return {
+                        ...prev,
+                        [data.streamId]: updatedContent
+                    };
+                });
+                
+                // Find the message in our state and update its content
+                setMessages(prev => {
+                    return prev.map(msg => {
+                        if (msg.id === messageId) {
+                            // Update this message with the new chunk
+                            return {
+                                ...msg,
+                                content: (msg.content || '') + (data.content || '')
+                            };
+                        }
+                        return msg;
+                    });
+                });
+                
+                // Update the visible content in the typing message system
+                setTypingMessages(prev => {
+                    const current = prev[messageId] || { text: '', visibleChars: 0, isComplete: false };
+                    const newText = (current.text || '') + (data.content || '');
+                    
+                    // For simple render, show all content; for chunked, show partial content
+                    const visibleChars = isMobile ? newText.length : 
+                                        Math.min(current.visibleChars + Math.ceil(data.content.length * 0.6), newText.length);
+                    
+                    return {
+                        ...prev,
+                        [messageId]: {
+                            ...current,
+                            text: newText,
+                            visibleChars: visibleChars,
+                            // Keep it incomplete until we get the complete signal
+                            isComplete: false, 
+                            fadeIn: true
+                        }
+                    };
+                });
+                
+                // Ensure we scroll to show the new content
+                setTimeout(() => scrollToBottom(), 50);
+            };
+            
+            // Handler for stream completion
+            const handleStreamComplete = (data) => {
+                // Validate this stream is for our session and is active
+                if (data.sessionId !== sessionId || !activeStreams[data.streamId]) {
+                    return;
+                }
+                
+                console.log('[StreamHandler] Stream complete:', { 
+                    streamId: data.streamId,
+                    contentLength: data.completeContent ? data.completeContent.length : 0
+                });
+                
+                // Get the message ID for this stream
+                const messageId = activeStreams[data.streamId].messageId;
+                
+                // Update the stream status
+                setActiveStreams(prev => ({
+                    ...prev,
+                    [data.streamId]: {
+                        ...prev[data.streamId],
+                        status: 'complete',
+                        endTime: Date.now()
+                    }
+                }));
+                
+                // Update the message with final content (which may have post-processing applied)
+                setMessages(prev => {
+                    return prev.map(msg => {
+                        if (msg.id === messageId) {
+                            // Update with final processed content
+                            return {
+                                ...msg,
+                                content: data.completeContent || msg.content
+                            };
+                        }
+                        return msg;
+                    });
+                });
+                
+                // Store PostgreSQL ID if provided
+                if (data.postgresqlMessageId) {
+                    setMessagePostgresqlIds(prev => ({
+                        ...prev,
+                        [messageId]: data.postgresqlMessageId
+                    }));
+                    console.log(`Stored PostgreSQL ID mapping: ${messageId} -> ${data.postgresqlMessageId}`);
+                }
+                
+                // Mark as complete in typing system
+                setTypingMessages(prev => {
+                    const current = prev[messageId] || {};
+                    return {
+                        ...prev,
+                        [messageId]: {
+                            ...current,
+                            text: data.completeContent || current.text || '',
+                            visibleChars: data.completeContent ? data.completeContent.length : 
+                                        (current.text ? current.text.length : 0),
+                            isComplete: true
+                        }
+                    };
+                });
+                
+                // Final scroll to ensure content is visible
+                setTimeout(() => scrollToBottom(), 100);
+                
+                // Update typing state
+                setIsTyping(false);
+            };
+            
+            // Handler for stream errors
+            const handleStreamError = (data) => {
+                // Validate this stream is for our session
+                if (data.sessionId !== sessionId) {
+                    return;
+                }
+                
+                console.log('[StreamHandler] Stream error:', data);
+                
+                // Check if we have an active stream for this error
+                if (activeStreams[data.streamId]) {
+                    const messageId = activeStreams[data.streamId].messageId;
+                    
+                    // Update the stream status
+                    setActiveStreams(prev => ({
+                        ...prev,
+                        [data.streamId]: {
+                            ...prev[data.streamId],
+                            status: 'error',
+                            endTime: Date.now(),
+                            error: data.error
+                        }
+                    }));
+                    
+                    // If we have an empty or minimal message, replace it with error text
+                    setMessages(prev => {
+                        return prev.map(msg => {
+                            if (msg.id === messageId && (!msg.content || msg.content.length < 5)) {
+                                const errorMessage = currentLanguage === 'en' ? 
+                                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                                
+                                return {
+                                    ...msg,
+                                    content: errorMessage,
+                                    error: true
+                                };
+                            }
+                            return msg;
+                        });
+                    });
+                    
+                    // Mark as complete in typing system with error message
+                    setTypingMessages(prev => {
+                        const errorMessage = currentLanguage === 'en' ? 
+                            "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                            "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                        
+                        return {
+                            ...prev,
+                            [messageId]: {
+                                text: errorMessage,
+                                visibleChars: errorMessage.length,
+                                isComplete: true,
+                                error: true
+                            }
+                        };
+                    });
+                } else {
+                    // If we don't have a message container yet, create one with the error
+                    const errorMessage = currentLanguage === 'en' ? 
+                        "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                        "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                    
+                    const errorMessageId = 'error-' + Date.now();
+                    
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: errorMessage,
+                        id: errorMessageId,
+                        error: true
+                    }]);
+                    
+                    // Initialize rendering for error message
+                    renderMessage(errorMessageId, errorMessage);
+                }
+                
+                // Update typing state
+                setIsTyping(false);
+            };
+            
+            // Bind all handlers
+            pusherChannel.bind('stream-connected', handleStreamConnected);
+            pusherChannel.bind('stream-chunk', handleStreamChunk);
+            pusherChannel.bind('stream-complete', handleStreamComplete);
+            pusherChannel.bind('stream-error', handleStreamError);
+            
+            return () => {
+                // Clean up handlers on unmount or session change
+                pusherChannel.unbind('stream-connected', handleStreamConnected);
+                pusherChannel.unbind('stream-chunk', handleStreamChunk);
+                pusherChannel.unbind('stream-complete', handleStreamComplete);
+                pusherChannel.unbind('stream-error', handleStreamError);
+            };
+        }
+    }, [pusherChannel, sessionId, activeStreams, currentLanguage, isMobile]);
 
     // Listen for agent messages from LiveChat - format-normalized implementation
     // FIXED: Removed 'messages' from dependency array to prevent loops
@@ -1201,6 +1490,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return 'general';
     };
 
+    // MODIFIED: Updated handleSend to use WebSockets streaming
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
     
@@ -1211,7 +1501,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         setMessages(prev => [...prev, {
             type: 'user',
             content: messageText,
-            id: 'user-msg-' + Date.now()
+            id: 'user-msg-' + Date.now(),
+            timestamp: Date.now()
         }]);
         
         setIsTyping(true);
@@ -1262,11 +1553,20 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             });   
     
             const data = await response.json();
-            setIsTyping(false);
+            
+            // Initial message container was already created by stream-connected event
+            // No need to manually create one here
+            
+            // If we are in streaming mode, we don't immediately update isTyping
+            // because we'll be continuously receiving chunks
+            if (!data.streaming) {
+                setIsTyping(false);
+            }
             
             // Handle booking change request form
             if (data.showBookingChangeForm) {
                 console.log('Booking change request detected, showing form');
+                setIsTyping(false);
                 
                 // Save the chat ID and tokens if provided
                 if (data.chatId) setChatId(data.chatId);
@@ -1296,6 +1596,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Handle transfer state
             if (data.transferred && data.chatId) {
                 console.log('Transfer initiated with chat ID:', data.chatId);
+                setIsTyping(false);
                 
                 // Save the bot token if provided
                 if (data.bot_token) {
@@ -1371,10 +1672,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     
             // If message was suppressed (in agent mode), don't show any response
             if (data.suppressMessage) {
+                setIsTyping(false);
+                return;
+            }
+            
+            // If we get a streaming response, the message container is handled by stream listeners
+            // and the typing state will be updated when streaming completes
+            if (data.streaming) {
+                console.log('Streaming mode enabled, stream ID:', data.streamId);
+                // The rest will be handled by the Pusher event handlers
                 return;
             }
     
-            // Normal bot response handling with unique ID for feedback tracking
+            // For non-streaming responses, handle normally
             const botMessageId = 'bot-msg-' + Date.now();
             setMessages(prev => [...prev, {
                 type: 'bot',
@@ -1384,6 +1694,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             // Render response with the device-appropriate approach
             renderMessage(botMessageId, data.message);
+            setIsTyping(false);
 
             // Store PostgreSQL ID if provided in response
             if (data.postgresqlMessageId) {
