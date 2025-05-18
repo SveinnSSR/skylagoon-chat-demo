@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, Component } from 'react';
 import { theme } from '../styles/theme';
 import MessageFormatter from './MessageFormatter';
-import Pusher from 'pusher-js'; // Add Pusher import
+import Pusher from 'pusher-js';
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
 
@@ -89,9 +89,11 @@ const TYPING_SPEED = 20; // Speed in milliseconds per character for character-by
 const CHUNK_REVEAL_DELAY = 250; // Time between chunk reveals in milliseconds
 const FADE_IN_DURATION = 300; // Duration of the fade-in animation in milliseconds
 const MOBILE_BREAKPOINT = 768; // Pixel width below which we'll use the simple approach
+const THINKING_FADE_DURATION = 400; // Duration for thinking indicator fade transitions
 
 const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat', apiKey, language = 'en', isEmbedded = false, baseUrl }) => {
     const messagesEndRef = React.useRef(null);
+    const streamSourceRef = React.useRef(null); // NEW: Reference for SSE connection
     const [isMinimized, setIsMinimized] = useState(true);
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
@@ -130,8 +132,24 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [isTransferComplete, setIsTransferComplete] = useState(false);
     // NEW: Track if we're on a mobile device for rendering approach
     const isMobile = windowWidth <= MOBILE_BREAKPOINT;
+    // NEW: State for thinking indicator
+    const [isThinking, setIsThinking] = useState(false);
+    // NEW: State to track if streaming is in progress
+    const [isStreaming, setIsStreaming] = useState(false);
+    // NEW: State to store streaming buffer
+    const [streamBuffer, setStreamBuffer] = useState({});
 
-    // NEW: Add component mount/unmount diagnostic logging
+    // NEW: Function to close any open SSE connections
+    const closeStreamConnection = useCallback(() => {
+        if (streamSourceRef.current) {
+            console.log('[STREAM] Closing previous EventSource connection');
+            streamSourceRef.current.close();
+            streamSourceRef.current = null;
+            setIsStreaming(false);
+        }
+    }, []);
+
+    // NEW: Component mount/unmount diagnostic logging
     useEffect(() => {
         // Component mounting diagnostic
         console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
@@ -141,8 +159,11 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
             console.log('[ConnectionRef] Final value on unmount:', connectionMessageShownRef.current);
+            
+            // Clean up any open SSE connections
+            closeStreamConnection();
         };
-    }, []);
+    }, [sessionId, closeStreamConnection]);
 
     // Add this near your other useEffect hooks
     useEffect(() => {
@@ -213,7 +234,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, showBookingForm, typingMessages]);
+    }, [messages, showBookingForm, typingMessages, isThinking]);
 
     // Functions for session management
     const generateSessionId = useCallback(() => {
@@ -652,90 +673,87 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }
     };
     
-    // LEGACY: Character-by-character typing effect function
-    // Kept for reference but not used in the new implementation
-    const startTypingEffect = (messageId, fullText) => {
+    // NEW: Function to handle streaming updates
+    const updateStreamingContent = (messageId, chunk, isDone = false) => {
         try {
-            // Safety check for undefined text
-            if (!fullText) {
-                console.warn('Attempted to start typing effect with empty text');
-                return null;
-            }
+            console.log(`[STREAM] Received chunk: "${chunk.substring(0, 30)}${chunk.length > 30 ? '...' : ''}" (${chunk.length} chars)`);
             
-            // NEW: Normalize fullText to ensure it's a string
-            const safeText = typeof fullText === 'string' ? fullText : 
-                            (fullText ? String(fullText) : '');
+            // Update the buffer first
+            setStreamBuffer(prev => {
+                const currentText = prev[messageId] || '';
+                const newText = currentText + chunk;
+                return { ...prev, [messageId]: newText };
+            });
             
-            if (safeText !== fullText) {
-                console.warn('Typing effect received non-string content, converted to:', safeText);
-            }
-            
-            // Initialize with full text but visibility hidden
-            setTypingMessages(prev => ({
-                ...prev,
-                [messageId]: { 
-                    text: safeText, // Use normalized text
-                    visibleChars: 0, // Track how many characters are visible
-                    isComplete: false,
-                    renderType: 'character-by-character'
-                }
-            }));
-            
-            // Scroll to bottom initially just once to handle the full text height
-            setTimeout(() => {
-                scrollToBottom();
-            }, 50);
-            
-            let charIndex = 0;
-            
-            const typingInterval = setInterval(() => {
-                if (charIndex <= safeText.length) { // Use safeText instead of fullText
-                    setTypingMessages(prev => ({
-                        ...prev,
-                        [messageId]: {
-                            ...prev[messageId],
-                            visibleChars: charIndex,
-                            isComplete: charIndex === safeText.length // Use safeText
-                        }
-                    }));
-                    charIndex++;
-                    // No scrolling during typing to prevent jitter
-                } else {
-                    clearInterval(typingInterval);
-                    // When typing is complete
-                    setTimeout(() => {
-                        // Mark as complete
-                        setTypingMessages(prev => ({
-                            ...prev,
-                            [messageId]: { 
-                                ...prev[messageId],
-                                isComplete: true
-                            }
-                        }));
-                    }, 100);
-                }
-            }, TYPING_SPEED);
-            
-            // Store the interval ID to clear it if needed
-            return typingInterval;
-        } catch (error) {
-            // NEW: Enhanced error recovery for typing effect
-            console.error('Error in typing effect:', error);
-            // Recovery: set the message as complete immediately
-            try {
-                setTypingMessages(prev => ({
-                    ...prev,
-                    [messageId]: { 
-                        text: typeof fullText === 'string' ? fullText : String(fullText || ''),
-                        visibleChars: typeof fullText === 'string' ? fullText.length : 0,
-                        isComplete: true,
-                        renderType: 'character-fallback'
+            // Then update the typing message state based on the buffer
+            setStreamBuffer(prev => {
+                // Get the current aggregated text
+                const fullText = prev[messageId] || '';
+                
+                // Update the typing message state
+                setTypingMessages(typingPrev => ({
+                    ...typingPrev,
+                    [messageId]: {
+                        text: fullText,
+                        visibleChars: fullText.length,
+                        isComplete: isDone,
+                        fadeIn: true,
+                        renderType: 'streaming'
                     }
                 }));
-            } catch (recoveryError) {
-                console.error('Failed to recover from typing effect error:', recoveryError);
+                
+                return prev;
+            });
+            
+            // If done, mark streaming as complete
+            if (isDone) {
+                setIsStreaming(false);
+                setIsThinking(false);
+                
+                // Add a small delay before scrolling to bottom
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 100);
+            } else {
+                // Otherwise scroll to bottom to follow new content
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 50);
             }
-            return null;
+            
+            return true;
+        } catch (error) {
+            console.error('[STREAM] Error updating streaming content:', error);
+            
+            // Recovery attempt
+            try {
+                // Get the current buffer text
+                const fullText = streamBuffer[messageId] || '';
+                
+                // Force update with all available text
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [messageId]: {
+                        text: fullText,
+                        visibleChars: fullText.length,
+                        isComplete: true,
+                        fadeIn: false,
+                        renderType: 'streaming-fallback'
+                    }
+                }));
+                
+                // Reset streaming state
+                setIsStreaming(false);
+                setIsThinking(false);
+                
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 100);
+            } catch (recoveryError) {
+                console.error('[STREAM] Failed to recover from streaming error:', recoveryError);
+            }
+            
+            return false;
         }
     };
 
@@ -902,6 +920,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         renderMessage(cancelMessageId, cancelMessage);
     };
 
+    // Basic typing indicator (dots only)
     const TypingIndicator = () => (
         <div style={{
             display: 'flex',
@@ -957,6 +976,52 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     animation: 'sky-lagoon-chat-typing 1s infinite',
                     animationDelay: '0.4s'
                 }}/>
+            </div>
+        </div>
+    );
+
+    // NEW: Enhanced thinking indicator with "Sólrún is thinking..." text
+    const ThinkingIndicator = () => (
+        <div 
+            className={`thinking-indicator ${isThinking ? 'fade-in' : 'fade-out'}`}
+            style={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+                width: '100%',
+                gap: '8px',
+                marginBottom: '16px',
+                opacity: isThinking ? 1 : 0,
+                transition: `opacity ${THINKING_FADE_DURATION}ms ease-in-out`
+            }}
+        >
+            <img 
+                src="/solrun.png" 
+                alt="Sólrún"
+                style={{
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    marginTop: '4px',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                }}
+            />
+            <div style={{
+                padding: '12px 16px',
+                borderRadius: '16px',
+                backgroundColor: '#f0f0f0',
+                color: '#666',
+                fontSize: '14px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                border: '1px solid rgba(0, 0, 0, 0.05)'
+            }}>
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center' 
+                }}>
+                    <span>Sólrún is thinking</span>
+                    <span className="thinking-dots">...</span>
+                </div>
             </div>
         </div>
     );
@@ -1123,90 +1188,268 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             console.error('Error details:', error.message);
         }
     };
-    
-    // Add this helper function to determine message types
-    const determineMessageType = (content, language) => {
-        // Ensure we have content to analyze
-        if (!content) return 'unknown';
+
+    // NEW: Function to handle streaming requests
+    const handleStreamingRequest = async (messageText) => {
+        if (!messageText.trim() || isTyping) return;
         
-        // Convert to lowercase for easier pattern matching
-        const lowerContent = content.toLowerCase();
-        const isIcelandic = language === 'is';
+        // Create a unique ID for this message
+        const botMessageId = 'bot-msg-' + Date.now();
         
-        // Check for patterns that indicate message type
-        if (lowerContent.includes('opening hour') || lowerContent.includes('close') || 
-            lowerContent.includes('open') || 
-            (isIcelandic && (lowerContent.includes('opnunartím') || lowerContent.includes('lokunartím')))) {
-            return 'hours';
+        // Reset state for new request
+        closeStreamConnection();
+        setIsTyping(true);
+        setIsThinking(true);
+        setStreamBuffer({});
+        
+        // Check for session timeout before sending
+        checkSessionTimeout();
+        
+        // First add user message to chat
+        setMessages(prev => [...prev, {
+            type: 'user',
+            content: messageText,
+            id: 'user-msg-' + Date.now()
+        }]);
+        
+        try {
+            // Create the EventSource for SSE
+            const streamUrl = new URL(webhookUrl);
+            
+            // Add streaming flag and other parameters to the URL
+            streamUrl.searchParams.append('streaming', 'true');
+            streamUrl.searchParams.append('sessionId', sessionId);
+            
+            console.log('[STREAM] Creating EventSource connection to:', streamUrl.toString());
+            
+            // Create new EventSource
+            const eventSource = new EventSource(streamUrl.toString());
+            streamSourceRef.current = eventSource;
+            
+            // Add message to chat but don't show it yet (it will be filled by stream)
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: '', // Empty initially
+                id: botMessageId
+            }]);
+            
+            // Initialize streaming state
+            setIsStreaming(true);
+            
+            // Initialize typing message entry for this message
+            setTypingMessages(prev => ({
+                ...prev,
+                [botMessageId]: {
+                    text: '', // Start empty
+                    visibleChars: 0,
+                    isComplete: false,
+                    fadeIn: true,
+                    renderType: 'streaming'
+                }
+            }));
+            
+            // Set up event handlers
+            eventSource.onopen = (event) => {
+                console.log('[STREAM] Connection established');
+            };
+            
+            eventSource.addEventListener('connected', (event) => {
+                console.log('[STREAM] Received connected event');
+                // Keep the thinking indicator visible
+            });
+            
+            eventSource.addEventListener('thinking', (event) => {
+                console.log('[STREAM] Received thinking event');
+                // The thinking indicator is already visible
+            });
+            
+            eventSource.addEventListener('chunk', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('[STREAM] Received chunk event:', typeof data.content);
+                    
+                    // First chunk - hide thinking indicator
+                    if (isThinking) {
+                        setIsThinking(false);
+                    }
+                    
+                    // Update content with this chunk
+                    updateStreamingContent(botMessageId, data.content, data.done);
+                } catch (error) {
+                    console.error('[STREAM] Error processing chunk:', error);
+                }
+            });
+            
+            eventSource.addEventListener('complete', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('[STREAM] Received complete event');
+                    
+                    // Hide thinking indicator
+                    setIsThinking(false);
+                    
+                    // Update with complete content and mark as done
+                    updateStreamingContent(botMessageId, '', true);
+                    
+                    // Update message content with the final version
+                    setMessages(prev => {
+                        return prev.map(msg => {
+                            if (msg.id === botMessageId) {
+                                return {
+                                    ...msg,
+                                    content: data.content
+                                };
+                            }
+                            return msg;
+                        });
+                    });
+                    
+                    // Clean up
+                    closeStreamConnection();
+                    setIsTyping(false);
+                } catch (error) {
+                    console.error('[STREAM] Error processing complete event:', error);
+                }
+            });
+            
+            eventSource.addEventListener('error', (event) => {
+                console.error('[STREAM] SSE Error:', event);
+                
+                // Handle error in the stream
+                setIsThinking(false);
+                setIsTyping(false);
+                setIsStreaming(false);
+                
+                // Show error message
+                const errorMessage = currentLanguage === 'en' ? 
+                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                
+                // Update the existing message with an error
+                setMessages(prev => {
+                    return prev.map(msg => {
+                        if (msg.id === botMessageId) {
+                            return {
+                                ...msg,
+                                content: errorMessage
+                            };
+                        }
+                        return msg;
+                    });
+                });
+                
+                // Update typing state to show the error message
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [botMessageId]: {
+                        text: errorMessage,
+                        visibleChars: errorMessage.length,
+                        isComplete: true,
+                        fadeIn: false,
+                        renderType: 'error'
+                    }
+                }));
+                
+                // Clean up
+                closeStreamConnection();
+            });
+            
+            // Send the request to the server
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    message: messageText,
+                    language: currentLanguage,
+                    sessionId: sessionId,
+                    streaming: true, // Signal that we want a streaming response
+                    chatId: chatId,
+                    bot_token: botToken,
+                    agent_credentials: agentCredentials || storedCredentials
+                })
+            });
+            
+            if (!response.ok) {
+                console.error('[STREAM] Error in fetch response:', response.status);
+                
+                // Close EventSource on error
+                closeStreamConnection();
+                
+                // Show error in chat
+                const errorMessage = currentLanguage === 'en' ? 
+                    "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                    "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+                
+                setMessages(prev => {
+                    return prev.map(msg => {
+                        if (msg.id === botMessageId) {
+                            return {
+                                ...msg,
+                                content: errorMessage
+                            };
+                        }
+                        return msg;
+                    });
+                });
+                
+                setTypingMessages(prev => ({
+                    ...prev,
+                    [botMessageId]: {
+                        text: errorMessage,
+                        visibleChars: errorMessage.length,
+                        isComplete: true,
+                        fadeIn: false,
+                        renderType: 'error'
+                    }
+                }));
+                
+                setIsThinking(false);
+                setIsTyping(false);
+            }
+            
+        } catch (error) {
+            console.error('[STREAM] Error in streaming request:', error);
+            
+            // Clean up
+            closeStreamConnection();
+            setIsThinking(false);
+            setIsTyping(false);
+            
+            // Show error message
+            const errorMessage = currentLanguage === 'en' ? 
+                "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
+                "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
+            
+            // Add error message to chat
+            const errorMsgId = 'bot-error-' + Date.now();
+            
+            setMessages(prev => [...prev, {
+                type: 'bot',
+                content: errorMessage,
+                id: errorMsgId
+            }]);
+            
+            // Render error message with appropriate approach
+            renderMessage(errorMsgId, errorMessage);
         }
-        
-        if (lowerContent.includes('price') || lowerContent.includes('cost') || lowerContent.includes('fee') || 
-            (isIcelandic && (lowerContent.includes('verð') || lowerContent.includes('gjald')))) {
-            return 'pricing';
-        }
-        
-        if (lowerContent.includes('ritual') || lowerContent.includes('skjól') || 
-            lowerContent.includes('treatment') || 
-            (isIcelandic && lowerContent.includes('meðferð'))) {
-            return 'ritual';
-        }
-        
-        if (lowerContent.includes('package') || lowerContent.includes('bundle') ||
-            (isIcelandic && (lowerContent.includes('pakki') || lowerContent.includes('pakka')))) {
-            return 'packages';
-        }
-        
-        if (lowerContent.includes('transport') || lowerContent.includes('bus') || 
-            lowerContent.includes('get to') || lowerContent.includes('arrive') ||
-            (isIcelandic && (lowerContent.includes('strætó') || lowerContent.includes('komast')))) {
-            return 'transportation';
-        }
-        
-        if (lowerContent.includes('restaurant') || lowerContent.includes('food') || 
-            lowerContent.includes('eat') || lowerContent.includes('drink') ||
-            (isIcelandic && (lowerContent.includes('matur') || lowerContent.includes('veitinga')))) {
-            return 'dining';
-        }
-        
-        if (lowerContent.includes('locker') || lowerContent.includes('changing') || 
-            lowerContent.includes('shower') || lowerContent.includes('amenities') ||
-            (isIcelandic && (lowerContent.includes('skáp') || lowerContent.includes('sturtu')))) {
-            return 'facilities';
-        }
-        
-        if (lowerContent.includes('booking') || lowerContent.includes('reservation') || 
-            lowerContent.includes('cancel') || 
-            (isIcelandic && (lowerContent.includes('bókun') || lowerContent.includes('pöntun')))) {
-            return 'booking';
-        }
-        
-        if (lowerContent.includes('northern light') || lowerContent.includes('midnight sun') ||
-            (isIcelandic && (lowerContent.includes('norðurljós') || lowerContent.includes('miðnætursól')))) {
-            return 'natural_phenomena';
-        }
-        
-        if (lowerContent.includes('weather') || lowerContent.includes('cold') || 
-            lowerContent.includes('rain') || lowerContent.includes('snow') ||
-            (isIcelandic && (lowerContent.includes('veður') || lowerContent.includes('rigning')))) {
-            return 'weather';
-        }
-        
-        if (lowerContent.includes('towel') || lowerContent.includes('swimsuit') || 
-            lowerContent.includes('bring') || lowerContent.includes('need to') ||
-            (isIcelandic && (lowerContent.includes('handklæði') || lowerContent.includes('sundföt')))) {
-            return 'items_needed';
-        }
-        
-        // Default category for messages that don't fit specific patterns
-        return 'general';
     };
 
+    // Modified handleSend to support streaming
     const handleSend = async () => {
         if (!inputValue.trim() || isTyping) return;
     
         const messageText = inputValue.trim();
         setInputValue('');
+        
+        // If streaming is enabled, use the streaming handler
+        if (true) { // Can be a config option later
+            return handleStreamingRequest(messageText);
+        }
     
+        // Otherwise, use the original non-streaming handler
         // Always show user message in chat
         setMessages(prev => [...prev, {
             type: 'user',
@@ -1636,7 +1879,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                             )}
                                             
                                             {msg.type === 'bot' || msg.type === 'agent' ? (
-                                                // MODIFIED: Apply different rendering approaches based on device
+                                                // MODIFIED: Apply different rendering approaches based on device and streaming
                                                 typingMessages[msg.id] ? (
                                                     <div 
                                                         className="sky-lagoon-message-content"
@@ -1780,6 +2023,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </MessageErrorBoundary>
                         ))}
 
+                        {/* NEW: Show thinking indicator when appropriate */}
+                        {isThinking && <ThinkingIndicator />}
+
                         {/* Show booking form if requested */}
                         {showBookingForm && !bookingRequestSent && (
                             <div className="message bot">
@@ -1821,7 +2067,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {isTyping && <TypingIndicator />}
+                        {isTyping && !isThinking && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -1873,7 +2119,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     </div>
                 )}
 
-                {/* Add keyframes for typing animation, new message animation, and fade-in */}
+                {/* Add keyframes for animations */}
                 <style jsx>{`
                     .message-bubble {
                         max-width: 70%;
@@ -1922,7 +2168,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         display: flex;
                     }
                     
-                    /* MODIFIED: Tweaked animations for new approach */
+                    /* Animations */
                     @keyframes sky-lagoon-chat-typing {
                         0% {
                             opacity: 0.4;
@@ -1962,6 +2208,38 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     
                     .sky-lagoon-fade-in {
                         animation: sky-lagoon-chat-fade-in ${FADE_IN_DURATION}ms ease-in-out;
+                    }
+                    
+                    /* NEW: Thinking indicator dots animation */
+                    .thinking-dots {
+                        display: inline-block;
+                        margin-left: 4px;
+                        animation: pulse 1.4s infinite;
+                    }
+                    
+                    @keyframes pulse {
+                        0% { opacity: 0.4; }
+                        50% { opacity: 1; }
+                        100% { opacity: 0.4; }
+                    }
+                    
+                    /* Thinking indicator fade transitions */
+                    .thinking-indicator.fade-in {
+                        animation: fadeIn ${THINKING_FADE_DURATION}ms ease-in-out forwards;
+                    }
+                    
+                    .thinking-indicator.fade-out {
+                        animation: fadeOut ${THINKING_FADE_DURATION}ms ease-in-out forwards;
+                    }
+                    
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(5px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    
+                    @keyframes fadeOut {
+                        from { opacity: 1; transform: translateY(0); }
+                        to { opacity: 0; transform: translateY(-5px); }
                     }
                     
                     @media (max-width: 768px) {
