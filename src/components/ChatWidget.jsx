@@ -736,7 +736,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }, 50);
     };
     
-    // NEW: Streaming request handler
+    // Update the handleStreamingRequest function
     const handleStreamingRequest = async (messageText) => {
         if (!messageText.trim() || isTyping) return;
         
@@ -761,6 +761,64 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         const botMessageId = 'bot-msg-' + Date.now();
         
         try {
+            // MODIFIED: Use fetch to send the request first
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    message: messageText,
+                    language: currentLanguage,
+                    streaming: true,
+                    sessionId: sessionId,
+                    chatId: chatId,
+                    bot_token: botToken,
+                    agent_credentials: agentCredentials || storedCredentials
+                })
+            });
+            
+            // MODIFIED: Check if streaming is supported by the server
+            if (response.headers.get('Content-Type') !== 'text/event-stream') {
+                // Server didn't return event-stream, use regular response
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Handle regular response
+                console.log('[STREAM] Server returned regular response instead of stream');
+                
+                // Add the bot message
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: data.message,
+                    id: botMessageId
+                }]);
+                
+                // Use normal rendering
+                renderMessage(botMessageId, data.message);
+                
+                // Store PostgreSQL ID if provided
+                if (data.postgresqlMessageId) {
+                    setMessagePostgresqlIds(prev => ({
+                        ...prev,
+                        [botMessageId]: data.postgresqlMessageId
+                    }));
+                }
+                
+                // Reset state
+                setIsTyping(false);
+                setIsStreaming(false);
+                
+                return;
+            }
+            
+            // Server supports streaming, create EventSource
+            console.log('[STREAM] Creating EventSource connection');
+            
             // Create the EventSource connection for streaming
             const streamUrl = new URL(webhookUrl);
             
@@ -769,9 +827,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             streamUrl.searchParams.append('sessionId', sessionId);
             streamUrl.searchParams.append('language', currentLanguage);
             
-            console.log('[STREAM] Creating EventSource connection');
-            
-            // Create new EventSource
+            // Create new EventSource with minimal parameters to avoid CORS issues
             const eventSource = new EventSource(streamUrl.toString());
             streamSourceRef.current = eventSource;
             
@@ -782,10 +838,53 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             // Listen for connected event
             eventSource.addEventListener('connected', (event) => {
-                console.log('[STREAM] Connected event received');
+                console.log('[STREAM] Connected event received', event);
             });
             
-            // Listen for chunk events
+            // MODIFIED: Handle all message types with the generic onmessage handler
+            eventSource.onmessage = (event) => {
+                try {
+                    console.log('[STREAM] Message received:', event.data);
+                    
+                    if (!event.data) return;
+                    
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch (e) {
+                        console.error('[STREAM] Error parsing event data:', e);
+                        data = { content: event.data, done: false };
+                    }
+                    
+                    // Make sure we have content
+                    if (data.content) {
+                        // Update the streaming content
+                        updateStreamingContent(botMessageId, data.content, data.done || false);
+                    }
+                    
+                    // If complete, close the connection
+                    if (data.done) {
+                        console.log('[STREAM] Stream complete');
+                        
+                        // Store PostgreSQL ID if provided
+                        if (data.postgresqlMessageId) {
+                            setMessagePostgresqlIds(prev => ({
+                                ...prev,
+                                [botMessageId]: data.postgresqlMessageId
+                            }));
+                        }
+                        
+                        // Clean up
+                        closeStreamConnection();
+                        setIsTyping(false);
+                        setIsStreaming(false);
+                    }
+                } catch (error) {
+                    console.error('[STREAM] Error processing message:', error);
+                }
+            };
+            
+            // Continue listening for specific event types for compatibility
             eventSource.addEventListener('chunk', (event) => {
                 try {
                     const data = JSON.parse(event.data);
@@ -873,7 +972,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 }
             });
             
-            // Listen for error events
+            // Enhanced error handler
             eventSource.addEventListener('error', (event) => {
                 console.error('[STREAM] Error event:', event);
                 
@@ -900,28 +999,6 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 setIsTyping(false);
                 setIsStreaming(false);
             });
-            
-            // Send the POST request to trigger the streaming response
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey
-                },
-                body: JSON.stringify({
-                    message: messageText,
-                    language: currentLanguage,
-                    streaming: true,
-                    sessionId: sessionId,
-                    chatId: chatId,
-                    bot_token: botToken,
-                    agent_credentials: agentCredentials || storedCredentials
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to send message: ${response.status}`);
-            }
             
         } catch (error) {
             console.error('[STREAM] Request error:', error);
