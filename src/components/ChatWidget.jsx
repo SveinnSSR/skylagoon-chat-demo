@@ -1252,165 +1252,353 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 sessionId: sessionId
             };
             
-            const response = await fetch(webhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey
-                },
-                body: JSON.stringify(requestBody)
-            });   
+            // For agent mode or special requests, use the regular endpoint
+            if (chatMode === 'agent') {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify(requestBody)
+                });   
     
-            const data = await response.json();
-            setIsTyping(false);
-            
-            // Handle booking change request form
-            if (data.showBookingChangeForm) {
-                console.log('Booking change request detected, showing form');
+                const data = await response.json();
+                setIsTyping(false);
                 
-                // Save the chat ID and tokens if provided
-                if (data.chatId) setChatId(data.chatId);
-                if (data.bot_token) setBotToken(data.bot_token);
-                if (data.agent_credentials) {
-                    setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
-                    console.log('Stored agent credentials from booking form response');
+                // Handle booking change request form
+                if (data.showBookingChangeForm) {
+                    console.log('Booking change request detected, showing form');
+                    
+                    // Save the chat ID and tokens if provided
+                    if (data.chatId) setChatId(data.chatId);
+                    if (data.bot_token) setBotToken(data.bot_token);
+                    if (data.agent_credentials) {
+                        setAgentCredentials(data.agent_credentials);
+                        setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                        console.log('Stored agent credentials from booking form response');
+                    }
+                    
+                    // Add the bot message with device-appropriate rendering
+                    const botMsgId = 'bot-msg-' + Date.now();
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: data.message,
+                        id: botMsgId
+                    }]);
+                    
+                    // Render message with the appropriate approach
+                    renderMessage(botMsgId, data.message);
+                    
+                    // Show the booking form
+                    setShowBookingForm(true);
+                    return;
                 }
-                
-                // Add the bot message with device-appropriate rendering
-                const botMsgId = 'bot-msg-' + Date.now();
-                setMessages(prev => [...prev, {
-                    type: 'bot',
-                    content: data.message,
-                    id: botMsgId
-                }]);
-                
-                // Render message with the appropriate approach
-                renderMessage(botMsgId, data.message);
-                
-                // Show the booking form
-                setShowBookingForm(true);
-                return;
-            }
     
-            // Handle transfer state
-            if (data.transferred && data.chatId) {
-                console.log('Transfer initiated with chat ID:', data.chatId);
-                
-                // Save the bot token if provided
+                // Handle transfer state
+                if (data.transferred && data.chatId) {
+                    console.log('Transfer initiated with chat ID:', data.chatId);
+                    
+                    // Save the bot token if provided
+                    if (data.bot_token) {
+                        console.log('Bot token received');
+                        setBotToken(data.bot_token);
+                    }
+                    
+                    // Save agent credentials if provided
+                    if (data.agent_credentials) {
+                        console.log('Agent credentials received and stored');
+                        setAgentCredentials(data.agent_credentials);
+                        setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                    }
+    
+                    // Set chat state to agent mode
+                    setChatMode('agent');
+                    setChatId(data.chatId);
+                    
+                    // Add the transfer messages to the chat with device-appropriate rendering
+                    const botMsgId = 'bot-msg-' + Date.now();
+                    const transferMsgId = 'bot-transfer-' + Date.now();
+                    
+                    // First message
+                    setMessages(prev => [...prev, {
+                        type: 'bot',
+                        content: data.message,
+                        id: botMsgId
+                    }]);
+                    
+                    // Render first message with the appropriate approach
+                    renderMessage(botMsgId, data.message);
+                    
+                    // UPDATED: Second message - check if already shown using ref and state
+                    setTimeout(() => {
+                        console.log('[TRANSFER] Checking connection message state:', isTransferComplete, 'ref:', connectionMessageShownRef.current);
+                        
+                        // Only show this message if we haven't completed a transfer yet
+                        if (!isTransferComplete && !connectionMessageShownRef.current) {
+                            console.log('[TRANSFER] First time showing connection message, marking transfer as complete');
+                            const transferMessage = currentLanguage === 'en' ? 
+                                CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
+                            
+                            setMessages(prev => [...prev, {
+                                type: 'bot',
+                                content: transferMessage,
+                                id: transferMsgId
+                            }]);
+                            
+                            // Render second message with the appropriate approach
+                            renderMessage(transferMsgId, transferMessage);
+                            
+                            // Mark transfer as complete in both ref and state
+                            connectionMessageShownRef.current = true;
+                            setIsTransferComplete(true);
+                        } else {
+                            console.log('[TRANSFER] Transfer already completed, skipping connection message');
+                        }
+                    }, 1000); // Delay before showing the second message
+                    
+                    return;
+                }
+    
+                // Update credentials if provided
                 if (data.bot_token) {
-                    console.log('Bot token received');
                     setBotToken(data.bot_token);
                 }
                 
-                // Save agent credentials if provided
                 if (data.agent_credentials) {
-                    console.log('Agent credentials received and stored');
+                    console.log('New agent credentials received and stored');
                     setAgentCredentials(data.agent_credentials);
-                    setStoredCredentials(data.agent_credentials); // Store credentials for reuse
+                    setStoredCredentials(data.agent_credentials); // Store for reuse
                 }
     
-                // Set chat state to agent mode
-                setChatMode('agent');
-                setChatId(data.chatId);
-                
-                // Add the transfer messages to the chat with device-appropriate rendering
-                const botMsgId = 'bot-msg-' + Date.now();
-                const transferMsgId = 'bot-transfer-' + Date.now();
-                
-                // First message
+                // If message was suppressed (in agent mode), don't show any response
+                if (data.suppressMessage) {
+                    return;
+                }
+    
+                // Normal bot response handling with unique ID for feedback tracking
+                const botMessageId = 'bot-msg-' + Date.now();
                 setMessages(prev => [...prev, {
                     type: 'bot',
                     content: data.message,
-                    id: botMsgId
+                    id: botMessageId
                 }]);
                 
-                // Render first message with the appropriate approach
-                renderMessage(botMsgId, data.message);
+                // Render response with the device-appropriate approach
+                renderMessage(botMessageId, data.message);
+    
+                // Store PostgreSQL ID if provided in response
+                if (data.postgresqlMessageId) {
+                    setMessagePostgresqlIds(prev => ({
+                        ...prev,
+                        [botMessageId]: data.postgresqlMessageId
+                    }));
+                    console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
+                }
+            } else {
+                // For regular chat (not agent mode), use streaming
+                // Use the stream endpoint which is at /api/stream
+                const streamUrl = new URL('/api/stream', window.location.origin).toString();
+                console.log('Using streaming endpoint:', streamUrl);                
                 
-                // UPDATED: Second message - check if already shown using ref and state
-                setTimeout(() => {
-                    console.log('[TRANSFER] Checking connection message state:', isTransferComplete, 'ref:', connectionMessageShownRef.current);
+                const response = await fetch(streamUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API responded with status ${response.status}`);
+                }
+                
+                // Create message placeholder for the bot response
+                const messageId = 'bot-msg-' + Date.now();
+                setMessages(prev => [...prev, {
+                    type: 'bot',
+                    content: '',
+                    id: messageId
+                }]);
+                
+                // Set up stream reader
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                let accumulatedContent = '';
+                
+                // Process the stream
+                while (true) {
+                    const { done, value } = await reader.read();
                     
-                    // Only show this message if we haven't completed a transfer yet
-                    if (!isTransferComplete && !connectionMessageShownRef.current) {
-                        console.log('[TRANSFER] First time showing connection message, marking transfer as complete');
-                        const transferMessage = currentLanguage === 'en' ? 
-                            CONNECTION_MESSAGE_EN : CONNECTION_MESSAGE_IS;
-                        
-                        setMessages(prev => [...prev, {
-                            type: 'bot',
-                            content: transferMessage,
-                            id: transferMsgId
-                        }]);
-                        
-                        // Render second message with the appropriate approach
-                        renderMessage(transferMsgId, transferMessage);
-                        
-                        // Mark transfer as complete in both ref and state
-                        connectionMessageShownRef.current = true;
-                        setIsTransferComplete(true);
-                    } else {
-                        console.log('[TRANSFER] Transfer already completed, skipping connection message');
+                    if (done) {
+                        break;
                     }
-                }, 1000); // Delay before showing the second message
-                
-                return;
-            }
-    
-            // Update credentials if provided
-            if (data.bot_token) {
-                setBotToken(data.bot_token);
-            }
-            
-            if (data.agent_credentials) {
-                console.log('New agent credentials received and stored');
-                setAgentCredentials(data.agent_credentials);
-                setStoredCredentials(data.agent_credentials); // Store for reuse
-            }
-    
-            // If message was suppressed (in agent mode), don't show any response
-            if (data.suppressMessage) {
-                return;
-            }
-    
-            // Normal bot response handling with unique ID for feedback tracking
-            const botMessageId = 'bot-msg-' + Date.now();
-            setMessages(prev => [...prev, {
-                type: 'bot',
-                content: data.message,
-                id: botMessageId
-            }]);
-            
-            // Render response with the device-appropriate approach
-            renderMessage(botMessageId, data.message);
-
-            // Store PostgreSQL ID if provided in response
-            if (data.postgresqlMessageId) {
-                setMessagePostgresqlIds(prev => ({
-                    ...prev,
-                    [botMessageId]: data.postgresqlMessageId
-                }));
-                console.log(`Stored PostgreSQL ID mapping: ${botMessageId} -> ${data.postgresqlMessageId}`);
+                    
+                    // Process incoming data
+                    const text = decoder.decode(value);
+                    const events = text.split('\n\n').filter(Boolean);
+                    
+                    for (const event of events) {
+                        if (!event.startsWith('data: ')) continue;
+                        
+                        try {
+                            const data = JSON.parse(event.slice(6));
+                            
+                            if (data.type === 'connected') {
+                                console.log('Stream connected with session ID:', data.sessionId);
+                            }
+                            
+                            if (data.type === 'chunk' && data.content) {
+                                // Add to accumulated content
+                                accumulatedContent += data.content;
+                                
+                                // Update message in UI
+                                setMessages(prev => 
+                                    prev.map(m => 
+                                        m.id === messageId ? {...m, content: accumulatedContent} : m
+                                    )
+                                );
+                                
+                                // Update typing effect
+                                setTypingMessages(prev => {
+                                    const current = prev[messageId] || {
+                                        text: '',
+                                        visibleChars: 0,
+                                        isComplete: false,
+                                        fadeIn: true,
+                                        renderType: isMobile ? 'simple' : 'chunked'
+                                    };
+                                    
+                                    return {
+                                        ...prev,
+                                        [messageId]: {
+                                            ...current,
+                                            text: accumulatedContent,
+                                            visibleChars: isMobile ? 
+                                                accumulatedContent.length : 
+                                                Math.min(current.visibleChars + data.content.length * 1.2, accumulatedContent.length)
+                                        }
+                                    };
+                                });
+                            }
+                            
+                            if (data.type === 'complete') {
+                                // Use the complete content which includes post-processing
+                                if (data.completeContent && data.completeContent !== accumulatedContent) {
+                                    setMessages(prev => 
+                                        prev.map(m => 
+                                            m.id === messageId ? {...m, content: data.completeContent} : m
+                                        )
+                                    );
+                                    
+                                    setTypingMessages(prev => {
+                                        return {
+                                            ...prev,
+                                            [messageId]: {
+                                                ...prev[messageId],
+                                                text: data.completeContent,
+                                                visibleChars: data.completeContent.length,
+                                                isComplete: true
+                                            }
+                                        };
+                                    });
+                                } else {
+                                    // Just mark as complete
+                                    setTypingMessages(prev => {
+                                        return {
+                                            ...prev,
+                                            [messageId]: {
+                                                ...prev[messageId],
+                                                isComplete: true
+                                            }
+                                        };
+                                    });
+                                }
+                                
+                                setIsTyping(false);
+                                
+                                // Store PostgreSQL ID if provided
+                                if (data.postgresqlId) {
+                                    setMessagePostgresqlIds(prev => ({
+                                        ...prev,
+                                        [messageId]: data.postgresqlId
+                                    }));
+                                    console.log(`Stored PostgreSQL ID mapping: ${messageId} -> ${data.postgresqlId}`);
+                                }
+                            }
+                            
+                            if (data.type === 'error') {
+                                console.error('Stream error:', data.error);
+                                setIsTyping(false);
+                                
+                                // Show error message
+                                setMessages(prev => 
+                                    prev.map(m => 
+                                        m.id === messageId ? 
+                                        {
+                                            ...m, 
+                                            content: data.content || "I apologize, but I'm having trouble connecting right now. Please try again shortly."
+                                        } : m
+                                    )
+                                );
+                            }
+                            
+                            // Handle transfer if needed
+                            if (data.transferred) {
+                                // Save the chat ID
+                                if (data.chatId) {
+                                    setChatId(data.chatId);
+                                }
+                                
+                                // Save tokens if provided
+                                if (data.customer_token) {
+                                    console.log('Customer token received');
+                                    // No need to do anything with the customer token at the moment
+                                }
+                                
+                                if (data.bot_token) {
+                                    console.log('Bot token received');
+                                    setBotToken(data.bot_token);
+                                }
+                                
+                                if (data.agent_credentials) {
+                                    console.log('Agent credentials received and stored');
+                                    setAgentCredentials(data.agent_credentials);
+                                    setStoredCredentials(data.agent_credentials); // Store for reuse
+                                }
+                                
+                                // Set chat state to agent mode
+                                setChatMode('agent');
+                                
+                                // Mark transfer as complete
+                                connectionMessageShownRef.current = true;
+                                setIsTransferComplete(true);
+                                
+                                // If there's an initiateWidget flag, don't do anything special here
+                                // The connection message is already part of the response
+                            }
+                        } catch (parseError) {
+                            console.error('Error parsing event:', parseError);
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error('Error:', error);
             setIsTyping(false);
             
-            // Error message with device-appropriate rendering
+            // Show error message
             const errorMsgId = 'bot-error-' + Date.now();
-            const errorMessage = currentLanguage === 'en' ? 
-                "I apologize, but I'm having trouble connecting right now. Please try again shortly." :
-                "Ég biðst afsökunar, en ég er að lenda í vandræðum með tengingu núna. Vinsamlegast reyndu aftur eftir smá stund.";
-            
             setMessages(prev => [...prev, {
                 type: 'bot',
-                content: errorMessage,
+                content: "I apologize, but I'm having trouble connecting right now. Please try again shortly.",
                 id: errorMsgId
             }]);
             
             // Render error message with the appropriate approach
-            renderMessage(errorMsgId, errorMessage);
+            renderMessage(errorMsgId, "I apologize, but I'm having trouble connecting right now. Please try again shortly.");
         }
     };
 
