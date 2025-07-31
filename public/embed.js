@@ -122,6 +122,8 @@
   speechBubble.style.fontFamily = 'Arial, sans-serif';
   speechBubble.style.transition = 'opacity 0.3s ease-in-out';
   speechBubble.style.border = '1px solid rgba(0,0,0,0.05)';
+  speechBubble.style.cursor = 'pointer'; // NEW: Make it clear it's clickable
+  speechBubble.style.userSelect = 'none'; // NEW: Prevent text selection
   
   // Detect language and set appropriate preview text
   const isIcelandic = 
@@ -134,6 +136,42 @@
   } else {
     speechBubble.textContent = 'Hi! I\'m Sólrún, your AI assistant at Sky Lagoon. How can I help you today?';
   }
+  
+  // NEW: Add click handler to open the chat widget
+  speechBubble.addEventListener('click', function(e) {
+    // Don't trigger if clicking the close button
+    if (e.target === closeButton) {
+      return;
+    }
+    
+    console.log('Speech bubble clicked, opening chat...');
+    
+    // Hide the speech bubble
+    speechBubble.style.display = 'none';
+    sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
+    
+    // Open the chat widget
+    if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.openChat) {
+      window.SkyLagoonChatAPI.openChat();
+    } else {
+      // Fallback: trigger click on the chat widget container
+      const chatWidget = document.querySelector('#sky-lagoon-chat-root');
+      if (chatWidget) {
+        chatWidget.click();
+      }
+    }
+  });
+  
+  // NEW: Add hover effects for better UX
+  speechBubble.addEventListener('mouseenter', function() {
+    speechBubble.style.transform = 'translateY(-2px)';
+    speechBubble.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.12)';
+  });
+  
+  speechBubble.addEventListener('mouseleave', function() {
+    speechBubble.style.transform = 'translateY(0)';
+    speechBubble.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.08)';
+  });
   
   // Add small triangle/pointer at the bottom
   const pointer = document.createElement('div');
@@ -176,6 +214,7 @@
   closeButton.style.height = '16px';
   closeButton.style.textAlign = 'center';
   closeButton.style.borderRadius = '50%';
+  closeButton.style.zIndex = '2'; // NEW: Ensure close button is above the bubble content
   
   closeButton.onmouseover = function() {
     closeButton.style.color = '#666';
@@ -186,7 +225,7 @@
   };
   
   closeButton.onclick = function(e) {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent the speech bubble click handler from firing
     speechBubble.style.display = 'none';
     // Store in session that bubble was closed
     sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
@@ -285,8 +324,22 @@
               speechBubble.style.display = 'none';
             });
             
-            // Store API for potential use later
-            window.SkyLagoonChatAPI = widgetAPI;
+            // NEW: Enhanced API with openChat method
+            const enhancedAPI = {
+              ...widgetAPI,
+              openChat: function() {
+                console.log('Opening chat via API');
+                // Trigger click on the chat widget to open it
+                const chatWidgetHeader = container.querySelector('div[style*="cursor: pointer"]');
+                if (chatWidgetHeader) {
+                  chatWidgetHeader.click();
+                }
+              },
+              setLanguage: widgetAPI.setLanguage
+            };
+            
+            // Store enhanced API for potential use later
+            window.SkyLagoonChatAPI = enhancedAPI;
             
             // Add window resize listener to update bubble position
             window.addEventListener('resize', positionSpeechBubble);
