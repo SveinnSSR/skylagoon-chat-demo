@@ -68,18 +68,32 @@
     }
   }, 500);
   
+  // Language detection function
+  const detectLanguage = () => {
+    return window.location.pathname.includes('/is/') || 
+           document.documentElement.lang === 'is' ||
+           document.documentElement.lang === 'is-IS';
+  };
+  
+  // Speech bubble text translations
+  const speechBubbleTexts = {
+    is: 'Hæ! Ég heiti Sólrún og er AI spjallmenni hjá Sky Lagoon. Hvað get ég gert fyrir þig í dag?',
+    en: 'Hi! I\'m Sólrún, your AI assistant at Sky Lagoon. How can I help you today?'
+  };
+  
   // Language detection and update function
   const updateWidgetLanguage = () => {
-    // Detect language from various sources
-    const isIcelandic = 
-      window.location.pathname.includes('/is/') || 
-      document.documentElement.lang === 'is' ||
-      document.documentElement.lang === 'is-IS';
+    const isIcelandic = detectLanguage();
     
     // Update widget language if API is available
     if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.setLanguage) {
       window.SkyLagoonChatAPI.setLanguage(isIcelandic ? 'is' : 'en');
       console.log('Updated chat widget language to:', isIcelandic ? 'is' : 'en');
+    }
+    
+    // NEW: Update speech bubble text when language changes
+    if (speechBubble && speechBubble.style.display !== 'none') {
+      updateSpeechBubbleText();
     }
   };
   
@@ -87,6 +101,26 @@
   const speechBubble = document.createElement('div');
   speechBubble.id = 'sky-lagoon-chat-preview';
   speechBubble.className = 'sky-lagoon-chat-widget'; // Add namespace to speech bubble too
+  
+  // NEW: Function to update speech bubble text based on current language
+  const updateSpeechBubbleText = () => {
+    const isIcelandic = detectLanguage();
+    const currentText = isIcelandic ? speechBubbleTexts.is : speechBubbleTexts.en;
+    
+    // Only update the text content, not the close button
+    const textContent = speechBubble.childNodes[0];
+    if (textContent && textContent.nodeType === Node.TEXT_NODE) {
+      textContent.textContent = currentText;
+    } else {
+      // If for some reason the text node doesn't exist, recreate it
+      speechBubble.innerHTML = '';
+      speechBubble.appendChild(document.createTextNode(currentText));
+      // Re-add other elements (pointer, close button) after clearing
+      speechBubble.appendChild(pointer);
+      speechBubble.appendChild(pointerBorder);
+      speechBubble.appendChild(closeButton);
+    }
+  };
   
   // Position the speech bubble - using a function that will be called after widget is loaded
   const positionSpeechBubble = () => {
@@ -122,20 +156,12 @@
   speechBubble.style.fontFamily = 'Arial, sans-serif';
   speechBubble.style.transition = 'opacity 0.3s ease-in-out';
   speechBubble.style.border = '1px solid rgba(0,0,0,0.05)';
-  speechBubble.style.cursor = 'pointer'; // NEW: Make it clear it's clickable
-  speechBubble.style.userSelect = 'none'; // NEW: Prevent text selection
+  speechBubble.style.cursor = 'pointer'; // Make it clear it's clickable
+  speechBubble.style.userSelect = 'none'; // Prevent text selection
   
-  // Detect language and set appropriate preview text
-  const isIcelandic = 
-    window.location.pathname.includes('/is/') || 
-    document.documentElement.lang === 'is' ||
-    document.documentElement.lang === 'is-IS';
-  
-  if (isIcelandic) {
-    speechBubble.textContent = 'Hæ! Ég heiti Sólrún og er AI spjallmenni hjá Sky Lagoon. Hvað get ég gert fyrir þig í dag?';
-  } else {
-    speechBubble.textContent = 'Hi! I\'m Sólrún, your AI assistant at Sky Lagoon. How can I help you today?';
-  }
+  // Set initial text based on current language
+  const isIcelandic = detectLanguage();
+  speechBubble.textContent = isIcelandic ? speechBubbleTexts.is : speechBubbleTexts.en;
   
   // NEW: Add click handler to open the chat widget
   speechBubble.addEventListener('click', function(e) {
@@ -148,7 +174,8 @@
     
     // Hide the speech bubble
     speechBubble.style.display = 'none';
-    sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
+    // FIXED: Use a temporary in-memory flag instead of sessionStorage
+    speechBubble.dataset.temporarilyClosed = 'true';
     
     // Open the chat widget
     if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.openChat) {
@@ -162,7 +189,7 @@
     }
   });
   
-  // NEW: Add hover effects for better UX
+  // Add hover effects for better UX
   speechBubble.addEventListener('mouseenter', function() {
     speechBubble.style.transform = 'translateY(-2px)';
     speechBubble.style.boxShadow = '0 5px 15px rgba(0, 0, 0, 0.12)';
@@ -214,7 +241,7 @@
   closeButton.style.height = '16px';
   closeButton.style.textAlign = 'center';
   closeButton.style.borderRadius = '50%';
-  closeButton.style.zIndex = '2'; // NEW: Ensure close button is above the bubble content
+  closeButton.style.zIndex = '2'; // Ensure close button is above the bubble content
   
   closeButton.onmouseover = function() {
     closeButton.style.color = '#666';
@@ -227,16 +254,24 @@
   closeButton.onclick = function(e) {
     e.stopPropagation(); // Prevent the speech bubble click handler from firing
     speechBubble.style.display = 'none';
-    // Store in session that bubble was closed
-    sessionStorage.setItem('skyLagoonChatBubbleClosed', 'true');
+    // FIXED: Use a more temporary storage mechanism
+    // Instead of sessionStorage, use a data attribute that doesn't persist across refreshes
+    speechBubble.dataset.temporarilyClosed = 'true';
+    
+    // NEW: Set a timer to potentially show it again after some time
+    setTimeout(() => {
+      // Only show again if the user hasn't interacted with the main widget
+      if (!document.querySelector('#sky-lagoon-chat-root [style*="400px"]')) { // Widget is still minimized
+        speechBubble.dataset.temporarilyClosed = 'false';
+        speechBubble.style.display = 'block';
+      }
+    }, 30000); // Show again after 30 seconds if widget hasn't been opened
   };
   
   speechBubble.appendChild(closeButton);
   
-  // Only show if not closed in this session
-  if (sessionStorage.getItem('skyLagoonChatBubbleClosed') === 'true') {
-    speechBubble.style.display = 'none';
-  }
+  // FIXED: Show by default on page load (don't check sessionStorage)
+  // The speech bubble will now appear on every page load unless temporarily closed
   
   document.body.appendChild(speechBubble);
   
@@ -271,7 +306,7 @@
   // Full absolute URL to widget bundle
   const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
   
-  // NEW CODE: Load the website fix script first
+  // Load the website fix script first
   console.log('Loading mobile-friendly website fixes');
   const fixScript = document.createElement('script');
   fixScript.src = `${baseUrl}/website-fix.js`;
@@ -322,9 +357,10 @@
             // Hide speech bubble when chat is opened
             container.addEventListener('click', function() {
               speechBubble.style.display = 'none';
+              speechBubble.dataset.temporarilyClosed = 'true';
             });
             
-            // NEW: Enhanced API with openChat method
+            // Enhanced API with openChat method
             const enhancedAPI = {
               ...widgetAPI,
               openChat: function() {
@@ -335,7 +371,14 @@
                   chatWidgetHeader.click();
                 }
               },
-              setLanguage: widgetAPI.setLanguage
+              setLanguage: function(newLanguage) {
+                // Call the original setLanguage if it exists
+                if (widgetAPI.setLanguage) {
+                  widgetAPI.setLanguage(newLanguage);
+                }
+                // NEW: Also update the speech bubble text
+                updateSpeechBubbleText();
+              }
             };
             
             // Store enhanced API for potential use later
@@ -386,5 +429,4 @@
     
     document.head.appendChild(script);
   }
-  // END NEW CODE
 })();
