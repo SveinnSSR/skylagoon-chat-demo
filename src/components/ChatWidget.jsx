@@ -367,7 +367,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
                         case 'stream-complete':
                             console.log('✅ Stream complete');
-                            // Add the complete message to messages array
+                            // Add the complete message to messages array - NO ADDITIONAL EFFECTS
                             const botMsgId = `bot-${Date.now()}`;
                             setMessages(prev => [...prev, {
                                 id: botMsgId,
@@ -376,8 +376,17 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                 timestamp: new Date()
                             }]);
                             
-                            // Start the chunked reveal effect for the completed message
-                            renderMessage(botMsgId, data.completeContent);
+                            // DON'T run renderMessage - streaming already showed the text!
+                            // Just mark it as complete for feedback buttons
+                            setTypingMessages(prev => ({
+                                ...prev,
+                                [botMsgId]: { 
+                                    text: data.completeContent,
+                                    visibleChars: data.completeContent.length,
+                                    isComplete: true,
+                                    renderType: 'streaming-complete'
+                                }
+                            }));
                             
                             // Reset streaming state
                             setCurrentStreamMessage('');
@@ -535,8 +544,17 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         timestamp: new Date()
                                     }]);
                                     
-                                    // Start the chunked reveal effect (same as WebSocket)
-                                    renderMessage(botMsgId, parsed.completeContent);
+                                    // DON'T run renderMessage - streaming already showed the text!
+                                    // Just mark it as complete for feedback buttons
+                                    setTypingMessages(prev => ({
+                                        ...prev,
+                                        [botMsgId]: { 
+                                            text: parsed.completeContent,
+                                            visibleChars: parsed.completeContent.length,
+                                            isComplete: true,
+                                            renderType: 'streaming-complete'
+                                        }
+                                    }));
                                     
                                     setCurrentStreamMessage('');
                                     setIsStreaming(false);
@@ -1982,7 +2000,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                         </div>
                                     </div>
                                     
-                                    {/* FIXED: Feedback buttons - only shown for bot messages that pass the filter */}
+                                    {/* FIXED: Feedback buttons - show for all completed bot messages */}
                                     {msg.type === 'bot' && 
                                     ((typingMessages[msg.id] && typingMessages[msg.id].isComplete) || !typingMessages[msg.id]) && 
                                     shouldShowFeedback(msg) && (
