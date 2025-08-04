@@ -2180,16 +2180,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     position: 'relative'
                                 }}>
                                     <MessageFormatter message={currentStreamMessage} />
-                                    {/* IMPROVED: Smooth cursor instead of jittery indicator */}
-                                    <span style={{
-                                        display: 'inline-block',
-                                        width: '2px',
-                                        height: '16px',
-                                        backgroundColor: '#70744E',
-                                        marginLeft: '2px',
-                                        animation: 'sky-lagoon-smooth-cursor 1.2s infinite',
-                                        opacity: 0.8
-                                    }}>|</span>
+                                    {/* REMOVED: No cursor during streaming for smooth Sky Lagoon experience */}
                                 </div>
                             </div>
                         )}
