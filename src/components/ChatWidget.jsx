@@ -1495,31 +1495,82 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         checkSessionTimeout();
     
         try {
-            // STREAMING FUNCTIONALITY - Smart mode selection
-            // Use SSE on Vercel, WebSocket locally for optimal performance
+            // 🔍 DETAILED DEBUG LOGS
             const useSSE = window.location.hostname !== 'localhost';
+            const backendUrl = getBackendUrl();
+            const streamingUrl = `${backendUrl}/chat-stream`;
             
-            // Try streaming first (faster, better user experience)
+            console.log("🧪 STREAMING DEBUG:");
+            console.log("  - useSSE:", useSSE);
+            console.log("  - hostname:", window.location.hostname);
+            console.log("  - backendUrl:", backendUrl);
+            console.log("  - streamingUrl:", streamingUrl);
+            console.log("  - apiKey:", apiKey ? 'PROVIDED' : 'MISSING');
+            console.log("  - sessionId:", sessionId);
+
             if (useSSE) {
-                console.log('🔄 Using SSE streaming (production mode)...');
+                console.log('🔄 Attempting SSE streaming...');
                 setIsStreaming(true);
                 setCurrentStreamMessage('');
-                await sendSSEMessage(messageText);
-                return; // Exit early if streaming succeeds
+                
+                // 🔍 TEST THE ENDPOINT FIRST
+                console.log(`🔗 Testing endpoint: ${streamingUrl}`);
+                
+                // Try a simple fetch first to see if endpoint exists
+                try {
+                    const testResponse = await fetch(streamingUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': apiKey,
+                        },
+                        body: JSON.stringify({
+                            message: messageText,
+                            sessionId: sessionId
+                        })
+                    });
+                    
+                    console.log('🔍 Endpoint test response:', {
+                        status: testResponse.status,
+                        statusText: testResponse.statusText,
+                        ok: testResponse.ok,
+                        headers: Object.fromEntries(testResponse.headers.entries())
+                    });
+                    
+                    if (!testResponse.ok) {
+                        throw new Error(`HTTP ${testResponse.status}: ${testResponse.statusText}`);
+                    }
+                    
+                    // If we get here, endpoint is working, now try streaming
+                    await sendSSEMessage(messageText);
+                    console.log('✅ SSE streaming completed successfully');
+                    return;
+                    
+                } catch (fetchError) {
+                    console.error('❌ Endpoint test failed:', fetchError);
+                    throw fetchError;
+                }
+                
             } else {
-                console.log('🔄 Using WebSocket streaming (development mode)...');
+                console.log('🔄 Attempting WebSocket streaming...');
                 setIsStreaming(true);
                 setCurrentStreamMessage('');
                 await sendStreamingMessage(messageText);
-                return; // Exit early if streaming succeeds
+                console.log('✅ WebSocket streaming completed successfully');
+                return;
             }
 
         } catch (streamingError) {
-            console.error('❌ Streaming failed, falling back to HTTP:', streamingError);
+            console.error('❌ STREAMING FAILED - Full Error Details:');
+            console.error('  - Error name:', streamingError.name);
+            console.error('  - Error message:', streamingError.message);
+            console.error('  - Error stack:', streamingError.stack);
+            console.error('  - Error cause:', streamingError.cause);
+            
             // Reset streaming state and fall back to HTTP
             setIsStreaming(false);
             setCurrentStreamMessage('');
-            // Continue to HTTP fallback below
+            console.log('🔄 Falling back to HTTP mode...');
         }
 
         // HTTP FALLBACK - Original Sky Lagoon functionality preserved
