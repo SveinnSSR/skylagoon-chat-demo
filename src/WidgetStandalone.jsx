@@ -65,4 +65,4 @@ if (typeof window !== 'undefined' && !window.SkyLagoonChat) {
 }
 
 // Export for use in embed.js
-export default { init };
+export default { init };// Build trigger Mon Aug  4 12:37:48 CEST 2025
