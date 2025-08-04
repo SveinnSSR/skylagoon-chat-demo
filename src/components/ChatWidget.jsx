@@ -339,6 +339,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
         try {
             wsRef.current = new WebSocket(wsUrl);
+            let firstChunkReceived = false; // ✨ Track first chunk for typing indicator
             
             wsRef.current.onopen = () => {
                 console.log('🔌 WebSocket connected');
@@ -358,9 +359,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     switch (data.type) {
                         case 'stream-connected':
                             console.log('✅ Stream connected:', data.streamId);
+                            firstChunkReceived = false; // Reset for new stream
                             break;
 
                         case 'stream-chunk':
+                            // ✨ HIDE TYPING INDICATOR on first chunk for responsive feel
+                            if (!firstChunkReceived) {
+                                setIsTyping(false);
+                                firstChunkReceived = true;
+                                console.log('🎯 First chunk received - hiding typing indicator');
+                            }
                             // Add chunks to the streaming message
                             setCurrentStreamMessage(prev => prev + data.content);
                             break;
@@ -391,7 +399,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             // Reset streaming state
                             setCurrentStreamMessage('');
                             setIsStreaming(false);
-                            setIsTyping(false);
+                            setIsTyping(false); // ✨ Ensure typing is off
                             break;
 
                         case 'stream-error':
@@ -408,7 +416,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             // Reset streaming state
                             setCurrentStreamMessage('');
                             setIsStreaming(false);
-                            setIsTyping(false);
+                            setIsTyping(false); // ✨ Ensure typing is off
                             break;
                     }
                 } catch (error) {
@@ -499,6 +507,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Read the Server-Sent Events stream
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let firstChunkReceived = false; // ✨ Track first chunk for typing indicator
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -531,6 +540,12 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     break;
 
                                 case 'stream-chunk':
+                                    // ✨ HIDE TYPING INDICATOR on first chunk for responsive feel
+                                    if (!firstChunkReceived) {
+                                        setIsTyping(false);
+                                        firstChunkReceived = true;
+                                        console.log('🎯 First chunk received - hiding typing indicator');
+                                    }
                                     setCurrentStreamMessage(prev => prev + parsed.content);
                                     break;
 
@@ -558,7 +573,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     
                                     setCurrentStreamMessage('');
                                     setIsStreaming(false);
-                                    setIsTyping(false);
+                                    setIsTyping(false); // ✨ Ensure typing is off
                                     break;
 
                                 case 'stream-error':
@@ -573,7 +588,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                                     }]);
                                     setCurrentStreamMessage('');
                                     setIsStreaming(false);
-                                    setIsTyping(false);
+                                    setIsTyping(false); // ✨ Ensure typing is off
                                     break;
                             }
                         } catch (parseError) {
@@ -1508,6 +1523,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             id: 'user-msg-' + Date.now()
         }]);
         
+        // ✨ IMMEDIATE TYPING INDICATOR - Shows instantly for responsive feel
         setIsTyping(true);
         
         // Check for session timeout before sending
@@ -1538,6 +1554,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             // Reset streaming state and fall back to HTTP
             setIsStreaming(false);
             setCurrentStreamMessage('');
+            // Keep typing indicator for HTTP fallback
             // Continue to HTTP fallback below
         }
 
@@ -2185,8 +2202,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {/* IMPROVED: Only show typing when not streaming AND not showing current stream message */}
-                        {isTyping && !isStreaming && !currentStreamMessage && <TypingIndicator />}
+                        {/* ✨ RESPONSIVE TYPING INDICATOR - Shows immediately, hides on first chunk */}
+                        {isTyping && !currentStreamMessage && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
