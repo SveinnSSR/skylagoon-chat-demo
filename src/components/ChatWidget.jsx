@@ -1,3 +1,4 @@
+
 // src/components/ChatWidget.jsx
 import React, { useState, useEffect, useCallback, Component } from 'react';
 import { theme } from '../styles/theme';
@@ -9,6 +10,28 @@ import '../styles/BookingChangeRequest.css';
 // Define constants for connection messages to ensure consistent checks
 const CONNECTION_MESSAGE_EN = "You are now connected with a live agent. Please continue your conversation here.";
 const CONNECTION_MESSAGE_IS = "Þú ert núna tengd/ur við þjónustufulltrúa. Vinsamlegast haltu samtalinu áfram hér.";
+
+// STREAMING FUNCTIONALITY - Smart URL detection for backend communication
+// Automatically switches between localhost (development) and production URLs
+const getBackendUrl = () => {
+    // If running locally (localhost), use local backend
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:8080';
+    }
+    // If running on Vercel (production), use production backend  
+    return 'https://sky-lagoon-chat-2024.vercel.app';
+};
+
+// STREAMING FUNCTIONALITY - WebSocket URL detection
+// WebSocket only works locally - Vercel doesn't support WebSocket servers
+const getWebSocketUrl = () => {
+    // WebSocket only works locally - Vercel doesn't support WebSocket
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'ws://localhost:8080';
+    }
+    // Return null for production - will use SSE instead
+    return null;
+};
 
 // Less intrusive error boundary
 class ErrorBoundary extends Component {
@@ -131,12 +154,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     // NEW: Track if we're on a mobile device for rendering approach
     const isMobile = windowWidth <= MOBILE_BREAKPOINT;
 
+    // STREAMING FUNCTIONALITY - WebSocket and streaming state
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [currentStreamMessage, setCurrentStreamMessage] = useState('');
+    const wsRef = React.useRef(null);
+    const reconnectTimeoutRef = React.useRef(null);
+
     // NEW: Add component mount/unmount diagnostic logging
     useEffect(() => {
         // Component mounting diagnostic
         console.log('[DIAGNOSTIC] ChatWidget mounted with session:', sessionId);
         console.log('[ConnectionRef] Initial value:', connectionMessageShownRef.current);
         console.log('[DEVICE] Using ' + (isMobile ? 'mobile' : 'desktop') + ' rendering approach');
+        console.log('[STREAMING] WebSocket URL available:', getWebSocketUrl() ? 'Yes' : 'No (will use SSE)');
         
         return () => {
             console.log('[DIAGNOSTIC] ChatWidget unmounting, last session:', sessionId);
@@ -213,7 +243,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, showBookingForm, typingMessages]);
+    }, [messages, showBookingForm, typingMessages, currentStreamMessage]); // Added currentStreamMessage for streaming
 
     // Functions for session management
     const generateSessionId = useCallback(() => {
@@ -293,6 +323,252 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             pusher.disconnect();
         };
     }, []);
+
+    // STREAMING FUNCTIONALITY - WebSocket connection management
+    const connectWebSocket = () => {
+        // Don't create multiple connections
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            return;
+        }
+
+        // Get WebSocket URL (null in production)
+        const wsUrl = getWebSocketUrl();
+        if (!wsUrl) {
+            console.log('WebSocket not available in production - using SSE mode');
+            return;
+        }
+
+        try {
+            wsRef.current = new WebSocket(wsUrl);
+            
+            wsRef.current.onopen = () => {
+                console.log('🔌 WebSocket connected');
+                // Clear any reconnection timeouts on successful connection
+                if (reconnectTimeoutRef.current) {
+                    clearTimeout(reconnectTimeoutRef.current);
+                    reconnectTimeoutRef.current = null;
+                }
+            };
+
+            wsRef.current.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📨 WebSocket message:', data);
+
+                    // Handle different message types from streaming backend
+                    switch (data.type) {
+                        case 'stream-connected':
+                            console.log('✅ Stream connected:', data.streamId);
+                            break;
+
+                        case 'stream-chunk':
+                            // Add chunks to the streaming message
+                            setCurrentStreamMessage(prev => prev + data.content);
+                            break;
+
+                        case 'stream-complete':
+                            console.log('✅ Stream complete');
+                            // Add the complete message to messages array
+                            setMessages(prev => [...prev, {
+                                id: `bot-${Date.now()}`,
+                                type: 'bot',
+                                content: data.completeContent,
+                                timestamp: new Date()
+                            }]);
+                            
+                            // Start the chunked reveal effect for the completed message
+                            const botMsgId = `bot-${Date.now()}-complete`;
+                            renderMessage(botMsgId, data.completeContent);
+                            
+                            // Reset streaming state
+                            setCurrentStreamMessage('');
+                            setIsStreaming(false);
+                            setIsTyping(false);
+                            break;
+
+                        case 'stream-error':
+                            console.error('❌ Stream error:', data.error);
+                            // Show error message
+                            setMessages(prev => [...prev, {
+                                id: `error-${Date.now()}`,
+                                type: 'bot',
+                                content: 'Sorry, there was an error. Please try again.',
+                                timestamp: new Date(),
+                                isError: true
+                            }]);
+                            // Reset streaming state
+                            setCurrentStreamMessage('');
+                            setIsStreaming(false);
+                            setIsTyping(false);
+                            break;
+                    }
+                } catch (error) {
+                    console.error('❌ Error parsing WebSocket message:', error);
+                }
+            };
+
+            wsRef.current.onclose = () => {
+                console.log('🔌 WebSocket disconnected');
+                // Attempt to reconnect after a delay
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    console.log('🔄 Attempting to reconnect WebSocket...');
+                    connectWebSocket();
+                }, 3000);
+            };
+
+            wsRef.current.onerror = (error) => {
+                console.error('❌ WebSocket error:', error);
+            };
+
+        } catch (error) {
+            console.error('❌ Error creating WebSocket connection:', error);
+        }
+    };
+
+    // STREAMING FUNCTIONALITY - Initialize WebSocket connection
+    useEffect(() => {
+        // Connect WebSocket when component mounts
+        connectWebSocket();
+
+        // Cleanup function
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+        };
+    }, []); // Empty dependency array - only run once on mount
+
+    // STREAMING FUNCTIONALITY - Send message via WebSocket (streaming)
+    const sendStreamingMessage = async (messageText) => {
+        // Ensure WebSocket is connected
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            console.log('⚠️ WebSocket not connected, trying to connect...');
+            connectWebSocket();
+            
+            // Wait a bit for connection
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                throw new Error('WebSocket connection failed');
+            }
+        }
+
+        // Send message via WebSocket
+        const message = {
+            type: 'chat',
+            message: messageText,
+            sessionId: sessionId
+        };
+
+        wsRef.current.send(JSON.stringify(message));
+    };
+
+    // STREAMING FUNCTIONALITY - Send message via SSE (Vercel compatible!)
+    const sendSSEMessage = async (messageText) => {
+        console.log('📡 Starting SSE stream for message:', messageText);
+        
+        try {
+            const response = await fetch(`${getBackendUrl()}/chat-stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                },
+                body: JSON.stringify({
+                    message: messageText,
+                    sessionId: sessionId
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            // Read the Server-Sent Events stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    console.log('📡 SSE stream ended');
+                    break;
+                }
+
+                // Decode the chunk and process line by line
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6); // Remove 'data: ' prefix
+                        
+                        if (data.trim() === '[DONE]') {
+                            console.log('✅ SSE stream complete signal received');
+                            continue;
+                        }
+
+                        try {
+                            const parsed = JSON.parse(data);
+
+                            // Handle the same message types as WebSocket
+                            switch (parsed.type) {
+                                case 'stream-connected':
+                                    console.log('✅ SSE stream connected:', parsed.streamId);
+                                    break;
+
+                                case 'stream-chunk':
+                                    setCurrentStreamMessage(prev => prev + parsed.content);
+                                    break;
+
+                                case 'stream-complete':
+                                    console.log('✅ SSE stream complete');
+                                    setMessages(prev => [...prev, {
+                                        id: `bot-${Date.now()}`,
+                                        type: 'bot',
+                                        content: parsed.completeContent,
+                                        timestamp: new Date()
+                                    }]);
+                                    
+                                    // Start the chunked reveal effect (same as WebSocket)
+                                    const botMsgId = `bot-${Date.now()}-complete`;
+                                    renderMessage(botMsgId, parsed.completeContent);
+                                    
+                                    setCurrentStreamMessage('');
+                                    setIsStreaming(false);
+                                    setIsTyping(false);
+                                    break;
+
+                                case 'stream-error':
+                                    console.error('❌ SSE stream error:', parsed.error);
+                                    setMessages(prev => [...prev, {
+                                        id: `error-${Date.now()}`,
+                                        type: 'bot',
+                                        content: 'Sorry, there was an error. Please try again.',
+                                        timestamp: new Date(),
+                                        isError: true
+                                    }]);
+                                    setCurrentStreamMessage('');
+                                    setIsStreaming(false);
+                                    setIsTyping(false);
+                                    break;
+                            }
+                        } catch (parseError) {
+                            console.error('❌ Error parsing SSE data:', parseError);
+                        }
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ SSE streaming error:', error);
+            throw error;
+        }
+    };
 
     // Listen for agent messages from LiveChat - format-normalized implementation
     // FIXED: Removed 'messages' from dependency array to prevent loops
@@ -816,7 +1092,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             // Send the booking change request
             console.log('Sending booking form data:', formData);
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(`${getBackendUrl()}/chat`, { // Use dynamic URL
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1055,8 +1331,8 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             console.log('Sending feedback to backend:', { messageId, postgresqlId, isPositive });
             
-            // 1. ORIGINAL ENDPOINT - Send to your backend (using props instead of env vars)
-            const feedbackUrl = webhookUrl.replace('/chat', '') + '/feedback';
+            // Send to backend using dynamic URL (preserving original functionality)
+            const feedbackUrl = `${getBackendUrl()}/feedback`; // Use dynamic URL
             console.log('External Feedback URL:', feedbackUrl);
             
             const externalResponse = await fetch(feedbackUrl, {
@@ -1079,9 +1355,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             
             console.log('External feedback response status:', externalResponse.status);
             
-            // 2. NEW ENDPOINT - Also send to our analytics system for proper ID linking
-            console.log('Sending feedback to analytics system for ID linking');
-            
+            // Analytics forwarding (optional - preserve original functionality)
             try {
                 const analyticsResponse = await fetch('/api/feedback/submit', {
                     method: 'POST',
@@ -1201,8 +1475,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         return 'general';
     };
 
+    // MAIN MESSAGE SENDING HANDLER - Enhanced with streaming functionality
     const handleSend = async () => {
-        if (!inputValue.trim() || isTyping) return;
+        if (!inputValue.trim() || isTyping || isStreaming) return; // Added isStreaming check
     
         const messageText = inputValue.trim();
         setInputValue('');
@@ -1220,8 +1495,37 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         checkSessionTimeout();
     
         try {
-            // Use props instead of environment variables
-            console.log('Sending message to:', webhookUrl);
+            // STREAMING FUNCTIONALITY - Smart mode selection
+            // Use SSE on Vercel, WebSocket locally for optimal performance
+            const useSSE = window.location.hostname !== 'localhost';
+            
+            // Try streaming first (faster, better user experience)
+            if (useSSE) {
+                console.log('🔄 Using SSE streaming (production mode)...');
+                setIsStreaming(true);
+                setCurrentStreamMessage('');
+                await sendSSEMessage(messageText);
+                return; // Exit early if streaming succeeds
+            } else {
+                console.log('🔄 Using WebSocket streaming (development mode)...');
+                setIsStreaming(true);
+                setCurrentStreamMessage('');
+                await sendStreamingMessage(messageText);
+                return; // Exit early if streaming succeeds
+            }
+
+        } catch (streamingError) {
+            console.error('❌ Streaming failed, falling back to HTTP:', streamingError);
+            // Reset streaming state and fall back to HTTP
+            setIsStreaming(false);
+            setCurrentStreamMessage('');
+            // Continue to HTTP fallback below
+        }
+
+        // HTTP FALLBACK - Original Sky Lagoon functionality preserved
+        try {
+            // Use dynamic backend URL instead of hardcoded webhookUrl
+            console.log('Sending message to:', getBackendUrl());
             console.log('Using session ID:', sessionId);
             
             // Log credential status
@@ -1252,7 +1556,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                 sessionId: sessionId
             };
             
-            const response = await fetch(webhookUrl, {
+            const response = await fetch(`${getBackendUrl()}/chat`, { // Use dynamic URL
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1825,7 +2129,53 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             </div>
                         )}
 
-                        {isTyping && <TypingIndicator />}
+                        {/* STREAMING FUNCTIONALITY - Live streaming preview */}
+                        {isStreaming && currentStreamMessage && (
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'flex-start',
+                                marginBottom: '16px',
+                                alignItems: 'flex-start',
+                                gap: '8px'
+                            }}>
+                                <img 
+                                    src="/solrun.png" 
+                                    alt="Sólrún"
+                                    style={{
+                                        width: '30px',
+                                        height: '30px',
+                                        borderRadius: '50%',
+                                        marginTop: '4px',
+                                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                />
+                                <div style={{
+                                    maxWidth: '70%',
+                                    padding: '12px 16px',
+                                    borderRadius: '16px',
+                                    backgroundColor: '#f0f0f0',
+                                    color: '#333333',
+                                    fontSize: '14px',
+                                    lineHeight: '1.5',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    border: '1px solid rgba(0, 0, 0, 0.05)',
+                                    position: 'relative'
+                                }}>
+                                    <MessageFormatter message={currentStreamMessage} />
+                                    <span style={{
+                                        display: 'inline-block',
+                                        width: '8px',
+                                        height: '14px',
+                                        backgroundColor: '#70744E',
+                                        marginLeft: '2px',
+                                        animation: 'sky-lagoon-chat-cursor 1s infinite'
+                                    }}>|</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Show typing indicator when not streaming */}
+                        {isTyping && !isStreaming && <TypingIndicator />}
                         <div ref={messagesEndRef} />
                     </div>
                 )}
@@ -1843,7 +2193,7 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleSend()}
+                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && !isStreaming && handleSend()} // Added !isStreaming
                             placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
                             style={{
                                 flex: 1,
@@ -1857,18 +2207,18 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         />
                         <button
                             onClick={handleSend}
-                            disabled={isTyping}
+                            disabled={isTyping || isStreaming} // Added isStreaming to disable condition
                             style={{
-                                backgroundColor: isTyping ? '#a0a0a0' : '#70744E',
+                                backgroundColor: (isTyping || isStreaming) ? '#a0a0a0' : '#70744E',
                                 color: 'white',
                                 border: 'none',
                                 padding: '8px 20px',
                                 borderRadius: '20px',
-                                cursor: isTyping ? 'default' : 'pointer',
+                                cursor: (isTyping || isStreaming) ? 'default' : 'pointer',
                                 fontSize: '14px',
                                 fontWeight: '500',
                                 boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                opacity: isTyping ? 0.7 : 1,
+                                opacity: (isTyping || isStreaming) ? 0.7 : 1,
                                 transition: 'all 0.3s ease'
                             }}
                         >
@@ -1956,6 +2306,16 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                         }
                         100% {
                             opacity: 1;
+                        }
+                    }
+
+                    /* STREAMING FUNCTIONALITY - Cursor animation for live streaming */
+                    @keyframes sky-lagoon-chat-cursor {
+                        0%, 50% {
+                            opacity: 1;
+                        }
+                        51%, 100% {
+                            opacity: 0;
                         }
                     }
                     
