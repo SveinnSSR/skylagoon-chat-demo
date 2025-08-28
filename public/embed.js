@@ -251,21 +251,15 @@
     closeButton.style.color = '#999';
   };
   
+  // FIXED: Remove the automatic reappearing behavior
   closeButton.onclick = function(e) {
     e.stopPropagation(); // Prevent the speech bubble click handler from firing
     speechBubble.style.display = 'none';
-    // FIXED: Use a more temporary storage mechanism
-    // Instead of sessionStorage, use a data attribute that doesn't persist across refreshes
+    // SOLUTION: When user closes it, respect their choice for the entire session
     speechBubble.dataset.temporarilyClosed = 'true';
     
-    // NEW: Set a timer to potentially show it again after some time
-    setTimeout(() => {
-      // Only show again if the user hasn't interacted with the main widget
-      if (!document.querySelector('#sky-lagoon-chat-root [style*="400px"]')) { // Widget is still minimized
-        speechBubble.dataset.temporarilyClosed = 'false';
-        speechBubble.style.display = 'block';
-      }
-    }, 30000); // Show again after 30 seconds if widget hasn't been opened
+    // REMOVED: The setTimeout that was causing it to reappear after 30 seconds
+    // No more automatic reappearing - user's choice is respected
   };
   
   speechBubble.appendChild(closeButton);
