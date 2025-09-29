@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
 import './styles/BookingChangeRequest.css';
-import { track } from '@vercel/analytics';
+import { track, Analytics } from '@vercel/analytics/react';
 
 // Export an initialization function
 const init = (container, config = {}) => {
@@ -26,13 +26,16 @@ const init = (container, config = {}) => {
   document.head.appendChild(style);
 
   ReactDOM.render(
-    <ChatWidget 
-      webhookUrl="https://sky-lagoon-chat-2024.vercel.app/chat"
-      apiKey={config.apiKey || "sky-lagoon-secret-2024"}
-      language={config.language || "en"}
-      isEmbedded={true}
-      baseUrl={baseUrl}
-    />,
+    <>
+      <ChatWidget 
+        webhookUrl="https://sky-lagoon-chat-2024.vercel.app/chat"
+        apiKey={config.apiKey || "sky-lagoon-secret-2024"}
+        language={config.language || "en"}
+        isEmbedded={true}
+        baseUrl={baseUrl}
+      />
+      <Analytics />
+    </>,
     container
   );
 
