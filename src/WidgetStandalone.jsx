@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom';
 import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
 import './styles/BookingChangeRequest.css';
-import { track, Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/react';
+import { track } from '@vercel/analytics';
 
 // Export an initialization function
 const init = (container, config = {}) => {
