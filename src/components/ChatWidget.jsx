@@ -5,6 +5,7 @@ import MessageFormatter from './MessageFormatter';
 import Pusher from 'pusher-js'; // Add Pusher import
 import BookingChangeRequest from './BookingChangeRequest';
 import '../styles/BookingChangeRequest.css';
+import { track } from '@vercel/analytics';
 
 // Define constants for connection messages to ensure consistent checks
 const CONNECTION_MESSAGE_EN = "You are now connected with a live agent. Please continue your conversation here.";
@@ -146,6 +147,10 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     const [newMessageIds, setNewMessageIds] = useState([]);
     // Tracking agent message errors to prevent UI crashes
     const [agentMessageErrors, setAgentMessageErrors] = useState(0);
+    // Analytics tracking - prevent duplicate events
+    const hasOpenedRef = React.useRef(false);
+    const lastOpenAtRef = React.useRef(0);
+    const ANALYTICS_SESSION_KEY = 'sky_chat_opened_session';    
     // NEW: Add connection message tracking ref
     const connectionMessageShownRef = React.useRef(false);
     // NEW: Add a state variable for tracking transfer completion
@@ -229,6 +234,33 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Analytics tracking functions
+    const trackChatOpenedOnce = () => {
+        const now = Date.now();
+        // Debounce: ignore if last open < 500ms ago
+        if (now - lastOpenAtRef.current < 500) return;
+
+        // Per-session guard: only track once per browser session
+        if (!sessionStorage.getItem(ANALYTICS_SESSION_KEY)) {
+            track('chatbot_opened');
+            sessionStorage.setItem(ANALYTICS_SESSION_KEY, '1');
+            console.log('📊 Analytics: chatbot_opened event tracked');
+        }
+
+        hasOpenedRef.current = true;
+        lastOpenAtRef.current = now;
+    };
+
+    const trackChatClosed = () => {
+        track('chatbot_closed');
+        console.log('📊 Analytics: chatbot_closed event tracked');
+    };
+
+    const trackMessageSent = () => {
+        track('chatbot_message_sent');
+        console.log('📊 Analytics: chatbot_message_sent event tracked');
+    };
 
     const scrollToBottom = (isDuringTyping = false) => {
         if (messagesEndRef.current) {
@@ -1512,6 +1544,9 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
     
         const messageText = inputValue.trim();
         setInputValue('');
+        
+        // Track message sent event
+        trackMessageSent();
     
         // Always show user message in chat
         setMessages(prev => [...prev, {
@@ -1774,7 +1809,19 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
             }}>
                 {/* Header */}
                 <div 
-                    onClick={() => setIsMinimized(!isMinimized)}
+                    onClick={() => {
+                        const wasMinimized = isMinimized;
+                        setIsMinimized(!isMinimized);
+                        
+                        // Track analytics events
+                        if (wasMinimized) {
+                            // Opening the chat
+                            trackChatOpenedOnce();
+                        } else {
+                            // Closing the chat
+                            trackChatClosed();
+                        }
+                    }}
                     style={{
                         padding: isMinimized ? '0' : '20px 16px',
                         display: 'flex',

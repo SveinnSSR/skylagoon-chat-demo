@@ -176,7 +176,10 @@
     speechBubble.style.display = 'none';
     // FIXED: Use a temporary in-memory flag instead of sessionStorage
     speechBubble.dataset.temporarilyClosed = 'true';
-    
+
+    // Signal analytics event to iframe
+    window.postMessage({ type: 'SKY_CHAT_EVENT', name: 'chatbot_opened' }, '*');    
+
     // Open the chat widget
     if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.openChat) {
       window.SkyLagoonChatAPI.openChat();

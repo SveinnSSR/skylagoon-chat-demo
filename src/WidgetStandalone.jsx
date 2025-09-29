@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import ChatWidget from './components/ChatWidget';
 import './styles/globals.css';
 import './styles/BookingChangeRequest.css';
+import { track } from '@vercel/analytics';
 
 // Export an initialization function
 const init = (container, config = {}) => {
@@ -52,6 +53,22 @@ const init = (container, config = {}) => {
     }
   };
 };
+
+// Listen for analytics events from parent page
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (evt) => {
+    if (evt?.data?.type === 'SKY_CHAT_EVENT' && evt.data.name) {
+      // Simple debounce to avoid duplicate events
+      if (!window.__skyLastEvtAt) window.__skyLastEvtAt = 0;
+      const now = Date.now();
+      if (now - window.__skyLastEvtAt > 300) {
+        track(evt.data.name);
+        console.log('📊 Analytics: Tracked event from parent:', evt.data.name);
+        window.__skyLastEvtAt = now;
+      }
+    }
+  });
+}
 
 // Auto-initialize if running standalone
 if (typeof window !== 'undefined' && !window.SkyLagoonChat) {
