@@ -1,10 +1,6 @@
 (function() {
   // FAILSAFE: Set to true to disable the widget completely.
   const WIDGET_DISABLED = false;
-
-  // --- SAFETY SWITCH: render the widget inside an iframe (isolates CSS/JS, enables Vercel Analytics on your domain)
-  // Set to false to roll back to the old script-embed behavior instantly.
-  const IFRAME_MODE = true;
   
   // If the widget is disabled, exit immediately
   if (WIDGET_DISABLED) {
@@ -21,20 +17,6 @@
   container.style.right = '20px';
   container.style.zIndex = '999999';
   document.body.appendChild(container);
-
-  // --- NEW (iframe mode): create isolated iframe (hidden until opened). Kept alongside legacy path for instant rollback.
-  const iframe = document.createElement('iframe');
-  iframe.id = 'sky-lagoon-chat-iframe';
-  // Will be updated once baseUrl is computed; set a sensible default now so first paint never breaks
-  iframe.src = 'https://skylagoon-chat-demo.vercel.app/widget.html';
-  iframe.style.width = '360px';
-  iframe.style.height = '520px';
-  iframe.style.border = '0';
-  iframe.style.borderRadius = '12px';
-  iframe.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
-  iframe.style.overflow = 'hidden';
-  iframe.style.display = 'none'; // we show it when the chat opens
-  container.appendChild(iframe);
   
   // FIX THE SUN ICON - Direct DOM manipulation
   // This needs to run after a slight delay to ensure the page has loaded
@@ -195,29 +177,17 @@
     // FIXED: Use a temporary in-memory flag instead of sessionStorage
     speechBubble.dataset.temporarilyClosed = 'true';
 
-    if (IFRAME_MODE) {
-      // --- iframe path: send analytics to the iframe & show it
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage(
-          { type: 'SKY_CHAT_EVENT', name: 'chatbot_opened' },
-          '*'
-        );
-      }
-      iframe.style.display = 'block';
-    } else {
-      // --- legacy path (kept for rollback): same-window analytics + open legacy widget
-      // Signal analytics event to iframe
-      window.postMessage({ type: 'SKY_CHAT_EVENT', name: 'chatbot_opened' }, '*');    
+    // Signal analytics event to iframe
+    window.postMessage({ type: 'SKY_CHAT_EVENT', name: 'chatbot_opened' }, '*');    
 
-      // Open the chat widget
-      if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.openChat) {
-        window.SkyLagoonChatAPI.openChat();
-      } else {
-        // Fallback: trigger click on the chat widget container
-        const chatWidget = document.querySelector('#sky-lagoon-chat-root');
-        if (chatWidget) {
-          chatWidget.click();
-        }
+    // Open the chat widget
+    if (window.SkyLagoonChatAPI && window.SkyLagoonChatAPI.openChat) {
+      window.SkyLagoonChatAPI.openChat();
+    } else {
+      // Fallback: trigger click on the chat widget container
+      const chatWidget = document.querySelector('#sky-lagoon-chat-root');
+      if (chatWidget) {
+        chatWidget.click();
       }
     }
   });
@@ -329,11 +299,6 @@
     // Fallback URL for production
     baseUrl = 'https://skylagoon-chat-demo.vercel.app';
   }
-
-  // --- NEW (iframe mode): ensure iframe points at our widget page on this origin
-  if (IFRAME_MODE) {
-    iframe.src = `${baseUrl}/widget.html`;
-  }
   
   // Full absolute URL to widget bundle
   const scriptUrl = `${baseUrl}/static/js/widget-bundle.js`;
@@ -357,12 +322,7 @@
   };
   
   // Start loading the fixes script
-  // In iframe mode, we do not inject scripts into the host page at all (prevents CSS/JS bleed).
-  if (!IFRAME_MODE) {
-    document.head.appendChild(fixScript);
-  } else {
-    console.log('Widget iframe mode active: skipping host-page script injection');
-  }
+  document.head.appendChild(fixScript);
   
   // Function to load the widget bundle
   function loadWidgetBundle() {
@@ -464,11 +424,6 @@
       }, 100); // Small delay to ensure everything is loaded
     };
     
-    // In iframe mode, we never append this script (kept for rollback clarity).
-    if (!IFRAME_MODE) {
-      document.head.appendChild(script);
-    } else {
-      console.log('Widget iframe mode active: skipping host-page bundle injection');
-    }
+    document.head.appendChild(script);
   }
 })();

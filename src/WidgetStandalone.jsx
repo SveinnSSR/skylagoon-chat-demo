@@ -26,9 +26,6 @@ const init = (container, config = {}) => {
   `;
   document.head.appendChild(style);
 
-  // --- NEW: keep a handle to cleanup observers on destroy
-  let resizeObserver = null; // <-- added
-
   ReactDOM.render(
     <>
       <ChatWidget 
@@ -43,59 +40,12 @@ const init = (container, config = {}) => {
     container
   );
 
-  // --- NEW (optional polish): notify parent when ready and on size changes
-  // This helps the parent auto-size the iframe and know widget readiness.
-  try {
-    const postToParent = (payload) => {
-      if (window.parent && window.parent !== window) {
-        window.parent.postMessage(
-          { type: 'SKY_CHAT_IFRAME', ...payload },
-          '*'
-        );
-      }
-    };
-
-    // Signal "ready" once mounted
-    postToParent({ event: 'ready' });
-
-    // Observe content size and report new height to parent (prevents scrollbars)
-    const measureHeight = () => {
-      // Prefer documentElement scrollHeight; fallback to body if needed
-      const h = Math.max(
-        document.documentElement?.scrollHeight || 0,
-        document.body?.scrollHeight || 0,
-        container?.scrollHeight || 0
-      );
-      // Clamp to a sensible max if you want (optional): Math.min(h, 720)
-      postToParent({ event: 'resize', height: h });
-    };
-
-    // Initial measure
-    measureHeight();
-
-    // Live observe changes in layout
-    resizeObserver = new ResizeObserver(() => {
-      // Debounce-ish: micro-batch changes in a frame
-      requestAnimationFrame(measureHeight);
-    });
-    // Observe the root container; you can also observe document.body
-    resizeObserver.observe(container);
-  } catch (err) {
-    console.warn('Parent bridge not available or ResizeObserver failed:', err);
-  }
-
   // Return API for controlling the widget
   return {
     destroy: () => {
       ReactDOM.unmountComponentAtNode(container);
       if (style.parentNode) {
         style.parentNode.removeChild(style);
-      }
-      // --- NEW: cleanup the observer to avoid leaks
-      try {
-        if (resizeObserver) resizeObserver.disconnect();
-      } catch (e) {
-        // no-op
       }
     },
     setLanguage: (newLanguage) => {
