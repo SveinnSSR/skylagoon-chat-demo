@@ -276,6 +276,14 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         scrollToBottom();
     }, [messages, showBookingForm, typingMessages, currentStreamMessage]); // Added currentStreamMessage for streaming
 
+    // Scroll to bottom when widget opens
+    useEffect(() => {
+        if (!isMinimized) {
+            // Small delay to ensure DOM is fully rendered
+            setTimeout(() => scrollToBottom(), 100);
+        }
+    }, [isMinimized]);
+
     // Functions for session management
     const generateSessionId = useCallback(() => {
         return `session_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
