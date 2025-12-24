@@ -1786,13 +1786,29 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
         }
     };
 
+    // Handle key down for Shift+Enter
+    const handleInputKeyDown = (e) => {
+        // Shift+Enter → newline (allow default behavior)
+        if (e.key === 'Enter' && e.shiftKey) {
+            return;
+        }
+
+        // Enter → send
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (!isTyping && !isStreaming && inputValue.trim()) {
+                handleSend();
+            }
+        }
+    };
+
     return (
         <ErrorBoundary>
             <div style={{
                 position: 'fixed',
                 bottom: '20px',
                 right: '20px',
-                width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '400px',
+                width: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : '450px',
                 height: isMinimized ? (windowWidth <= 768 ? '60px' : '70px') : 'auto',
                 maxHeight: isMinimized ? 'auto' : 'calc(100vh - 40px)',
                 backgroundColor: isMinimized ? 'rgba(112, 116, 78, 0.95)' : 'rgba(112, 116, 78, 1)', // Change to match header color
@@ -2251,51 +2267,89 @@ const ChatWidget = ({ webhookUrl = 'https://sky-lagoon-chat-2024.vercel.app/chat
                     </div>
                 )}
 
-                {/* Input area */}
+                {/* Input area - WITH SHIFT+ENTER SUPPORT + WRAPPED SEND BUTTON */}
                 {!isMinimized && (
                     <div style={{
                         padding: '12px 16px',
                         backgroundColor: 'white',
                         borderTop: '1px solid #eee',
-                        display: 'flex',
-                        gap: '8px'
+                        flexShrink: 0
                     }}>
-                        <input
-                            type="text"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !isTyping && !isStreaming && handleSend()} // Added !isStreaming
-                            placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
-                            style={{
-                                flex: 1,
-                                padding: '8px 16px',
-                                borderRadius: '20px',
-                                border: '1px solid #ddd',
-                                outline: 'none',
-                                fontSize: '14px',
-                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-                            }}
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={isTyping || isStreaming} // Added isStreaming to disable condition
-                            style={{
-                                backgroundColor: (isTyping || isStreaming) ? '#a0a0a0' : '#70744E',
-                                color: 'white',
-                                border: 'none',
-                                padding: '8px 20px',
-                                borderRadius: '20px',
-                                cursor: (isTyping || isStreaming) ? 'default' : 'pointer',
-                                fontSize: '14px',
-                                fontWeight: '500',
-                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                                opacity: (isTyping || isStreaming) ? 0.7 : 1,
-                                transition: 'all 0.3s ease'
-                            }}
-                        >
-                            {/* PREMIUM: Simple text, no lightning bolt or streaming icons */}
-                            {currentLanguage === 'en' ? 'Send' : 'Senda'}
-                        </button>
+                        <div style={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center'
+                        }}>
+                            <textarea
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                onKeyDown={handleInputKeyDown}
+                                placeholder={currentLanguage === 'en' ? "Type your message..." : "Skrifaðu skilaboð..."}
+                                rows={2}
+                                style={{
+                                    width: '100%',
+                                    height: '60px',
+                                    maxHeight: '60px',
+                                    padding: '10px 54px 10px 18px',
+                                    borderRadius: '22px',
+                                    border: '1px solid #D1D5DB',
+                                    outline: 'none',
+                                    fontSize: '14px',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                                    transition: 'all 0.2s ease',
+                                    backgroundColor: '#F3F4F6',
+                                    color: '#374151',
+                                    cursor: 'text',
+                                    resize: 'none',
+                                    fontFamily: 'inherit',
+                                    lineHeight: '1.35',
+                                    overflowY: 'auto',
+                                    whiteSpace: 'pre-wrap',
+                                    scrollbarWidth: 'none',
+                                    msOverflowStyle: 'none',
+                                    boxSizing: 'border-box'  // ✨ ADD THIS LINE
+                                }}
+                            />
+                            <button
+                                onClick={handleSend}
+                                disabled={!inputValue.trim() || isTyping || isStreaming}
+                                style={{
+                                    position: 'absolute',
+                                    right: '6px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'linear-gradient(135deg, #70744E 0%, #8B8F6A 100%)',
+                                    color: 'white',
+                                    border: 'none',
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    cursor: (!inputValue.trim() || isTyping || isStreaming) ? 'not-allowed' : 'pointer',
+                                    fontSize: '16px',
+                                    boxShadow: '0 3px 12px rgba(112, 116, 78, 0.35)',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    pointerEvents: (!inputValue.trim() || isTyping || isStreaming) ? 'none' : 'auto'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (inputValue.trim() && !isTyping && !isStreaming) {
+                                        e.currentTarget.style.transform = 'translateY(-50%) scale(1.08)';
+                                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(112, 116, 78, 0.5)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+                                    e.currentTarget.style.boxShadow = '0 3px 12px rgba(112, 116, 78, 0.35)';
+                                }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 12h14m0 0l-7-7m7 7l-7 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 )}
 
